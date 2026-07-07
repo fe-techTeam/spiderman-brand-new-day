@@ -349,7 +349,26 @@ html.bnd-fx-cursor [role="button"]:hover, html.bnd-fx-cursor [data-web-hover]:ho
   .walk-grid { grid-template-columns: repeat(2, 1fr) !important; }
 }
 @media (max-width: 540px) {
-  .walk-grid { grid-template-columns: 1fr !important; }
+  .walk-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+  .walk-panel { max-height: 92dvh; }
+  .walk-head { padding: 24px 18px 0 !important; }
+  .walk-head h2 { font-size: 19px !important; }
+  .walk-head p { font-size: 12px !important; line-height: 1.45 !important; margin-top: 8px !important; }
+  .walk-body { padding: 14px 14px 22px !important; }
+  .walk-body .bnd-card-body { padding: 11px 12px !important; }
+  .walk-body .bnd-card-body > div:first-child { margin-bottom: 6px !important; }
+  .walk-body .bnd-card-body > div:last-child { font-size: 11px !important; }
+}
+
+/* ===== Living Web world map: keep the flat-map aspect on phones (the
+   desktop wrapper is %-of-section and stretches badly when tall+narrow) ===== */
+@media (max-width: 760px) {
+  .lw-map {
+    top: 9% !important; bottom: auto !important; left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 150% !important; height: auto !important; aspect-ratio: 2 / 1;
+  }
+  .lw-twin-grid { grid-template-columns: 1fr !important; gap: 9px !important; max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 }
 
 /* ===== Web rail: right-side section nav ===== */

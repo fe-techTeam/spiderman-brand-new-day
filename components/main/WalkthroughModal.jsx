@@ -16,7 +16,7 @@ export default function WalkthroughModal({ walk, items, onClose, onJoin, onHover
             <img src="/assets/web.png" alt="" style={s("position: absolute; bottom: -60px; right: -50px; width: 320px; opacity: 0.06; mix-blend-mode: screen; pointer-events: none;")} />
 
             {/* HEADER */}
-            <div style={s("position: relative; padding: clamp(34px, 5vh, 54px) clamp(24px, 3vw, 44px) 0; display: flex; flex-direction: column; align-items: center; text-align: center;")}>
+            <div className="walk-head" style={s("position: relative; padding: clamp(34px, 5vh, 54px) clamp(24px, 3vw, 44px) 0; display: flex; flex-direction: column; align-items: center; text-align: center;")}>
               <h2 style={s("margin: 0; font-size: clamp(20px, 2.9vw, 34px); line-height: 1.05; font-weight: 800; letter-spacing: 0.01em; color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,0.5); text-wrap: balance;")}>Every Brand New Day starts with <span style={{ color: "#ff3a4a" }}>someone like you</span></h2>
               <p style={s("margin: 14px auto 0; max-width: 740px; font-size: clamp(13px, 1.4vw, 15px); line-height: 1.55; color: rgba(210,222,255,0.82); text-wrap: pretty;")}>You don&apos;t need radioactive blood to be Spider-Man. You just need to show up: for someone, for something, for yourself. Choose your identity, claim your identity, and become part of the biggest web this world has ever seen.</p>
               <div style={s("margin-top: clamp(16px, 2.4vh, 24px); width: min(320px, 70%); height: 2px; background: linear-gradient(90deg, rgba(120,150,220,0.15) 0%, rgba(120,150,220,0.35) 30%, #ff2233 50%, rgba(120,150,220,0.35) 70%, rgba(120,150,220,0.15) 100%);")}></div>
@@ -26,7 +26,7 @@ export default function WalkthroughModal({ walk, items, onClose, onJoin, onHover
             <button onClick={onClose} aria-label="Close" style={s("position: absolute; top: 14px; right: 16px; z-index: 5; width: 34px; height: 34px; border: 0; background: transparent; color: rgba(255,255,255,0.6); font-size: 22px; font-weight: 400; cursor: pointer; line-height: 1;")}>×</button>
 
             {/* BODY */}
-            <div style={s("position: relative; padding: clamp(20px, 3vh, 30px) clamp(24px, 3vw, 40px) clamp(34px, 5vh, 52px);")}>
+            <div className="walk-body" style={s("position: relative; padding: clamp(20px, 3vh, 30px) clamp(24px, 3vw, 40px) clamp(34px, 5vh, 52px);")}>
               <div className="walk-grid" style={s("display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(9px, 1.1vw, 14px);")}>
                 {items.map((w, i) => (
                   <div

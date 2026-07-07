@@ -428,16 +428,17 @@ export default function Home() {
       idx = Math.max(0, Math.min(list.length - 1, idx));
       const targetEl = list[idx];
       if (!targetEl) return;
-      // mobile: no scroll hijack, but menu/rail navigation still blinks the
-      // shutter like desktop (a long smooth scroll would fire the observer
-      // blink several times on the way down)
+      // mobile: swipes and menu taps both land here — shutter-blink to the
+      // target section (reduced motion falls back to a smooth scroll)
       if (!isDesktopRef.current) {
+        if (paging) return;
         pageIndex = idx;
         if (reduceMotion) {
           targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
         } else {
+          paging = true;
           mobileBlinkBusyRef.current = true;
-          transShutter(targetEl, () => { mobileBlinkBusyRef.current = false; });
+          transShutter(targetEl, () => { paging = false; mobileBlinkBusyRef.current = false; });
         }
         return;
       }
@@ -484,15 +485,40 @@ export default function Home() {
       if (["ArrowDown", "PageDown"].includes(ev.key)) { ev.preventDefault(); const n = nextPageIdx(1); if (n >= 0) goToPage(n); }
       else if (["ArrowUp", "PageUp"].includes(ev.key)) { ev.preventDefault(); const n = nextPageIdx(-1); if (n >= 0) goToPage(n); }
     };
-    let touchStartY = null;
-    const onTouchStart = (ev) => { if (isDesktopRef.current) touchStartY = ev.touches[0].clientY; };
-    const onTouchMove = (ev) => { if (isDesktopRef.current && !modalOpen()) ev.preventDefault(); };
+    /* One swipe = one section on phones too (user request: "even a bit" of
+       scroll pages with the blink). Sections taller than the viewport
+       (MJ Wall, footer) still scroll natively inside — paging only takes
+       over at their edges. Pull-to-refresh stays available at the very top. */
+    let touchStartY = null, touchPager = false;
+    const onTouchStart = (ev) => { touchStartY = ev.touches[0].clientY; touchPager = false; };
+    const onTouchMove = (ev) => {
+      if (modalOpen() || touchStartY == null) return;
+      if (isDesktopRef.current) { ev.preventDefault(); return; }
+      const dy = touchStartY - ev.touches[0].clientY;
+      if (!dy) return;
+      const dir = dy > 0 ? 1 : -1;
+      if (dir < 0 && (window.scrollY || 0) <= 0) return; // allow pull-to-refresh
+      const vh = window.innerHeight || 800;
+      const cur = pages().find((el) => { const r = el.getBoundingClientRect(); return r.top <= 8 && r.bottom >= vh - 8; });
+      if (cur) {
+        const r = cur.getBoundingClientRect();
+        // room left inside this tall section — let it scroll natively
+        if (dir > 0 ? r.bottom > vh + 8 : r.top < -8) return;
+      }
+      ev.preventDefault();
+      touchPager = true;
+    };
     const onTouchEnd = (ev) => {
-      if (!isDesktopRef.current || modalOpen() || paging || touchStartY == null) return;
+      if (modalOpen() || paging || touchStartY == null) { touchStartY = null; return; }
       const endY = (ev.changedTouches && ev.changedTouches[0].clientY) || touchStartY;
       const diff = touchStartY - endY;
-      if (Math.abs(diff) > 50) { const n = nextPageIdx(diff > 0 ? 1 : -1); if (n >= 0) goToPage(n); }
       touchStartY = null;
+      if (isDesktopRef.current) {
+        if (Math.abs(diff) > 50) { const n = nextPageIdx(diff > 0 ? 1 : -1); if (n >= 0) goToPage(n); }
+        return;
+      }
+      if (!touchPager) return; // it was a native scroll inside a tall section
+      if (Math.abs(diff) > 24) { const n = nextPageIdx(diff > 0 ? 1 : -1); if (n >= 0) goToPage(n); }
     };
 
     window.addEventListener("wheel", onWheel, { passive: false });
@@ -789,14 +815,14 @@ export default function Home() {
 
       {/* ================= THE LIVING WEB ================= */}
       <section data-page="livingweb" data-screen-label="The Living Web" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background: radial-gradient(120% 100% at 50% 26%, #0b1226 0%, #070711 55%, #040409 100%);")}>
-        <div style={s("position: absolute; top: 12%; bottom: 12%; left: 45%; transform: translateX(-50%); width: 84%; z-index: 1;")}>
+        <div className="lw-map" style={s("position: absolute; top: 12%; bottom: 12%; left: 45%; transform: translateX(-50%); width: 84%; z-index: 1;")}>
           <canvas ref={globeRef} style={s("position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.95; pointer-events: none;")}></canvas>
         </div>
         <div style={s("position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4,4,9,0.9) 0%, rgba(4,4,9,0.35) 26%, transparent 42%, transparent 60%, rgba(4,4,9,0.4) 78%, rgba(4,4,9,0.86) 100%); pointer-events: none;")}></div>
         <div style={s("position: absolute; inset: 0; background: linear-gradient(180deg, rgba(4,4,9,0.5) 0%, transparent 20%, transparent 62%, rgba(4,4,9,0.9) 100%); pointer-events: none;")}></div>
 
         {/* city marker chips */}
-        <div style={s("position: absolute; top: 12%; bottom: 12%; left: 45%; transform: translateX(-50%); width: 84%; z-index: 3; pointer-events: none;")}>
+        <div className="lw-map" style={s("position: absolute; top: 12%; bottom: 12%; left: 45%; transform: translateX(-50%); width: 84%; z-index: 3; pointer-events: none;")}>
           {MAP_CHIPS.map((c, i) => (
             <div key={i} style={s(`position: absolute; left: ${c.x}; top: ${c.y}; transform: translate(-50%, -50%); pointer-events: none;`)}>
               {c.labeled ? (
@@ -811,13 +837,13 @@ export default function Home() {
           ))}
         </div>
 
-        {!twinMode && (
+        {!(twinMode && user) && (
           <>
             {/* centered header */}
             <div data-page-content data-reveal className="bnd-reveal" style={s("position: absolute; left: 0; right: 0; bottom: clamp(52px, 9vh, 96px); z-index: 6; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 24px;")}>
               <h2 className="bnd-head" style={s("animation-delay: 120ms; margin: 0; font-family: 'Oswald', sans-serif; font-style: italic; font-size: clamp(22px, 3.4vw, 46px); line-height: 1; font-weight: 600; letter-spacing: 0.01em; text-transform: uppercase; color: #fff; text-shadow: 0 6px 34px rgba(0,0,0,0.6); white-space: nowrap;")}>The Web grows a little <span style={{ color: "#ff2f40" }}>every second.</span></h2>
               <p className="bnd-line" style={s("animation-delay: 310ms; margin: 12px 0 0; font-size: clamp(11px, 1.3vw, 15px); line-height: 1.5; color: rgba(226,226,240,0.72); white-space: nowrap;")}>While you were finding your identity, thousands of others were finding theirs too.</p>
-              <button className="bnd-line bnd-cta" onClick={() => { sfxRef.current && sfxRef.current.play("click"); setTwinMode(true); try { localStorage.setItem("bnd_twins_revealed", "1"); } catch {} }} onMouseEnter={onWalkHover} data-web-hover="true" style={s("animation-delay: 460ms; margin-top: clamp(16px, 2.4vh, 24px); border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
+              <button className="bnd-line bnd-cta" onClick={() => { sfxRef.current && sfxRef.current.play("click"); if (!user) { openAuth("register"); return; } setTwinMode(true); try { localStorage.setItem("bnd_twins_revealed", "1"); } catch {} }} onMouseEnter={onWalkHover} data-web-hover="true" style={s("animation-delay: 460ms; margin-top: clamp(16px, 2.4vh, 24px); border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
                 <span style={s("display: block; padding: 2px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);")}>
                   <span className="bnd-cta-inner" style={s("display: inline-flex; align-items: center; gap: 10px; padding: 13px 30px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: clamp(12px, 1.3vw, 14px); letter-spacing: 0.18em; text-transform: uppercase;")}><span className="bnd-cta-sheen"></span>Find your Web Twins <span style={{ fontSize: "15px" }}>→</span></span>
                 </span>
@@ -826,8 +852,8 @@ export default function Home() {
           </>
         )}
 
-        {/* TWIN MODE */}
-        {twinMode && (
+        {/* TWIN MODE — members only: web twins need a logged-in identity */}
+        {twinMode && user && (
           <div className="bnd-reveal in" style={s("position: absolute; inset: 0; z-index: 7; box-sizing: border-box; padding: clamp(84px, 13vh, 128px) clamp(24px, 5vw, 70px) clamp(34px, 6vh, 60px); display: flex; flex-direction: column;")}>
             <button onClick={() => setTwinMode(false)} data-web-hover="true" style={s("position: absolute; top: clamp(84px, 12vh, 118px); left: clamp(24px, 5vw, 70px); display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 0; color: rgba(255,255,255,0.7); font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer;")}>‹ Back to the Web</button>
 
@@ -842,7 +868,7 @@ export default function Home() {
             </div>
 
             <div style={s("flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;")}>
-              <div style={s("display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(12px, 1.4vw, 18px); width: min(1080px, 100%);")}>
+              <div className="lw-twin-grid" style={s("display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(12px, 1.4vw, 18px); width: min(1080px, 100%);")}>
                 {WEB_TWINS.map((tw, i) => (
                   <div key={i} className="bnd-line bnd-card twin-card" data-web-hover="true" style={s(`animation-delay: ${tw.delay}; position: relative; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.3), rgba(255,40,60,0.32)); clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px); transition: transform 380ms cubic-bezier(.16,.84,.3,1), box-shadow 380ms ease, background 380ms ease;`)}>
                     <div className="bnd-card-body" style={s("height: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 15px; padding: clamp(14px, 1.9vh, 20px) clamp(15px, 1.5vw, 20px); background: linear-gradient(150deg, rgba(16,20,38,0.95), rgba(9,10,20,0.96)); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); transition: background 380ms ease;")}>
