@@ -11,8 +11,6 @@ import { s } from "@/lib/style";
 import { portalApi } from "@/lib/portal/api";
 import { useSession } from "@/components/auth/SessionProvider";
 
-const FIELD = "width: 100%; box-sizing: border-box; border: 0; outline: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); border-radius: 9px; padding: 13px 15px; color: #fff; font-family: inherit; font-size: 15px;";
-const LABEL = "display: block; margin-bottom: 6px; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.55);";
 const EYEBROW = "font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.34em; text-transform: uppercase; color: #ff6b79;";
 const ERR_LINE = "margin: 14px 0 0; font-size: 13px; color: #ff5a6a;";
 const GHOST_LINK = "border: 0; background: transparent; cursor: pointer; padding: 0; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.55); transition: color .2s ease;";
@@ -61,20 +59,11 @@ export default function QuizPage() {
   const [result, setResult] = useState(null);
   const [retake, setRetake] = useState(false);
 
-  const [stateVal, setStateVal] = useState("");
-  const [countryVal, setCountryVal] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState("");
 
   const timerRef = useRef(null);
   useEffect(() => () => clearTimeout(timerRef.current), []);
-
-  // Prefill location from the profile (users retaking the quiz may have it).
-  useEffect(() => {
-    if (!user) return;
-    setStateVal((v) => v || user.state || "");
-    setCountryVal((v) => v || user.country || "");
-  }, [user]);
 
   // Existing avatar → jump straight to the reveal (unless retaking).
   const reveal =
@@ -138,20 +127,15 @@ export default function QuizPage() {
     setSubmitErr("");
   };
 
-  async function enterForum(withPatch) {
+  // Location is no longer asked here — country comes from the signup dial code
+  // (IP-based enrichment may come later, per client).
+  async function enterForum() {
     setSaving(true);
     setSaveErr("");
     try {
-      if (withPatch) {
-        const body = {};
-        if (stateVal.trim()) body.state = stateVal.trim();
-        if (countryVal.trim()) body.country = countryVal.trim();
-        if (Object.keys(body).length) await portalApi("/me", { method: "PATCH", body });
-      }
       await refresh();
       router.push("/forum");
     } catch (err) {
-      if (err.code === "quiz_required") { window.location.href = "/quiz"; return; }
       setSaveErr(err.message);
       setSaving(false);
     }
@@ -210,25 +194,10 @@ export default function QuizPage() {
             )}
           </Panel>
 
-          {/* location + enter */}
+          {/* enter */}
           <div style={s("animation: bnd-word-rise 620ms 1060ms cubic-bezier(.2,.7,.2,1) both; width: 100%; margin-top: 28px;")}>
-            <div style={s("display: flex; gap: 14px; flex-wrap: wrap;")}>
-              <div style={s("flex: 1 1 180px;")}>
-                <label style={s(LABEL)}>State</label>
-                <input value={stateVal} onChange={(e) => setStateVal(e.target.value)} type="text" placeholder="e.g. Maharashtra" style={s(FIELD)} />
-              </div>
-              <div style={s("flex: 1 1 180px;")}>
-                <label style={s(LABEL)}>Country</label>
-                <input value={countryVal} onChange={(e) => setCountryVal(e.target.value)} type="text" placeholder="e.g. India" style={s(FIELD)} />
-              </div>
-            </div>
-            <div style={s("margin-top: 18px;")}>
-              <RedCta onClick={() => enterForum(true)} disabled={saving}>{saving ? "Saving…" : "Save & Enter the Forum"}</RedCta>
-            </div>
+            <RedCta onClick={enterForum} disabled={saving}>{saving ? "Swinging in…" : "Enter the Forum"}</RedCta>
             {saveErr && <p style={s(ERR_LINE)}>{saveErr}</p>}
-            <p style={s("margin: 16px 0 0; text-align: center;")}>
-              <button type="button" onClick={() => enterForum(false)} disabled={saving} data-web-hover="true" className="link-hover-red" style={s(GHOST_LINK)}>Skip for now ›</button>
-            </p>
           </div>
         </div>
       </main>

@@ -260,7 +260,11 @@ html, body, a, button, [data-web-hover] {
 }
 @media (max-width: 560px) {
   .fm-header-title { display: none !important; }
+  /* Exit Forum collapses to its icon on small screens */
+  .fm-exit { padding: 9px 11px !important; }
+  .fm-exit-label { display: none; }
 }
+.fm-exit:hover { border-color: rgba(255,60,74,0.5) !important; color: #ff8a95 !important; }
 
 /* Pulsing red dot on the notifications bell when there are unread items */
 @keyframes bnd-notif-pulse {

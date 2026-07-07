@@ -269,7 +269,15 @@ export default function ForumPost() {
                       </div>
                     </div>
                   ) : (
-                    <p style={s("margin: 0 0 16px; font-size: 15px; line-height: 1.65; color: rgba(226,226,240,0.82); text-wrap: pretty;")}>{post.body}</p>
+                    <>
+                      {post.isSpoiler && (
+                        <button onClick={() => setRevealed(false)} data-web-hover="true" style={s("display: inline-flex; align-items: center; gap: 5px; margin: 0 0 10px; border: 1px solid rgba(255,60,74,0.35); cursor: pointer; padding: 4px 12px; border-radius: 999px; background: transparent; color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;")}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 3l18 18M10.6 10.6a2.5 2.5 0 003.5 3.5M9.9 4.5A9.9 9.9 0 0112 4.3c5 0 9 3.9 10 7.7-.4 1.4-1.2 2.8-2.3 3.9M6.3 6.4C4.2 7.8 2.7 9.8 2 12c1 3.8 5 7.7 10 7.7 1.4 0 2.8-.3 4-.8" /></svg>
+                          Hide spoiler
+                        </button>
+                      )}
+                      <p style={s("margin: 0 0 16px; font-size: 15px; line-height: 1.65; color: rgba(226,226,240,0.82); text-wrap: pretty;")}>{post.body}</p>
+                    </>
                   )}
                   <div style={s("display: flex; align-items: center; gap: 10px; flex-wrap: wrap;")}>
                     <span style={s("display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px; background: rgba(255,255,255,0.05); font-size: 12px; color: rgba(255,255,255,0.7);")}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.4 8.4 0 01-11.9 7.6L3 21l1.9-6.1A8.4 8.4 0 1121 11.5z" /></svg>{fmtCount(total)} Comments</span>

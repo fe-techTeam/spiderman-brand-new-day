@@ -1,7 +1,8 @@
 import { query } from "@/lib/server/db";
 import { createUserSession, hashPassword } from "@/lib/server/auth";
-import { vEmail, vPassword, vString, vUsername } from "@/lib/server/validate";
+import { vEmail, vPassword, vUsername } from "@/lib/server/validate";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { DEFAULT_COUNTRY_ISO, findCountry } from "@/lib/geo";
 
 export async function POST(request) {
   const body = await request.json().catch(() => ({}));
@@ -9,11 +10,16 @@ export async function POST(request) {
   const fields = {};
   const username = vUsername(body.username);
   const email = vEmail(body.email);
-  const mobile = body.mobile ? vString(body.mobile, { min: 6, max: 20 }) : null;
   const password = vPassword(body.password);
+  // Country comes from the dial-code dropdown (client request: no location
+  // question later — the code tells us the country; IP fallback may come later).
+  const country = findCountry(body.countryIso || DEFAULT_COUNTRY_ISO);
+  const localDigits = String(body.mobile || "").replace(/[\s()-]/g, "");
+  const mobile = country && /^\d{6,12}$/.test(localDigits) ? `${country.dial}${localDigits}` : null;
   if (!username) fields.username = "3–30 characters: letters, numbers, underscores";
   if (!email) fields.email = "Enter a valid email";
-  if (body.mobile && !mobile) fields.mobile = "Enter a valid mobile number";
+  if (!country) fields.mobile = "Pick a country code";
+  else if (!mobile) fields.mobile = "Enter your number without the country code (6–12 digits)";
   if (!password) fields.password = "8+ characters with at least one letter and one number";
   if (Object.keys(fields).length) {
     return Response.json({ error: "Check the highlighted fields", fields }, { status: 400 });
@@ -38,8 +44,8 @@ export async function POST(request) {
 
   const passwordHash = await hashPassword(password);
   const result = await query(
-    "INSERT INTO users (username, email, mobile, password_hash) VALUES (?, ?, ?, ?)",
-    [username, email, mobile, passwordHash]
+    "INSERT INTO users (username, email, mobile, country, password_hash) VALUES (?, ?, ?, ?, ?)",
+    [username, email, mobile, country.name, passwordHash]
   );
 
   const user = { id: result.insertId, username, token_version: 0 };

@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { s } from "@/lib/style";
 import { portalApi } from "@/lib/portal/api";
+import { COUNTRIES, DEFAULT_COUNTRY_ISO } from "@/lib/geo";
 
 // Register / Login popup rendered globally by SessionProvider. Calls the real
 // auth APIs; per-field validation errors from err.fields render under the
@@ -29,7 +30,14 @@ const Tab = ({ id, label, mode, onSelect }) => {
 
 export default function AuthModal({ initialMode = "register", onClose, onAuthed }) {
   const [mode, setMode] = useState(initialMode); // "register" | "login" | "forgot"
-  const [form, setForm] = useState({ username: "", email: "", mobile: "", password: "" });
+  const [form, setForm] = useState({
+    username: "",
+    email: "",
+    identifier: "", // login accepts email OR username
+    countryIso: DEFAULT_COUNTRY_ISO,
+    mobile: "",
+    password: "",
+  });
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState("");
@@ -54,9 +62,44 @@ export default function AuthModal({ initialMode = "register", onClose, onAuthed 
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Client-side mirror of the server rules (lib/server/validate.js) so users
+  // get instant feedback; the server remains the source of truth.
+  const validateClient = () => {
+    const errs = {};
+    if (isReg) {
+      if (!/^[a-z0-9_]{3,30}$/.test(form.username.trim().toLowerCase())) {
+        errs.username = "3–30 characters: letters, numbers, underscores";
+      }
+      const digits = form.mobile.replace(/[\s()-]/g, "");
+      if (!/^\d{6,12}$/.test(digits)) {
+        errs.mobile = "Enter your number without the country code (6–12 digits)";
+      }
+    }
+    if (!isForgot) {
+      const pw = form.password;
+      if (isReg && (pw.length < 8 || !/[a-zA-Z]/.test(pw) || !/[0-9]/.test(pw))) {
+        errs.password = "8+ characters with at least one letter and one number";
+      }
+    }
+    if (isReg || isForgot) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+        errs.email = "Enter a valid email";
+      }
+    } else if (form.identifier.trim().length < 3) {
+      errs.identifier = "Enter your email or username";
+    }
+    return errs;
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     if (submitting) return;
+    const clientErrs = validateClient();
+    if (Object.keys(clientErrs).length) {
+      setFieldErrors(clientErrs);
+      setError("");
+      return;
+    }
     setSubmitting(true);
     setFieldErrors({});
     setError("");
@@ -68,13 +111,19 @@ export default function AuthModal({ initialMode = "register", onClose, onAuthed 
       } else if (isReg) {
         const result = await portalApi("/auth/signup", {
           method: "POST",
-          body: { username: form.username, email: form.email, mobile: form.mobile, password: form.password },
+          body: {
+            username: form.username,
+            email: form.email,
+            countryIso: form.countryIso,
+            mobile: form.mobile.replace(/[\s()-]/g, ""),
+            password: form.password,
+          },
         });
         onAuthed(result);
       } else {
         const result = await portalApi("/auth/login", {
           method: "POST",
-          body: { email: form.email, password: form.password },
+          body: { identifier: form.identifier, password: form.password },
         });
         onAuthed(result);
       }
@@ -153,15 +202,46 @@ export default function AuthModal({ initialMode = "register", onClose, onAuthed 
                   {fieldError("username")}
                 </div>
               )}
-              <div style={s("margin-bottom: 14px;")}>
-                <label style={s(LABEL)}>Email</label>
-                <input value={form.email} onChange={set("email")} type="email" autoComplete="email" placeholder="you@example.com" required style={s(FIELD)} />
-                {fieldError("email")}
-              </div>
+              {isReg ? (
+                <div style={s("margin-bottom: 14px;")}>
+                  <label style={s(LABEL)}>Email</label>
+                  <input value={form.email} onChange={set("email")} type="email" autoComplete="email" placeholder="you@example.com" required style={s(FIELD)} />
+                  {fieldError("email")}
+                </div>
+              ) : (
+                <div style={s("margin-bottom: 14px;")}>
+                  <label style={s(LABEL)}>Email or Username</label>
+                  <input value={form.identifier} onChange={set("identifier")} type="text" autoComplete="username" placeholder="you@example.com or your_web_handle" required style={s(FIELD)} />
+                  {fieldError("identifier")}
+                </div>
+              )}
               {isReg && (
                 <div style={s("margin-bottom: 14px;")}>
                   <label style={s(LABEL)}>Mobile</label>
-                  <input value={form.mobile} onChange={set("mobile")} type="tel" autoComplete="tel" placeholder="+1 555 000 1234" required style={s(FIELD)} />
+                  <div style={s("display: flex; gap: 8px;")}>
+                    <div style={s("position: relative; flex: 0 0 108px;")}>
+                      {/* Closed label shows a compact "🇮🇳 +91"; the select's own
+                          text is transparent and the full country list lives in
+                          the native dropdown. */}
+                      <select
+                        value={form.countryIso}
+                        onChange={set("countryIso")}
+                        aria-label="Country code"
+                        style={s(FIELD + " appearance: none; cursor: pointer; color: transparent; padding-right: 8px;")}
+                      >
+                        {COUNTRIES.map((c) => (
+                          <option key={c.iso} value={c.iso} style={s("background: #0b1122; color: #fff;")}>
+                            {c.flag} {c.name} ({c.dial})
+                          </option>
+                        ))}
+                      </select>
+                      <span style={s("position: absolute; inset: 0; display: flex; align-items: center; padding-left: 15px; pointer-events: none; color: #fff; font-size: 15px;")}>
+                        {(() => { const c = COUNTRIES.find((x) => x.iso === form.countryIso) || COUNTRIES[0]; return `${c.flag} ${c.dial}`; })()}
+                        <span style={s("margin-left: auto; padding-right: 12px; color: rgba(255,255,255,0.45); font-size: 10px;")}>▾</span>
+                      </span>
+                    </div>
+                    <input value={form.mobile} onChange={set("mobile")} type="tel" autoComplete="tel" placeholder="98765 43210" required style={s(FIELD + " flex: 1;")} />
+                  </div>
                   {fieldError("mobile")}
                 </div>
               )}

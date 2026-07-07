@@ -145,11 +145,17 @@ export default function Forum() {
 
         {/* CENTER: feed */}
         <main style={s("display: flex; flex-direction: column; gap: 14px; min-width: 0;")}>
-          {/* sort tabs — two plain tabs, no wrapping card */}
+          {/* sort tabs — two plain tabs, no wrapping card + global spoiler control */}
           <div style={s("display: flex; align-items: center; gap: 8px;")}>
             {SORT_DEFS.map((sd) => (
               <button key={sd.key} onClick={() => setSort(sd.key)} data-web-hover="true" style={s(`display: inline-flex; align-items: center; gap: 7px; border: 0; cursor: pointer; padding: 10px 20px; border-radius: 9px; background: ${sort === sd.key ? "linear-gradient(180deg, #ff3a4a, #c00014)" : "rgba(255,255,255,0.05)"}; color: ${sort === sd.key ? "#fff" : "rgba(255,255,255,0.6)"}; font-family: 'Oswald', sans-serif; font-size: 12.5px; letter-spacing: 0.12em; text-transform: uppercase; transition: background .2s ease, color .2s ease;`)}>{sd.label}</button>
             ))}
+            {revealed.size > 0 && (
+              <button onClick={() => setRevealed(new Set())} data-web-hover="true" style={s("margin-left: auto; display: inline-flex; align-items: center; gap: 7px; border: 1px solid rgba(255,60,74,0.4); cursor: pointer; padding: 9px 16px; border-radius: 999px; background: rgba(255,40,60,0.08); color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; transition: background .2s ease;")}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 3l18 18M10.6 10.6a2.5 2.5 0 003.5 3.5M9.9 4.5A9.9 9.9 0 0112 4.3c5 0 9 3.9 10 7.7-.4 1.4-1.2 2.8-2.3 3.9M6.3 6.4C4.2 7.8 2.7 9.8 2 12c1 3.8 5 7.7 10 7.7 1.4 0 2.8-.3 4-.8" /></svg>
+                Hide all spoilers
+              </button>
+            )}
           </div>
 
           {/* create prompt */}
@@ -193,6 +199,12 @@ export default function Forum() {
                       <span style={{ opacity: 0.5 }}>·</span><span>{relTime(t.createdAt)}</span>
                       {t.flair && (
                         <span style={s("display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: rgba(255,40,60,0.12); border: 1px solid rgba(255,60,74,0.35); color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;")}>{t.flair}</span>
+                      )}
+                      {t.isSpoiler && isRevealed && (
+                        <button onClick={(e) => { e.stopPropagation(); toggleReveal(t.id); }} data-web-hover="true" style={s("display: inline-flex; align-items: center; gap: 5px; border: 1px solid rgba(255,60,74,0.35); cursor: pointer; padding: 3px 10px; border-radius: 999px; background: transparent; color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;")}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 3l18 18M10.6 10.6a2.5 2.5 0 003.5 3.5M9.9 4.5A9.9 9.9 0 0112 4.3c5 0 9 3.9 10 7.7-.4 1.4-1.2 2.8-2.3 3.9M6.3 6.4C4.2 7.8 2.7 9.8 2 12c1 3.8 5 7.7 10 7.7 1.4 0 2.8-.3 4-.8" /></svg>
+                          Hide spoiler
+                        </button>
                       )}
                     </div>
                     <h3 style={s("font-size: clamp(17px, 1.7vw, 21px); font-weight: 500; color: #fff; line-height: 1.15; margin-bottom: 8px;")}>{t.title}</h3>

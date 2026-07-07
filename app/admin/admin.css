@@ -87,26 +87,36 @@
   * {
     @apply border-border outline-ring/50;
   }
-  /* Neutralize the microsite's global body styling (custom spider cursor, etc.)
-     inside the admin shell. */
   .admin-root {
     @apply bg-background text-foreground min-h-screen;
-    cursor: auto;
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
       "Helvetica Neue", Arial, sans-serif;
   }
-  .admin-root *,
-  .admin-root a,
-  .admin-root button {
-    cursor: auto;
-  }
-  .admin-root button,
-  .admin-root a,
-  .admin-root [role="button"],
-  .admin-root select,
-  .admin-root [role="menuitem"],
-  .admin-root [role="option"],
-  .admin-root [role="tab"] {
-    cursor: pointer;
-  }
+}
+
+/* Kill the microsite's custom spider cursor on the admin panel. These rules are
+   deliberately UNLAYERED: globals.css sets the cursor outside any @layer, and
+   unlayered styles always beat @layer base regardless of specificity. */
+html:has(.admin-root),
+body:has(.admin-root),
+.admin-root,
+.admin-root *,
+.admin-root a,
+.admin-root button,
+.admin-root [data-web-hover] {
+  cursor: auto;
+}
+.admin-root button:not(:disabled),
+.admin-root a,
+.admin-root [role="button"],
+.admin-root select,
+.admin-root [role="menuitem"],
+.admin-root [role="option"],
+.admin-root [role="tab"],
+.admin-root label[for] {
+  cursor: pointer;
+}
+.admin-root input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+.admin-root textarea {
+  cursor: text;
 }
