@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { s } from "@/lib/style";
@@ -254,7 +254,11 @@ export default function ForumPost() {
     }
   };
 
-  const ReplyBox = ({ rootId }) => (
+  // Render helpers, NOT components: defining component types inside the page
+  // gives React a brand-new type every render, so each keystroke in the reply
+  // textarea remounted it and dropped the caret to position 0 — typed text
+  // came out reversed. Plain function calls keep the same element tree.
+  const renderReplyBox = (rootId) => (
     <div style={s("margin-top: 10px;")}>
       <textarea autoFocus value={replyDraft} onChange={(e) => setReplyDraft(e.target.value)} rows={2} placeholder="Write a reply… use @ to mention someone" style={s("width: 100%; box-sizing: border-box; resize: none; border: 0; outline: 0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 9px; padding: 10px 12px; color: #fff; font-family: inherit; font-size: 13.5px; line-height: 1.5;")}></textarea>
       {replyErr && <div style={s("margin-top: 6px; font-size: 12px; color: #ff8a96;")}>{replyErr}</div>}
@@ -269,7 +273,7 @@ export default function ForumPost() {
     </div>
   );
 
-  const CommentRow = ({ c, rootId, small }) => {
+  const renderCommentRow = (c, rootId, small) => {
     const isMe = c.author.username === user?.username;
     return (
       <div style={s("display: flex; gap: 12px;")}>
@@ -286,7 +290,7 @@ export default function ForumPost() {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 17l-5-5 5-5" /><path d="M20 18v-2a4 4 0 00-4-4H4" /></svg>Reply
             </button>
           </div>
-          {openReplyId === c.id && <ReplyBox rootId={rootId} />}
+          {openReplyId === c.id && renderReplyBox(rootId)}
         </div>
       </div>
     );
@@ -423,11 +427,11 @@ export default function ForumPost() {
               )}
               {roots.map((r) => (
                 <div key={r.id} style={s("padding: 16px 18px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px;")}>
-                  <CommentRow c={r} rootId={r.id} />
+                  {renderCommentRow(r, r.id)}
                   {r.replies.length > 0 && (
                     <div style={s("margin-top: 14px; padding-left: 16px; border-left: 2px solid rgba(255,60,74,0.25); display: flex; flex-direction: column; gap: 14px;")}>
                       {r.replies.map((rep) => (
-                        <CommentRow key={rep.id} c={rep} rootId={r.id} small />
+                        <Fragment key={rep.id}>{renderCommentRow(rep, r.id, true)}</Fragment>
                       ))}
                     </div>
                   )}
