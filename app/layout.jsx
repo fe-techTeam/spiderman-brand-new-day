@@ -2,10 +2,33 @@ import "./globals.css";
 import SessionProvider from "@/components/auth/SessionProvider";
 import CursorFx from "@/components/CursorFx";
 
+const SITE_URL = "https://spidermania.in";
+const SITE_NAME = "Spider-Man: Brand New Day";
+const SITE_DESCRIPTION =
+  "Every Brand New Day starts with someone like you. Discover your Spider identity, find your Web Twins, and join the biggest web this world has ever seen.";
+
 export const metadata = {
-  title: "Spider-Man: Brand New Day",
-  description:
-    "Every Brand New Day starts with someone like you. Discover your Spider identity, find your Web Twins, and join the biggest web this world has ever seen.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: "./" }, // resolves per-route against metadataBase
+  keywords: ["Spider-Man", "Brand New Day", "Spider-Verse", "MJ Wall", "Spidey Tracker", "Marvel", "fan community"],
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    locale: "en_US",
+    images: [{ url: "/assets/trailer-thumb.jpg", width: 1280, height: 720, alt: SITE_NAME }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: ["/assets/trailer-thumb.jpg"],
+  },
+  robots: { index: true, follow: true },
   icons: { icon: "/assets/spider-red.svg" },
 };
 

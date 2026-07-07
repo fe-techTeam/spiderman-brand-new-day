@@ -28,7 +28,7 @@ export async function POST(request) {
     [user.id, tokenHash]
   );
 
-  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/reset-password?token=${token}`;
+  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === "production" ? "https://spidermania.in" : "http://localhost:3000")}/reset-password?token=${token}`;
   console.log(`[forgot-password] reset link for ${email}: ${resetUrl}`);
   if (process.env.NODE_ENV !== "production") {
     return Response.json({ ok: true, message: "Dev mode: use the link below.", resetUrl });
