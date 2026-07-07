@@ -1,11 +1,10 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-// The MJ Wall — "Living Memory Wall" (ported from MJ Wall.dc.html). Four
-// marquee columns of memory cards flow past a heartbeat spider emblem; cards
-// expand into a modal, and a fixed composer posts to the real API. A message
-// just sent from the home section arrives via the localStorage handoff and
-// floats in at the top of the wall.
+// The MJ Wall — "Living Memory Wall" (ported from MJ Wall.dc.html). Memory
+// cards are dealt into masonry columns on a normally-scrolling page (the wall
+// can hold hundreds of entries — more load in as you approach the bottom).
+// Cards expand into a modal, and a sticky composer posts to the real API.
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -48,10 +47,22 @@ const SEED_RAW = [
 ];
 const SEEDS = SEED_RAW.map(([name, text], i) => ({ id: `s${i}`, name, initial: name[0], text, ...PALS[i % PALS.length] }));
 
+const MSG_MAX = 280; // hard message cap — long walls of text break the cards
+
+const mapMsg = (m, i) => ({
+  id: m.id,
+  name: "u/" + m.author.username,
+  initial: m.author.username[0].toUpperCase(),
+  text: m.body,
+  ...PALS[i % PALS.length],
+});
+
 export default function MjWallPage() {
   const { user, openAuth } = useSession();
   const [messages, setMessages] = useState(SEEDS); // seeded copy stays as the fallback
   const [extra, setExtra] = useState([]);          // the visitor's fresh cards (float in first)
+  const [nextCursor, setNextCursor] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [selected, setSelected] = useState(null);
   const [draft, setDraft] = useState("");
   const [justSent, setJustSent] = useState(false);
@@ -60,6 +71,7 @@ export default function MjWallPage() {
   const [ncol, setNcol] = useState(4);
   const inputRef = useRef(null);
   const spotRef = useRef(null);
+  const moreRef = useRef(null);
   const uidRef = useRef(0);
 
   /* localStorage handoff from the home section + live messages */
@@ -77,18 +89,36 @@ export default function MjWallPage() {
     portalApi("/mj-wall/messages?limit=30")
       .then((data) => {
         if (!on || !Array.isArray(data.messages) || !data.messages.length) return;
-        setMessages(data.messages.map((m, i) => ({
-          id: m.id,
-          name: "u/" + m.author.username,
-          initial: m.author.username[0].toUpperCase(),
-          text: m.body,
-          ...PALS[i % PALS.length],
-        })));
+        setMessages(data.messages.map(mapMsg));
+        setNextCursor(data.nextCursor || null);
       })
       .catch(() => {}); // the seeded wall stays up
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* infinite scroll — pull the next page while a cursor remains */
+  useEffect(() => {
+    const el = moreRef.current;
+    if (!el || !nextCursor || loadingMore || !("IntersectionObserver" in window)) return;
+    const obs = new IntersectionObserver(async (entries) => {
+      if (!entries.some((en) => en.isIntersecting)) return;
+      obs.disconnect();
+      setLoadingMore(true);
+      try {
+        const data = await portalApi(`/mj-wall/messages?limit=30&cursor=${encodeURIComponent(nextCursor)}`);
+        const fresh = Array.isArray(data.messages) ? data.messages : [];
+        setMessages((prev) => [...prev, ...fresh.map((m, i) => mapMsg(m, prev.length + i))]);
+        setNextCursor(data.nextCursor || null);
+      } catch (e) {
+        // leave the cursor in place — scrolling near the sentinel retries
+      } finally {
+        setLoadingMore(false);
+      }
+    }, { rootMargin: "700px 0px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [nextCursor, loadingMore]);
 
   /* cursor spotlight follows the pointer (eased RAF, from the mockup) */
   useEffect(() => {
@@ -117,7 +147,7 @@ export default function MjWallPage() {
   }, []);
 
   const post = async () => {
-    const t = draft.trim();
+    const t = draft.trim().slice(0, MSG_MAX);
     if (!t) { inputRef.current && inputRef.current.focus(); return; }
     if (!user) { openAuth("login"); return; }
     if (sending) return;
@@ -137,20 +167,11 @@ export default function MjWallPage() {
     }
   };
 
-  /* deal the cards into flowing columns (doubled for a seamless marquee) */
+  /* deal the cards round-robin into masonry columns — every entry renders
+     exactly once, and the page scrolls to reach all of them */
   const all = [...extra, ...messages];
-  const cards = [];
-  let round = 0;
-  while (cards.length < Math.max(all.length, ncol * 4) && round < 8) { // repeat a sparse wall so the marquee stays alive
-    all.forEach((m, i) => cards.push({ ...m, key: `${m.id}-${round}-${i}` }));
-    round += 1;
-    if (!all.length) break;
-  }
   const cols = Array.from({ length: ncol }, () => []);
-  cards.forEach((m, i) => cols[i % ncol].push(m));
-  const anims = ["mjw-flow-up", "mjw-flow-down", "mjw-flow-up", "mjw-flow-down"];
-  const durs = ["46s", "54s", "50s", "60s"];
-  const columns = cols.map((c, i) => ({ cards: [...c, ...c], anim: anims[i % 4], dur: durs[i % 4] }));
+  all.forEach((m, i) => cols[i % ncol].push({ ...m, idx: i }));
 
   const cardBody = (m) => (
     <div style={{ background: m.bg, clipPath: "polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px)", padding: "15px 16px" }}>
@@ -164,10 +185,10 @@ export default function MjWallPage() {
   );
 
   return (
-    <div style={s("position: fixed; inset: 0; display: flex; flex-direction: column; background: radial-gradient(120% 90% at 50% -10%, #2a0510 0%, #0d0713 48%, #08060c 100%);")}>
+    <div style={s("position: relative; min-height: 100vh; display: flex; flex-direction: column; background: radial-gradient(120% 90% at 50% -10%, #2a0510 0%, #0d0713 48%, #08060c 100%);")}>
 
       {/* ambient motes */}
-      <div style={s("position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden;")}>
+      <div style={s("position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden;")}>
         <span style={s("position: absolute; left: 12%; bottom: 22%; width: 4px; height: 4px; border-radius: 50%; background: #ff5a6a; box-shadow: 0 0 10px 2px rgba(255,60,74,0.7); animation: mjw-float 9s ease-in-out infinite;")}></span>
         <span style={s("position: absolute; left: 38%; bottom: 12%; width: 3px; height: 3px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px 2px rgba(255,255,255,0.6); animation: mjw-float 12s ease-in-out infinite 2s;")}></span>
         <span style={s("position: absolute; left: 72%; bottom: 18%; width: 5px; height: 5px; border-radius: 50%; background: #ff5a6a; box-shadow: 0 0 12px 3px rgba(255,60,74,0.6); animation: mjw-float 10s ease-in-out infinite 4s;")}></span>
@@ -175,25 +196,25 @@ export default function MjWallPage() {
       </div>
 
       {/* cinematic god-rays */}
-      <div style={s("position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; mix-blend-mode: screen;")}>
+      <div style={s("position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; mix-blend-mode: screen;")}>
         <div style={s("position: absolute; top: -30%; left: 8%; width: 22vw; height: 160%; background: linear-gradient(180deg, rgba(255,60,74,0.16), transparent 70%); transform: rotate(9deg); filter: blur(24px); animation: mjw-ray 13s ease-in-out infinite;")}></div>
         <div style={s("position: absolute; top: -30%; right: 12%; width: 18vw; height: 160%; background: linear-gradient(180deg, rgba(120,150,255,0.13), transparent 70%); transform: rotate(-7deg); filter: blur(26px); animation: mjw-ray 17s ease-in-out infinite 2s;")}></div>
       </div>
 
       {/* giant heartbeat spider emblem behind the wall */}
-      <div style={s("position: absolute; top: 46%; left: 50%; transform: translate(-50%,-50%); z-index: 0; width: min(72vh, 720px); height: min(72vh, 720px); pointer-events: none; animation: mjw-heartbeat 3.2s ease-in-out infinite;")}>
+      <div style={s("position: fixed; top: 46%; left: 50%; transform: translate(-50%,-50%); z-index: 0; width: min(72vh, 720px); height: min(72vh, 720px); pointer-events: none; animation: mjw-heartbeat 3.2s ease-in-out infinite;")}>
         <svg viewBox="0 0 100 100" style={{ width: "100%", height: "100%", opacity: 0.5 }} fill="none" stroke="rgba(255,47,64,0.35)" strokeWidth="0.7" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="50" cy="44" rx="9" ry="12" /><path d="M50 32V16M42 36 22 26M58 36l20-10M43 52 27 66M57 52l16 14M50 56v20" /></svg>
       </div>
 
       {/* cursor spotlight */}
-      <div ref={spotRef} style={s("position: absolute; top: 0; left: 0; z-index: 2; width: 640px; height: 640px; margin: -320px 0 0 -320px; border-radius: 50%; background: radial-gradient(circle, rgba(255,90,110,0.12) 0%, rgba(255,60,74,0.05) 35%, transparent 66%); pointer-events: none; will-change: transform; mix-blend-mode: screen; transition: opacity .4s ease;")}></div>
+      <div ref={spotRef} style={s("position: fixed; top: 0; left: 0; z-index: 2; width: 640px; height: 640px; margin: -320px 0 0 -320px; border-radius: 50%; background: radial-gradient(circle, rgba(255,90,110,0.12) 0%, rgba(255,60,74,0.05) 35%, transparent 66%); pointer-events: none; will-change: transform; mix-blend-mode: screen; transition: opacity .4s ease;")}></div>
 
       {/* MJ reflection overlay (faint, does not affect legibility) */}
-      <div style={s("position: absolute; inset: 0; z-index: 12; pointer-events: none; background-image: url('/assets/mj-portrait.jpg'); background-size: cover; background-position: center 28%; mix-blend-mode: screen; animation: mjw-mj-pulse 7s ease-in-out infinite;")}></div>
+      <div style={s("position: fixed; inset: 0; z-index: 12; pointer-events: none; background-image: url('/assets/mj-portrait.jpg'); background-size: cover; background-position: center 28%; mix-blend-mode: screen; animation: mjw-mj-pulse 7s ease-in-out infinite;")}></div>
 
       {/* vignette + flicker */}
-      <div style={s("position: absolute; inset: 0; z-index: 15; pointer-events: none; background: radial-gradient(120% 90% at 50% 42%, transparent 48%, rgba(4,3,8,0.5) 82%, rgba(3,2,6,0.82) 100%);")}></div>
-      <div style={s("position: absolute; inset: 0; z-index: 15; pointer-events: none; background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 30%); animation: mjw-flicker 4s ease-in-out infinite;")}></div>
+      <div style={s("position: fixed; inset: 0; z-index: 15; pointer-events: none; background: radial-gradient(120% 90% at 50% 42%, transparent 48%, rgba(4,3,8,0.5) 82%, rgba(3,2,6,0.82) 100%);")}></div>
+      <div style={s("position: fixed; inset: 0; z-index: 15; pointer-events: none; background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 30%); animation: mjw-flicker 4s ease-in-out infinite;")}></div>
 
       {/* TOP BAR */}
       <header style={s("position: relative; z-index: 30; flex-shrink: 0; display: flex; align-items: center; gap: clamp(14px, 2vw, 28px); padding: 12px clamp(18px, 3vw, 40px); background: transparent;")}>
@@ -214,21 +235,26 @@ export default function MjWallPage() {
         <p style={s("margin: 12px auto 0; max-width: 540px; font-size: clamp(13px, 1.4vw, 15px); line-height: 1.55; color: rgba(226,226,240,0.66); animation: mjw-rise 1s ease .3s both;")}>Memories of Peter, flowing in from every corner of the Web.</p>
       </div>
 
-      {/* FLOWING WALL */}
-      <div className="mjw-flowwrap" style={{ position: "relative", zIndex: 10, flex: 1, minHeight: 0, overflow: "hidden", WebkitMaskImage: "linear-gradient(180deg, transparent 0%, #000 12%, #000 82%, transparent 100%)", maskImage: "linear-gradient(180deg, transparent 0%, #000 12%, #000 82%, transparent 100%)" }}>
-        <div style={s("display: flex; gap: clamp(12px, 1.4vw, 20px); justify-content: center; height: 100%; padding: 0 clamp(14px, 3vw, 40px); align-items: flex-start;")}>
-          {columns.map((col, ci) => (
-            <div key={ci} style={s("flex: 1 1 0; min-width: 0; max-width: 320px; height: 100%; overflow: hidden;")}>
-              <div className="mjw-col" style={s(`display: flex; flex-direction: column; gap: clamp(12px, 1.4vw, 18px); animation: ${col.anim} ${col.dur} linear infinite; will-change: transform;`)}>
-                {col.cards.map((m, i) => (
-                  <div key={`${m.key}-${i}`} className="mjw-card" onClick={() => setSelected(m)} data-web-hover="true" style={{ breakInside: "avoid", position: "relative", padding: "1px", background: `linear-gradient(150deg, ${m.edgeA}, ${m.edgeB})`, clipPath: "polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px)", cursor: "pointer" }}>
-                    {cardBody(m)}
-                  </div>
-                ))}
-              </div>
+      {/* SCROLLING WALL — every entry renders once; more pages load near the bottom */}
+      <div style={{ position: "relative", zIndex: 10, flex: 1, width: "100%", maxWidth: "1380px", margin: "0 auto", boxSizing: "border-box", padding: "6px clamp(14px, 3vw, 40px) 28px" }}>
+        <div style={s("display: flex; gap: clamp(12px, 1.4vw, 20px); justify-content: center; align-items: flex-start;")}>
+          {cols.map((col, ci) => (
+            <div key={ci} style={s("flex: 1 1 0; min-width: 0; max-width: 320px; display: flex; flex-direction: column; gap: clamp(12px, 1.4vw, 18px);")}>
+              {col.map((m) => (
+                <div key={m.id} className="mjw-card" onClick={() => setSelected(m)} data-web-hover="true" style={{ position: "relative", padding: "1px", background: `linear-gradient(150deg, ${m.edgeA}, ${m.edgeB})`, clipPath: "polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px)", cursor: "pointer", animation: "mjw-rise .55s ease both", animationDelay: `${Math.min(m.idx, 12) * 45}ms` }}>
+                  {cardBody(m)}
+                </div>
+              ))}
             </div>
           ))}
         </div>
+
+        {/* infinite-scroll sentinel */}
+        {nextCursor && (
+          <div ref={moreRef} style={s("padding: 26px 0 8px; text-align: center; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(255,255,255,0.35);")}>
+            {loadingMore ? "Weaving in more memories…" : ""}
+          </div>
+        )}
       </div>
 
       {/* EXPANDED CARD MODAL */}
@@ -251,8 +277,8 @@ export default function MjWallPage() {
         </div>
       )}
 
-      {/* COMPOSER (fixed bottom) */}
-      <div style={s("position: relative; z-index: 30; flex-shrink: 0; padding: clamp(12px, 2vh, 20px) clamp(16px, 4vw, 60px) clamp(16px, 2.5vh, 26px); background: linear-gradient(0deg, #08060c 60%, rgba(8,6,12,0) 100%);")}>
+      {/* COMPOSER (sticks to the bottom while the wall scrolls) */}
+      <div style={s("position: sticky; bottom: 0; z-index: 30; flex-shrink: 0; padding: clamp(12px, 2vh, 20px) clamp(16px, 4vw, 60px) clamp(16px, 2.5vh, 26px); background: linear-gradient(0deg, #08060c 60%, rgba(8,6,12,0) 100%);")}>
         <div style={s("max-width: 900px; margin: 0 auto;")}>
           {justSent ? (
             <div style={s("display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px; animation: mjw-rise .5s ease both; flex-wrap: wrap;")}>
@@ -268,11 +294,15 @@ export default function MjWallPage() {
                     id="mjw-composer"
                     ref={inputRef}
                     value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
+                    onChange={(e) => setDraft(e.target.value.slice(0, MSG_MAX))}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); post(); } }}
+                    maxLength={MSG_MAX}
                     placeholder="Remind MJ of one thing about Peter…"
                     style={s("flex: 1; min-width: 180px; border: 0; outline: 0; background: transparent; color: #fff; text-shadow: 0 0 8px rgba(255,255,255,0.3); font-family: inherit; font-size: 15px;")}
                   />
+                  {draft.length >= MSG_MAX * 0.6 && (
+                    <span style={s(`flex-shrink: 0; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.08em; color: ${draft.length >= MSG_MAX ? "#ff6b79" : "rgba(255,255,255,0.4)"};`)}>{draft.length}/{MSG_MAX}</span>
+                  )}
                   <button onClick={post} disabled={sending} data-web-hover="true" className="mjw-cta" style={s(`flex-shrink: 0; position: relative; border: 0; padding: 0; background: transparent; cursor: ${sending ? "default" : "pointer"}; opacity: ${sending ? "0.7" : "1"}; font-family: inherit;`)}>
                     <span style={s("display: block; padding: 2px; background: linear-gradient(180deg, #1f4cd6, #0b2a8a); clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px);")}>
                       <span style={s("position: relative; overflow: hidden; display: inline-flex; padding: 12px 24px; background: linear-gradient(180deg, #ffd23f, #f7a91d); clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px); color: #6b2a00; font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase;")}><span className="mjw-sheen"></span>Send to MJ</span>

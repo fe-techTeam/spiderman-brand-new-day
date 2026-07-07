@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { s } from "@/lib/style";
 import { portalApi } from "@/lib/portal/api";
 import { useSession } from "@/components/auth/SessionProvider";
+import Nav from "@/components/main/Nav";
 
 const EYEBROW = "font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.34em; text-transform: uppercase; color: #ff6b79;";
 const ERR_LINE = "margin: 14px 0 0; font-size: 13px; color: #ff5a6a;";
@@ -49,6 +50,42 @@ function Panel({ children, width = "min(560px, 100%)", delay = 0 }) {
 export default function QuizPage() {
   const router = useRouter();
   const { user, loading, refresh, openAuth } = useSession();
+
+  // The navbar stays up during onboarding so the UI (and the logo) is retained.
+  const [isDesktop, setIsDesktop] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  useEffect(() => {
+    const onResize = () => {
+      const desktop = window.innerWidth >= 760;
+      setIsDesktop(desktop);
+      if (desktop) setMobileMenuOpen(false);
+    };
+    onResize();
+    window.addEventListener("resize", onResize, { passive: true });
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const navItems = [
+    { label: "TRAILER", href: "/" },
+    { label: "MJ WALL", href: "/mj-wall" },
+    { label: "FORUM", href: "/forum" },
+    { label: "SPIDEY TRACKER", href: "/" },
+  ].map((it) => ({
+    label: it.label, locked: false, active: false,
+    color: "#fff", cursor: "pointer", title: "",
+    onClick: (e) => { e.preventDefault(); router.push(it.href); },
+    onMobileClick: (e) => { e.preventDefault(); setMobileMenuOpen(false); router.push(it.href); },
+  }));
+  const nav = (
+    <Nav
+      isDesktop={isDesktop}
+      mobileMenuVisible={!isDesktop && mobileMenuOpen}
+      navItems={navItems}
+      onGoHome={() => router.push("/")}
+      onGetStarted={() => openAuth("register")}
+      onToggleMobileMenu={() => setMobileMenuOpen((v) => !v)}
+      onMobileSwingIn={() => { setMobileMenuOpen(false); openAuth("register"); }}
+    />
+  );
 
   const [questions, setQuestions] = useState(null);
   const [qErr, setQErr] = useState("");
@@ -141,12 +178,13 @@ export default function QuizPage() {
     }
   }
 
-  const wrap = s("position: relative; min-height: 100vh; overflow: hidden; background-color: #06080f; background-image: radial-gradient(120% 100% at 50% 0%, rgba(11,18,38,0.9) 0%, rgba(7,7,17,0.55) 55%, rgba(4,4,9,0) 100%); color: #fff; font-family: 'Acumin Pro', 'Oswald', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(28px, 6vh, 72px) clamp(18px, 5vw, 40px);");
+  const wrap = s("position: relative; min-height: 100vh; overflow: hidden; background-color: #06080f; background-image: radial-gradient(120% 100% at 50% 0%, rgba(11,18,38,0.9) 0%, rgba(7,7,17,0.55) 55%, rgba(4,4,9,0) 100%); color: #fff; font-family: 'Acumin Pro', 'Oswald', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(92px, 14vh, 140px) clamp(18px, 5vw, 40px) clamp(28px, 6vh, 72px);");
 
   // ---- session loading ----
   if (loading) {
     return (
       <main style={wrap}>
+        {nav}
         <div style={s("font-family: 'Oswald', sans-serif; font-size: 30px; letter-spacing: 0.3em; color: rgba(255,255,255,0.4);")}>…</div>
       </main>
     );
@@ -156,6 +194,7 @@ export default function QuizPage() {
   if (!user) {
     return (
       <main style={wrap}>
+        {nav}
         <Panel width="min(440px, 100%)">
           <Eyebrow centered>Members Only</Eyebrow>
           <h1 style={s("margin: 12px 0 0; font-family: 'Oswald', sans-serif; font-size: clamp(26px, 6vw, 34px); line-height: 1; font-weight: 500; text-transform: uppercase; color: #fff;")}>Swing in first</h1>
@@ -172,6 +211,7 @@ export default function QuizPage() {
     const heroColor = av.color || "#ff3a4a";
     return (
       <main style={wrap}>
+        {nav}
         <div style={s("width: min(560px, 100%); display: flex; flex-direction: column; align-items: center;")}>
           <Panel>
             <div style={s("animation: bnd-word-rise 620ms 120ms cubic-bezier(.2,.7,.2,1) both; font-size: 72px; line-height: 1; margin-bottom: 14px;")}>{av.emoji}</div>
@@ -208,6 +248,7 @@ export default function QuizPage() {
   if (qErr) {
     return (
       <main style={wrap}>
+        {nav}
         <Eyebrow centered>Avatar Experience</Eyebrow>
         <p style={s(ERR_LINE)}>{qErr}</p>
       </main>
@@ -217,6 +258,7 @@ export default function QuizPage() {
   if (!questions) {
     return (
       <main style={wrap}>
+        {nav}
         <div style={s("font-family: 'Oswald', sans-serif; font-size: 30px; letter-spacing: 0.3em; color: rgba(255,255,255,0.4);")}>…</div>
       </main>
     );
@@ -225,6 +267,7 @@ export default function QuizPage() {
   if (!questions.length) {
     return (
       <main style={wrap}>
+        {nav}
         <Eyebrow centered>Avatar Experience</Eyebrow>
         <p style={s(ERR_LINE)}>The quiz isn&apos;t available right now. Check back soon.</p>
       </main>
@@ -234,6 +277,7 @@ export default function QuizPage() {
   if (submitting) {
     return (
       <main style={wrap}>
+        {nav}
         <div style={s("animation: bnd-word-rise 520ms cubic-bezier(.2,.7,.2,1) both; text-align: center;")}>
           <div style={s("font-size: 44px; line-height: 1; margin-bottom: 16px;")}>🕸️</div>
           <span style={s(EYEBROW)}>Reading your web signature…</span>
@@ -246,6 +290,7 @@ export default function QuizPage() {
 
   return (
     <main style={wrap}>
+      {nav}
       {/* progress */}
       <div style={s("position: fixed; top: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.08); z-index: 60;")}>
         <div style={s(`height: 100%; width: ${total ? Math.round((answered / total) * 100) : 0}%; background: linear-gradient(90deg, #ff3a4a, #c00014); box-shadow: 0 0 12px rgba(255,58,74,0.7); transition: width .3s ease;`)}></div>

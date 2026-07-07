@@ -46,8 +46,8 @@ export async function POST(request) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const text = vString(body.body, { min: 2, max: 500 });
-  if (!text) return Response.json({ error: "Message must be 2–500 characters" }, { status: 400 });
+  const text = vString(body.body, { min: 2, max: 280 });
+  if (!text) return Response.json({ error: "Message must be 2–280 characters" }, { status: 400 });
 
   const result = await query("INSERT INTO mj_messages (user_id, body) VALUES (?, ?)", [gate.user.id, text]);
   return Response.json(

@@ -247,11 +247,8 @@ html, body, a, button, [data-web-hover] {
    MJ WALL page styles (MJ Wall.dc.html <style> block)
    ============================================================ */
 #mjw-composer::placeholder { color: rgba(255,255,255,0.55); }
-@keyframes mjw-flow-up { from { transform: translateY(0); } to { transform: translateY(-50%); } }
-@keyframes mjw-flow-down { from { transform: translateY(-50%); } to { transform: translateY(0); } }
 @keyframes mjw-rise { from { opacity: 0; transform: translateY(24px) scale(1.03); } to { opacity: 1; transform: none; } }
 @keyframes mjw-title-in { 0% { opacity: 0; transform: translateY(20px) scale(1.16, 1.08); } 100% { opacity: 1; transform: none; } }
-.mjw-flowwrap:hover .mjw-col { animation-play-state: paused; }
 .mjw-card { transition: transform .3s ease, box-shadow .3s ease; }
 .mjw-card:hover { transform: scale(1.03); box-shadow: 0 14px 34px rgba(0,0,0,0.5), 0 0 24px rgba(255,40,60,0.3); z-index: 5; }
 .mjw-sheen { position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.18), transparent); transform: skewX(-18deg); pointer-events: none; }

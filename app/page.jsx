@@ -866,7 +866,8 @@ export default function Home() {
                     ref={mjInputRef}
                     id="mj-textarea"
                     value={mjMessage}
-                    onChange={(e) => setMjMessage(e.target.value)}
+                    onChange={(e) => setMjMessage(e.target.value.slice(0, 280))}
+                    maxLength={280}
                     rows={4}
                     style={s("display: block; width: 100%; box-sizing: border-box; resize: none; padding: 18px 22px; border: 0; outline: 0; background: #060e2a; color: #ffffff; text-shadow: 0 0 8px rgba(255,255,255,0.7), 0 0 18px rgba(255,255,255,0.35); font-family: inherit; font-size: 15px; line-height: 1.5; clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);")}
                   ></textarea>
