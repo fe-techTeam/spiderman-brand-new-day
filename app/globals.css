@@ -326,7 +326,7 @@ html, body, a, button, [data-web-hover] {
 }
 @media (max-width: 560px) {
   .fm-header-title { display: none !important; }
-  /* Exit Forum collapses to its icon on small screens */
+  /* the Home button collapses to its icon on small screens */
   .fm-exit { padding: 9px 11px !important; }
   .fm-exit-label { display: none; }
 }

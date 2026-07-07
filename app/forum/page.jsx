@@ -14,8 +14,7 @@ import { relTime, fmtCount } from "@/lib/time";
 const RULES = [
   { n: "1", text: "Every identity belongs here. No gatekeeping the mask." },
   { n: "2", text: "Real stories only — this is what the Web actually looks like." },
-  { n: "3", text: "Credit the creators. Reblog with love." },
-  { n: "4", text: "Keep it spoiler-tagged until opening weekend." },
+  { n: "3", text: "Keep it spoiler-tagged until opening weekend." },
 ];
 
 const SORT_DEFS = [

@@ -118,8 +118,8 @@ export default function ForumHeader() {
       </Link>
       <div style={s("margin-left: auto; display: flex; align-items: center; gap: 12px; flex-shrink: 0;")}>
         <Link href="/" className="fm-exit" data-web-hover="true" style={s("display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border: 1px solid rgba(255,255,255,0.16); border-radius: 999px; background: rgba(255,255,255,0.04); text-decoration: none; color: rgba(255,255,255,0.75); font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; transition: border-color .2s ease, color .2s ease;")}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" /></svg>
-          <span className="fm-exit-label">Exit Forum</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>
+          <span className="fm-exit-label">Home</span>
         </Link>
         {loading ? null : user ? (
           <>
