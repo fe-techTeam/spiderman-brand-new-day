@@ -241,7 +241,8 @@ body { width: 100%; }
 
 /* ===== MJ Wall mobile ===== */
 @media (max-width: 760px) {
-  #mj-wall-section { height: auto !important; min-height: 100svh !important; background-position: 30% top !important; align-items: flex-end !important; }
+  /* dedicated portrait art on phones (mask + MJ reflection, vertical crop) */
+  #mj-wall-section { height: auto !important; min-height: 100svh !important; background-image: url('/assets/mj-bg-mobile.jpg') !important; background-position: center top !important; align-items: flex-end !important; }
   #mj-scrim { background: linear-gradient(180deg, rgba(8,10,26,0) 30%, rgba(8,10,26,0.55) 55%, rgba(8,10,26,0.92) 100%) !important; }
   #mj-inner { justify-content: center !important; padding: 46vh 22px 56px !important; transform: none !important; }
   #mj-prompt { width: 100% !important; text-align: center !important; }
@@ -251,6 +252,9 @@ body { width: 100%; }
 
 /* ===== Landing mobile: safe viewport + calmer CTAs ===== */
 @media (max-width: 760px) {
+  /* the portrait hero banner carries its own figure + flare — the desktop
+     spidey/web/glow decorations would collide with it */
+  .bnd-hero-deco { display: none !important; }
   /* 100vh hides the section bottom behind the iOS URL bar — svh is the small
      viewport, so bottom-anchored content (hero logo, Living Web header,
      tracker CTA) stays fully on screen. MJ Wall + footer grow with content

@@ -766,21 +766,22 @@ export default function Home() {
 
       {/* ================= HERO ================= */}
       <div data-page="hero" style={s("position: relative; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always;")}>
-        {/* BG LAYER */}
+        {/* BG LAYER — phones get the dedicated portrait banner (its rooftop
+            figure IS the hero there, so the desktop decorations hide too) */}
         <div ref={bgRef} style={s("position: absolute; inset: 0; z-index: 1; will-change: transform; transform-origin: 50% 15%;")}>
-          <Image src="/assets/bg.jpg" alt="" fill priority sizes="100vw" style={{ objectFit: "cover", objectPosition: "50% 0%", userSelect: "none", pointerEvents: "none" }} />
+          <Image src={isDesktop ? "/assets/bg.jpg" : "/assets/bg-mobile.jpg"} alt="" fill priority sizes="100vw" style={{ objectFit: "cover", objectPosition: "50% 0%", userSelect: "none", pointerEvents: "none" }} />
         </div>
 
-        {/* SUN GLOW */}
-        <div style={s("position: absolute; top: 4%; left: 19%; width: 520px; height: 520px; z-index: 2; border-radius: 50%; background: radial-gradient(circle, rgba(255,236,200,0.55) 0%, rgba(255,180,90,0.15) 40%, transparent 70%); filter: blur(8px); animation: bnd-glow-breath 4500ms ease-in-out infinite; pointer-events: none;")}></div>
+        {/* SUN GLOW (desktop art only — the mobile banner bakes in its own flare) */}
+        <div className="bnd-hero-deco" style={s("position: absolute; top: 4%; left: 19%; width: 520px; height: 520px; z-index: 2; border-radius: 50%; background: radial-gradient(circle, rgba(255,236,200,0.55) 0%, rgba(255,180,90,0.15) 40%, transparent 70%); filter: blur(8px); animation: bnd-glow-breath 4500ms ease-in-out infinite; pointer-events: none;")}></div>
 
         {/* WEB OVERLAY */}
-        <div style={s("position: absolute; top: clamp(40px, 5vh, 70px); left: 50%; transform: translateX(calc(-50% - 13vw)); width: min(1216px, 63vw); z-index: 20; pointer-events: none;")}>
+        <div className="bnd-hero-deco" style={s("position: absolute; top: clamp(40px, 5vh, 70px); left: 50%; transform: translateX(calc(-50% - 13vw)); width: min(1216px, 63vw); z-index: 20; pointer-events: none;")}>
           <img src="/assets/web.png" alt="" style={s("width: 100%; height: auto; display: block; filter: blur(1.6px); opacity: 0.65; animation: bnd-spidey-bob 5s ease-in-out infinite; animation-delay: -1s;")} />
         </div>
 
         {/* SPIDEY */}
-        <div ref={spideyWrapRef} style={s("position: absolute; top: clamp(105px, 12vh, 165px); left: 50%; z-index: 15; pointer-events: none; transform: translateX(calc(-50% - 11vw - 10px));")}>
+        <div ref={spideyWrapRef} className="bnd-hero-deco" style={s("position: absolute; top: clamp(105px, 12vh, 165px); left: 50%; z-index: 15; pointer-events: none; transform: translateX(calc(-50% - 11vw - 10px));")}>
           <div style={s(`position: relative; width: ${spideyWidth}; aspect-ratio: 588/600; will-change: transform; animation: bnd-spidey-bob 5s ease-in-out infinite; animation-delay: -1s;`)}>
             <img src="/assets/spiderman.png" alt="Spider-Man" style={s("width: 100%; height: 100%; display: block; filter: drop-shadow(0 30px 50px rgba(0,0,0,0.55)) drop-shadow(0 8px 18px rgba(255,120,40,0.18));")} />
           </div>
