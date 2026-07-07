@@ -49,6 +49,30 @@ live project via DesignSync; the following changed and were re-ported verbatim:
   (`mj-portrait.jpg`), card-expand modal, heart toggles, bottom composer
   (Enter posts). Replaces the previous card-grid page.
 
+## July 7 2026 design update (second DesignSync pull)
+
+- **Walkthrough (6-CTA popup) icons**: the emoji glyphs are replaced by red
+  spider-themed icon artwork (`icon-spider-id/find-spider/message/fan-art/
+  conversation/track`). Ported as `<img>` per the design markup, including the
+  hover treatment (`brightness(0) invert(1)` — icon flashes white as the card
+  body washes red). *Deviation:* the design references the `.svg` variants;
+  we ship the `.png` twins resized to a 200px box (the SVGs are traced-path
+  exports 10× the PNG weight; at the 30–40px display size they are pixel-
+  identical). The design also adds a `bnd-walk-grid` class hook with no CSS —
+  our own `walk-grid` responsive rules already cover it.
+- **Identity section**: `background-size` → `cover`, lighter base gradient,
+  plus a new radial multiply overlay — ported verbatim.
+- **PENDING (256KiB API cap)**: `assets/logo.png` and `assets/identity-bg.jpg`
+  changed in the design but both exceed DesignSync's read cap and arrive
+  truncated (baseline-encoded, so unrecoverable). They need a fresh project
+  export; the previous local copies remain in place until then.
+- **Not adopted (deliberate)**: the design's slower shutter (460/90/620ms +
+  whoosh SFX) — the repo's snappy blink (180/260ms) was a explicit user
+  request and now also drives the mobile blink; the design's identity CTA →
+  `Reveal My Identity.dc.html` (our real auth/quiz flow supersedes it); the
+  MJ submit localStorage handoff (removed on purpose — messages must not
+  appear on the wall before approval).
+
 ### Refresh deviations (with justification)
 
 - **MJ Wall page is wired to the real API.** The wall renders approved messages

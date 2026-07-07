@@ -20,12 +20,12 @@ import TrailerModal from "@/components/main/TrailerModal";
 /* ---------------------------------------------------------------- static data */
 
 const WALK_ITEMS = [
-  { emoji: "🕷️", line1: "Discover Your", line2: "Spider Identity", desc: "Answer a few questions to unlock your unique Spider-Verse Avatar." },
-  { emoji: "🌍", line1: "Find Your", line2: "Spider Twins", desc: "Meet fans around the world who share your Spider identity." },
-  { emoji: "💌", line1: "Leave a Message", line2: "For MJ", desc: "Share your thoughts and messages for MJ with the community." },
-  { emoji: "🎨", line1: "Share Your", line2: "Fan Creations", desc: "Upload your artwork, edits, videos, and cosplay creations." },
-  { emoji: "💬", line1: "Join the", line2: "Conversation", desc: "Discuss theories, easter eggs, and all things Spider-Man." },
-  { emoji: "📍", line1: "Track", line2: "Spider-Man", desc: "Follow Spider-Man's latest sightings with Spidey Tracker." },
+  { icon: "/assets/icon-spider-id.png", line1: "Discover Your", line2: "Spider Identity", desc: "Answer a few questions to unlock your unique Spider-Verse Avatar." },
+  { icon: "/assets/icon-find-spider.png", line1: "Find Your", line2: "Spider Twins", desc: "Meet fans around the world who share your Spider identity." },
+  { icon: "/assets/icon-message.png", line1: "Leave a Message", line2: "For MJ", desc: "Share your thoughts and messages for MJ with the community." },
+  { icon: "/assets/icon-fan-art.png", line1: "Share Your", line2: "Fan Creations", desc: "Upload your artwork, edits, videos, and cosplay creations." },
+  { icon: "/assets/icon-conversation.png", line1: "Join the", line2: "Conversation", desc: "Discuss theories, easter eggs, and all things Spider-Man." },
+  { icon: "/assets/icon-track.png", line1: "Track", line2: "Spider-Man", desc: "Follow Spider-Man's latest sightings with Spidey Tracker." },
 ];
 
 const WEB_TWINS = [
@@ -744,8 +744,9 @@ export default function Home() {
 
       {/* ================= FIND YOUR IDENTITY ================= */}
       {!hideIdentity && (
-      <section data-page="identity" data-screen-label="Find Your Identity" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background-color: #0a0512; background-image: url('/assets/identity-bg.jpg'); background-size: auto 100%; background-position: center; background-repeat: no-repeat; display: flex; align-items: center; justify-content: center;")}>
-        <div style={s("position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,4,14,0.55) 0%, rgba(8,4,14,0.12) 30%, rgba(6,4,12,0.35) 62%, rgba(4,3,8,0.88) 100%); pointer-events: none;")}></div>
+      <section data-page="identity" data-screen-label="Find Your Identity" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background-color: #0a0512; background-image: url('/assets/identity-bg.jpg'); background-size: cover; background-position: center; background-repeat: no-repeat; display: flex; align-items: center; justify-content: center;")}>
+        <div style={s("position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6,3,10,0.5) 0%, rgba(6,3,10,0.2) 30%, rgba(5,3,10,0.36) 62%, rgba(3,2,6,0.72) 100%); pointer-events: none;")}></div>
+        <div style={s("position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 40%, rgba(120,20,34,0.1) 0%, rgba(20,10,30,0.18) 60%, rgba(6,4,14,0.3) 100%); mix-blend-mode: multiply; pointer-events: none;")}></div>
         <div style={s("position: absolute; top: 0; left: 0; right: 0; height: 46px; background: linear-gradient(180deg, #000 0%, transparent 100%); opacity: 0.85; pointer-events: none; z-index: 4;")}></div>
         <div style={s("position: absolute; bottom: 0; left: 0; right: 0; height: 46px; background: linear-gradient(0deg, #000 0%, transparent 100%); opacity: 0.7; pointer-events: none; z-index: 4;")}></div>
 

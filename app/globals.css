@@ -119,7 +119,7 @@ body { width: 100%; }
   20%  { opacity: 1; }
   100% { left: 130%; opacity: 0; }
 }
-.bnd-card:hover .bnd-card-emoji { transform: scale(1.28) rotate(-6deg); }
+.bnd-card:hover .bnd-card-emoji { transform: scale(1.28) rotate(-6deg); filter: brightness(0) invert(1) drop-shadow(0 0 6px rgba(255,255,255,0.4)); }
 /* twin card hover reveal */
 .tw-reveal { max-height: 0; opacity: 0; overflow: hidden; transform: translateY(4px); transition: max-height .4s ease, opacity .35s ease, transform .35s ease; }
 .bnd-card:hover .tw-reveal { max-height: 24px; opacity: 1; transform: translateY(0); }
