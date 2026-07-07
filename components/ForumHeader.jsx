@@ -86,8 +86,14 @@ function UserChip({ user, logout }) {
     <div style={s("position: relative; flex-shrink: 0;")}>
       <button onClick={() => setOpen((v) => !v)} data-web-hover="true" aria-label="Account" style={s("display: flex; align-items: center; gap: 9px; border: 0; padding: 0; background: transparent; cursor: pointer;")}>
         <span className="fm-username" style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.85);")}>u/{user.username}</span>
-        <span className="fm-avatar" style={s("flex-shrink: 0; width: 38px; height: 38px; border-radius: 11px; background: radial-gradient(circle at 40% 32%, #2a1420, #0c0a16); border: 1px solid rgba(255,60,74,0.4); display: flex; align-items: center; justify-content: center;")}>
-          <SpiderAvatar />
+        <span className="fm-avatar" style={s("flex-shrink: 0; width: 38px; height: 38px; border-radius: 11px; background: radial-gradient(circle at 40% 32%, #2a1420, #0c0a16); border: 1px solid rgba(255,60,74,0.4); display: flex; align-items: center; justify-content: center; overflow: hidden;")}>
+          {user.avatar?.pic ? (
+            // identity profile picture (avatars master, admin-managed)
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={user.avatar.pic} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          ) : (
+            <SpiderAvatar />
+          )}
         </span>
       </button>
 
