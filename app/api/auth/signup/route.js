@@ -3,7 +3,7 @@ import { createUserSession, hashPassword } from "@/lib/server/auth";
 import { vEmail, vPassword, vUsername } from "@/lib/server/validate";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { DEFAULT_COUNTRY_ISO, findCountry } from "@/lib/geo";
-import { countryFromRequest } from "@/lib/server/geo-ip";
+import { countryFromRequest, logIpEvent } from "@/lib/server/geo-ip";
 
 export async function POST(request) {
   const body = await request.json().catch(() => ({}));
@@ -55,8 +55,8 @@ export async function POST(request) {
   let result;
   try {
     result = await query(
-      "INSERT INTO users (username, email, mobile, country, password_hash) VALUES (?, ?, ?, ?, ?)",
-      [username, email, mobile, countryName, passwordHash]
+      "INSERT INTO users (username, email, mobile, country, signup_ip, last_login_ip, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [username, email, mobile, countryName, ip, ip, passwordHash]
     );
   } catch (err) {
     // Race with a concurrent signup — the unique keys are the real guarantee.
@@ -71,6 +71,7 @@ export async function POST(request) {
 
   const user = { id: result.insertId, username, token_version: 0 };
   await createUserSession(user);
+  await logIpEvent(result.insertId, "signup", request);
   return Response.json(
     { user: { id: result.insertId, username }, needsQuiz: true },
     { status: 201 }

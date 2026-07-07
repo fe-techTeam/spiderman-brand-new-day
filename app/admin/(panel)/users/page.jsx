@@ -105,6 +105,8 @@ export default function AdminUsersPage() {
           "Spidey Code": u.spidey_code || "",
           State: u.state || "",
           Country: u.country || "",
+          "Signup IP": u.signup_ip || "",
+          "Last Login IP": u.last_login_ip || "",
           Joined: fmtDate(u.created_at),
           "Last Login": fmtDate(u.last_login_at),
         }))
@@ -331,6 +333,8 @@ export default function AdminUsersPage() {
                       : null
                   }
                 />
+                <Field label="Signup IP" value={detail.user.signup_ip} />
+                <Field label="Last login IP" value={detail.user.last_login_ip} />
               </div>
 
               <div className="grid grid-cols-4 gap-2">

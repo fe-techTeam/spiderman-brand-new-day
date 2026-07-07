@@ -27,6 +27,7 @@ export async function GET(request) {
 
   const rows = await query(
     `SELECT u.id, u.username, u.email, u.mobile, u.status, u.spidey_code, u.state, u.country,
+            u.signup_ip, u.last_login_ip,
             u.created_at, u.last_login_at, u.quiz_completed_at,
             a.name AS avatar_name, a.emoji AS avatar_emoji
      FROM users u LEFT JOIN avatars a ON a.id = u.avatar_id
