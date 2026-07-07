@@ -164,8 +164,7 @@ export default function QuizPage() {
     setSubmitErr("");
   };
 
-  // Location is no longer asked here — country comes from the signup dial code
-  // (IP-based enrichment may come later, per client).
+  // Location is no longer asked here — country is derived from the signup IP.
   async function enterForum() {
     setSaving(true);
     setSaveErr("");
