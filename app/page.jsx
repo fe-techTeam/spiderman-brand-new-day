@@ -10,7 +10,6 @@ import { createSfx } from "@/lib/sfx";
 import { initGlobe } from "@/lib/globe";
 import { initParticles } from "@/lib/particles";
 import { portalApi } from "@/lib/portal/api";
-import { fmtCount } from "@/lib/time";
 import { Flag } from "@/components/Flags";
 import { useSession } from "@/components/auth/SessionProvider";
 import Nav from "@/components/main/Nav";
@@ -27,15 +26,6 @@ const WALK_ITEMS = [
   { icon: "/assets/icon-trailer.svg", line1: "Watch the", line2: "Official Trailer", desc: "Step into the Spider-Verse — experience the Brand New Day trailer.", action: "trailer" },
   { icon: "/assets/icon-conversation.png", line1: "Join the", line2: "Conversation", desc: "Discuss theories, easter eggs, and all things Spider-Man." },
   { icon: "/assets/icon-track.png", line1: "Track", line2: "Spider-Man", desc: "Follow Spider-Man's latest sightings with Spidey Tracker." },
-];
-
-const WEB_TWINS = [
-  { name: "Aarav M.", city: "Mumbai, India", flag: "in", identity: "Dreamer", color: "#ff5a6a", delay: "260ms" },
-  { name: "Sofia R.", city: "São Paulo, Brazil", flag: "br", identity: "Dreamer", color: "#4d8bff", delay: "360ms" },
-  { name: "James C.", city: "London, UK", flag: "uk", identity: "Dreamer", color: "#ffd23f", delay: "460ms" },
-  { name: "Yuki T.", city: "Tokyo, Japan", flag: "jp", identity: "Dreamer", color: "#ff5a6a", delay: "560ms" },
-  { name: "Mia K.", city: "Sydney, Australia", flag: "au", identity: "Dreamer", color: "#4d8bff", delay: "660ms" },
-  { name: "Noah W.", city: "New York, USA", flag: "us", identity: "Dreamer", color: "#ffd23f", delay: "760ms" },
 ];
 
 const projX = (lon) => ((lon + 180) / 360 * 100).toFixed(1) + "%";
@@ -80,7 +70,6 @@ export default function Home() {
   const [mjError, setMjError] = useState("");
   const [twinMode, setTwinMode] = useState(false);
   const [activeSection, setActiveSection] = useState("hero");
-  const [stats, setStats] = useState(null);
 
   // Logged-in members already picked their identity during onboarding — the
   // "Who Are You Under the Mask?" section only shows for guests / quiz-pending.
@@ -647,14 +636,9 @@ export default function Home() {
     return () => { document.documentElement.style.overflow = ""; };
   }, [walkOpen, trailerOpen, mobileMenuOpen, authOpen]);
 
-  /* live data: Living Web stats */
-  useEffect(() => {
-    let cancelled = false;
-    portalApi("/stats")
-      .then((data) => { if (!cancelled) setStats(data); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
+  /* NOTE: the /stats fetch that fed "you share your identity with N members
+     across M countries" left with the parked twins reveal — it returns when
+     real twin matching ships. */
 
   /* ---------------------------------------------------------- derived / handlers */
   const goToForm = () => {
@@ -699,21 +683,29 @@ export default function Home() {
     }
   };
 
-  // Living Web numbers — the hardcoded copy stays as the loading fallback.
-  let webWho = "12,480 Dreamers";
-  let webWhere = "34 countries";
-  if (stats) {
-    if (user?.avatar) {
-      const entry = Array.isArray(stats.identities)
-        ? stats.identities.find((it) => it.slug === user.avatar.slug)
-        : null;
-      const identityMembers = entry?.members ?? stats.members;
-      webWho = `${fmtCount(identityMembers)} ${user.avatar.name}s`;
-    } else {
-      webWho = `${fmtCount(stats.members)} members`;
+  /* twin-mode card: identity accents + the reveal-screen tilt/glare effect
+     (same DOM-driven handlers as /quiz — no re-renders per pointer move) */
+  const heroColor = user?.avatar?.color || "#ff2f40";
+  const heroGlow = heroColor + "55";
+  const twinTiltRef = useRef(null);
+  const twinGlareRef = useRef(null);
+  const onTwinTilt = (e) => {
+    const el = twinTiltRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    el.style.transform = `rotateY(${(px * 16).toFixed(2)}deg) rotateX(${(-py * 16).toFixed(2)}deg) scale(1.04)`;
+    if (twinGlareRef.current) {
+      twinGlareRef.current.style.opacity = "1";
+      twinGlareRef.current.style.background = `radial-gradient(circle at ${((px + 0.5) * 100).toFixed(1)}% ${((py + 0.5) * 100).toFixed(1)}%, rgba(255,255,255,0.3), transparent 42%)`;
     }
-    webWhere = `${stats.countries ?? 0} countries`;
-  }
+  };
+  const onTwinTiltOut = () => {
+    if (twinTiltRef.current) twinTiltRef.current.style.transform = "rotateY(0) rotateX(0) scale(1)";
+    if (twinGlareRef.current) twinGlareRef.current.style.opacity = "0";
+  };
+
   // Which section (if any) each nav item corresponds to — drives the active highlight.
   const navSections = [null, "mjwall", null, "tracker"];
   const navItems = ["TRAILER", "MJ WALL", "FORUM", "SPIDEY TRACKER"].map((label, i) => {
@@ -889,43 +881,46 @@ export default function Home() {
           </>
         )}
 
-        {/* TWIN MODE — members only: web twins need a logged-in identity */}
+        {/* TWIN MODE — members only. Twins matching is parked for now: the
+            reveal shows your assigned collectible card + Spidey Code (same
+            treatment as the quiz reveal), with the twins marked coming soon. */}
         {twinMode && user && (
-          <div className="bnd-reveal in" style={s("position: absolute; inset: 0; z-index: 7; box-sizing: border-box; padding: clamp(84px, 13vh, 128px) clamp(24px, 5vw, 70px) clamp(34px, 6vh, 60px); display: flex; flex-direction: column;")}>
+          <div className="bnd-reveal in" style={s("position: absolute; inset: 0; z-index: 7; box-sizing: border-box; padding: clamp(76px, 11vh, 110px) 24px clamp(22px, 4vh, 36px); display: flex; flex-direction: column; align-items: center; justify-content: center;")}>
             <button onClick={() => setTwinMode(false)} data-web-hover="true" style={s("position: absolute; top: clamp(84px, 12vh, 118px); left: clamp(24px, 5vw, 70px); display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 0; color: rgba(255,255,255,0.7); font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer;")}>‹ Back to the Web</button>
 
-            <div style={s("text-align: center; margin-bottom: clamp(18px, 3vh, 34px);")}>
-              <div className="bnd-line" style={s("animation-delay: 70ms; display: inline-flex; align-items: center; gap: 10px; margin-bottom: 12px;")}>
-                <span style={s("width: 42px; height: 2px; background: linear-gradient(90deg, transparent, #ff2f40);")}></span>
-                <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: #ff5a6a;")}>Your Web Twin</span>
-                <span style={s("width: 42px; height: 2px; background: linear-gradient(90deg, #ff2f40, transparent);")}></span>
-              </div>
-              <h2 className="bnd-head" style={s("animation-delay: 170ms; margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(30px, 4.6vw, 60px); line-height: 0.96; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 34px rgba(0,0,0,0.6);")}>You're a <span style={{ color: "#ff2f40" }}>Dreamer</span></h2>
-              <p className="bnd-line" style={s("animation-delay: 340ms; margin: 12px auto 0; max-width: 600px; font-size: clamp(13px, 1.4vw, 16px); line-height: 1.6; color: rgba(226,226,240,0.75); text-wrap: pretty;")}>You share your identity with <span style={{ color: "#fff", fontWeight: 600 }}>{webWho}</span> across <span style={{ color: "#ffd23f", fontWeight: 600 }}>{webWhere}</span>. Here are a few of your Web Twins.</p>
+            {/* Spidey Code eyebrow */}
+            <div className="bnd-line" style={s("animation-delay: 80ms; display: inline-flex; align-items: center; gap: 10px; margin-bottom: clamp(16px, 2.6vh, 26px); flex-wrap: wrap; justify-content: center;")}>
+              <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, transparent, ${heroColor})` }}></span>
+              <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: rgba(255,255,255,0.5);")}>Spidey Code</span>
+              <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, fontWeight: 600, letterSpacing: "0.2em", color: heroColor, textShadow: `0 0 12px ${heroGlow}` }}>{user.spideyCode || "—"}</span>
+              <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, ${heroColor}, transparent)` }}></span>
             </div>
 
-            <div style={s("flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;")}>
-              <div className="lw-twin-grid" style={s("display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(12px, 1.4vw, 18px); width: min(1080px, 100%);")}>
-                {WEB_TWINS.map((tw, i) => (
-                  <div key={i} className="bnd-line bnd-card twin-card" data-web-hover="true" style={s(`animation-delay: ${tw.delay}; position: relative; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.3), rgba(255,40,60,0.32)); clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px); transition: transform 380ms cubic-bezier(.16,.84,.3,1), box-shadow 380ms ease, background 380ms ease;`)}>
-                    <div className="bnd-card-body" style={s("height: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 15px; padding: clamp(14px, 1.9vh, 20px) clamp(15px, 1.5vw, 20px); background: linear-gradient(150deg, rgba(16,20,38,0.95), rgba(9,10,20,0.96)); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); transition: background 380ms ease;")}>
-                      <div style={s("flex-shrink: 0; position: relative; width: clamp(52px, 6vw, 64px); height: clamp(52px, 6vw, 64px); border-radius: 14px; background: radial-gradient(circle at 40% 32%, #2a1420, #0c0a16); border: 1px solid rgba(255,60,74,0.4); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 18px rgba(0,0,0,0.6), 0 0 16px rgba(255,40,60,0.2);")}>
-                        <svg viewBox="0 0 100 100" style={{ width: "58%", height: "58%" }} fill="none" stroke={tw.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="50" cy="44" rx="9" ry="12" /><path d="M50 32V16M42 36 22 26M58 36l20-10M43 52 27 66M57 52l16 14M50 56v20" /></svg>
-                        <span style={s("position: absolute; bottom: -5px; right: -5px; width: 20px; height: 14px; border-radius: 3px; overflow: hidden; box-shadow: 0 0 0 1.5px #0c0a16;")}><Flag code={tw.flag} /></span>
-                      </div>
-                      <div style={s("min-width: 0; line-height: 1.25;")}>
-                        <div style={s("font-family: 'Oswald', sans-serif; font-size: clamp(15px, 1.6vw, 18px); font-weight: 500; color: #fff; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;")}>{tw.name}</div>
-                        <div style={s("font-size: 11.5px; color: rgba(226,226,240,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;")}>{tw.city}</div>
-                        <div style={s("margin-top: 7px; display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; background: rgba(255,40,60,0.12); border: 1px solid rgba(255,60,74,0.35);")}>
-                          <span style={s(`width: 5px; height: 5px; border-radius: 50%; background: ${tw.color}; box-shadow: 0 0 6px ${tw.color};`)}></span>
-                          <span style={s("font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #ff8a96;")}>{tw.identity}</span>
-                        </div>
-                        <div className="tw-reveal" style={s("margin-top: 8px; display: flex; align-items: center; gap: 6px; font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #8ab4ff;")}>View Web Twin <span style={{ fontSize: "13px" }}>›</span></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            {user.avatar?.card ? (
+              /* the assigned collectible card, with the reveal-screen effect
+                 (entry punch, ambient glow, float, pointer tilt + glare) */
+              <div style={s("perspective: 1200px; animation: ri-card-in 1s cubic-bezier(.16,.84,.3,1) both;")}>
+                <div ref={twinTiltRef} onMouseMove={onTwinTilt} onMouseLeave={onTwinTiltOut} style={s("position: relative; display: inline-block; will-change: transform; transition: transform .3s cubic-bezier(.16,.84,.3,1);")}>
+                  <div style={{ position: "absolute", inset: "-6% -6% -2%", borderRadius: 22, background: `radial-gradient(circle at 50% 40%, ${heroGlow} 0%, transparent 68%)`, filter: "blur(22px)", animation: "ri-pulse-glow 4.5s ease-in-out infinite", pointerEvents: "none" }}></div>
+                  <img src={user.avatar.card} alt={user.avatar.name} style={s("position: relative; display: block; height: min(52vh, 500px); max-width: 86vw; width: auto; filter: drop-shadow(0 30px 60px rgba(0,0,0,0.6)); animation: ri-card-float 6s ease-in-out infinite;")} />
+                  <div ref={twinGlareRef} style={s("position: absolute; inset: 0; border-radius: 18px; background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.28), transparent 45%); opacity: 0; pointer-events: none; transition: opacity .3s ease;")}></div>
+                </div>
               </div>
+            ) : (
+              /* emblem fallback while this identity has no card art yet */
+              <div style={s("position: relative; width: clamp(120px, 18vh, 170px); height: clamp(120px, 18vh, 170px);")}>
+                <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid ${heroColor}`, opacity: 0.4, animation: "ri-ring 2.4s ease-out infinite" }}></span>
+                <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid ${heroColor}`, opacity: 0.4, animation: "ri-ring 2.4s ease-out infinite 1.2s" }}></span>
+                <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "radial-gradient(circle at 50% 42%, rgba(30,12,20,0.9), rgba(8,6,14,0.95))", display: "flex", alignItems: "center", justifyContent: "center", "--gl": heroGlow, animation: "ri-emblem 3.4s ease-in-out infinite" }}>
+                  <svg viewBox="0 0 100 100" style={{ width: "58%", height: "58%" }} fill="none" stroke={heroColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="50" cy="44" rx="9" ry="12" /><path d="M50 32V16M42 36 22 26M58 36l20-10M43 52 27 66M57 52l16 14M50 56v20" /></svg>
+                </div>
+              </div>
+            )}
+
+            {/* twins themselves: coming soon */}
+            <div className="bnd-line" style={s("animation-delay: 320ms; margin-top: clamp(18px, 3vh, 28px); display: inline-flex; align-items: center; gap: 9px;")}>
+              <span style={s("width: 6px; height: 6px; border-radius: 50%; background: #ff2f40; box-shadow: 0 0 8px rgba(255,47,64,0.8); animation: bnd-blip 2s ease-in-out infinite;")}></span>
+              <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.65);")}>Web Twins — <span style={{ color: "#ff5a6a" }}>Coming Soon</span></span>
             </div>
           </div>
         )}
