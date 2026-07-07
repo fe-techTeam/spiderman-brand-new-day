@@ -72,6 +72,14 @@ export function Flag({ code }) {
           <polygon points="0,2 6.5,8 0,14" fill="none" stroke="#ffb612" strokeWidth={0.8} />
         </svg>
       );
+    case "ng":
+      return (
+        <svg {...svgProps}>
+          <rect x="0" y="0" width="24" height="16" fill="#fff" />
+          <rect x="0" y="0" width="8" height="16" fill="#008751" />
+          <rect x="16" y="0" width="8" height="16" fill="#008751" />
+        </svg>
+      );
     case "au":
       return (
         <svg {...svgProps}>

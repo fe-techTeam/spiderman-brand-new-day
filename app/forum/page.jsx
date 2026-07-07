@@ -38,6 +38,19 @@ export default function Forum() {
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [revealed, setRevealed] = useState(() => new Set());
+  const [showSpoilers, setShowSpoilers] = useState(false);
+
+  // the global spoiler preference survives navigation (thread pages read it too)
+  useEffect(() => {
+    try { setShowSpoilers(localStorage.getItem("bnd_show_spoilers") === "1"); } catch {}
+  }, []);
+  const toggleSpoilers = () =>
+    setShowSpoilers((v) => {
+      const next = !v;
+      try { localStorage.setItem("bnd_show_spoilers", next ? "1" : "0"); } catch {}
+      if (!next) setRevealed(new Set()); // turning it off re-hides one-off reveals too
+      return next;
+    });
 
   const [createOpen, setCreateOpen] = useState(false);
   const [spoiler, setSpoiler] = useState(false);
@@ -175,17 +188,22 @@ export default function Forum() {
 
         {/* CENTER: feed */}
         <main style={s("display: flex; flex-direction: column; gap: 14px; min-width: 0;")}>
-          {/* sort tabs — two plain tabs, no wrapping card + global spoiler control */}
+          {/* sort tabs — two plain tabs + the permanent global spoiler toggle */}
           <div style={s("display: flex; align-items: center; gap: 8px;")}>
             {SORT_DEFS.map((sd) => (
               <button key={sd.key} onClick={() => setSort(sd.key)} data-web-hover="true" style={s(`display: inline-flex; align-items: center; gap: 7px; border: 0; cursor: pointer; padding: 10px 20px; border-radius: 9px; background: ${sort === sd.key ? "linear-gradient(180deg, #ff3a4a, #c00014)" : "rgba(255,255,255,0.05)"}; color: ${sort === sd.key ? "#fff" : "rgba(255,255,255,0.6)"}; font-family: 'Oswald', sans-serif; font-size: 12.5px; letter-spacing: 0.12em; text-transform: uppercase; transition: background .2s ease, color .2s ease;`)}>{sd.label}</button>
             ))}
-            {revealed.size > 0 && (
-              <button onClick={() => setRevealed(new Set())} data-web-hover="true" style={s("margin-left: auto; display: inline-flex; align-items: center; gap: 7px; border: 1px solid rgba(255,60,74,0.4); cursor: pointer; padding: 9px 16px; border-radius: 999px; background: rgba(255,40,60,0.08); color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; transition: background .2s ease;")}>
+            <button onClick={toggleSpoilers} data-web-hover="true" aria-pressed={showSpoilers} title={showSpoilers ? "Hide spoilers" : "Show spoilers"} style={s(`margin-left: auto; display: inline-flex; align-items: center; gap: 9px; border: 1px solid ${showSpoilers ? "rgba(255,60,74,0.5)" : "rgba(255,255,255,0.16)"}; cursor: pointer; padding: 8px 14px; border-radius: 999px; background: ${showSpoilers ? "rgba(255,40,60,0.1)" : "rgba(255,255,255,0.04)"}; color: ${showSpoilers ? "#ff8a95" : "rgba(255,255,255,0.6)"}; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; transition: background .2s ease, border-color .2s ease, color .2s ease;`)}>
+              {showSpoilers ? (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12c1-3.8 5-7.7 10-7.7S21 8.2 22 12c-1 3.8-5 7.7-10 7.7S3 15.8 2 12z" /><circle cx="12" cy="12" r="2.6" /></svg>
+              ) : (
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 3l18 18M10.6 10.6a2.5 2.5 0 003.5 3.5M9.9 4.5A9.9 9.9 0 0112 4.3c5 0 9 3.9 10 7.7-.4 1.4-1.2 2.8-2.3 3.9M6.3 6.4C4.2 7.8 2.7 9.8 2 12c1 3.8 5 7.7 10 7.7 1.4 0 2.8-.3 4-.8" /></svg>
-                Hide all spoilers
-              </button>
-            )}
+              )}
+              Spoilers {showSpoilers ? "shown" : "hidden"}
+              <span aria-hidden="true" style={s(`width: 26px; height: 15px; border-radius: 999px; flex-shrink: 0; background: ${showSpoilers ? "linear-gradient(180deg, #ff3a4a, #c00014)" : "rgba(255,255,255,0.14)"}; position: relative; transition: background .2s ease;`)}>
+                <span style={s(`position: absolute; top: 2px; left: ${showSpoilers ? "13px" : "2px"}; width: 11px; height: 11px; border-radius: 50%; background: #fff; transition: left .2s ease;`)}></span>
+              </span>
+            </button>
           </div>
 
           {/* create prompt */}
@@ -207,7 +225,7 @@ export default function Forum() {
           <>
           {posts.map((t, i) => {
             const v = t.myVote;
-            const isRevealed = revealed.has(t.id);
+            const isRevealed = showSpoilers || revealed.has(t.id);
             const blurred = t.isSpoiler && !isRevealed;
             return (
               <article key={t.id} onClick={() => router.push(`/forum/${t.id}`)} data-web-hover="true" className="fm-card" style={s(`cursor: pointer; position: relative; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.2), rgba(255,40,60,0.26)); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); animation: fm-rise .6s cubic-bezier(.16,.84,.3,1) both; animation-delay: ${Math.min(i, 8) * 60}ms;`)}>
@@ -236,7 +254,7 @@ export default function Forum() {
                       {t.flair && (
                         <span style={s("display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: rgba(255,40,60,0.12); border: 1px solid rgba(255,60,74,0.35); color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;")}>{t.flair}</span>
                       )}
-                      {t.isSpoiler && isRevealed && (
+                      {t.isSpoiler && isRevealed && !showSpoilers && (
                         <button onClick={(e) => { e.stopPropagation(); toggleReveal(t.id); }} data-web-hover="true" style={s("display: inline-flex; align-items: center; gap: 5px; border: 1px solid rgba(255,60,74,0.35); cursor: pointer; padding: 3px 10px; border-radius: 999px; background: transparent; color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;")}>
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 3l18 18M10.6 10.6a2.5 2.5 0 003.5 3.5M9.9 4.5A9.9 9.9 0 0112 4.3c5 0 9 3.9 10 7.7-.4 1.4-1.2 2.8-2.3 3.9M6.3 6.4C4.2 7.8 2.7 9.8 2 12c1 3.8 5 7.7 10 7.7 1.4 0 2.8-.3 4-.8" /></svg>
                           Hide spoiler
@@ -245,7 +263,7 @@ export default function Forum() {
                     </div>
                     <h3 style={s("font-size: clamp(17px, 1.7vw, 21px); font-weight: 500; color: #fff; line-height: 1.15; margin-bottom: 8px;")}>{t.title}</h3>
                     {t.isSpoiler ? (
-                      <div onClick={(e) => { e.stopPropagation(); toggleReveal(t.id); }} style={s("position: relative; margin: 0 0 14px;")}>
+                      <div onClick={(e) => { if (!showSpoilers) { e.stopPropagation(); toggleReveal(t.id); } }} style={s("position: relative; margin: 0 0 14px;")}>
                         <p style={s(`margin: 0; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty; ${blurred ? "filter: blur(6px); user-select: none;" : ""}`)}>{snippet(t.body)}</p>
                         {blurred && (
                           <span style={s("position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 999px; background: rgba(12,10,22,0.85); border: 1px solid rgba(255,60,74,0.45); color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap;")}>Spoiler — tap to reveal</span>

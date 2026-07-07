@@ -102,7 +102,8 @@ export default function ForumPost() {
         const { post: p } = await portalApi(`/forum/posts/${id}`);
         if (cancelled) return;
         setPost(p);
-        setRevealed(false);
+        // respect the forum's global spoiler toggle
+        try { setRevealed(localStorage.getItem("bnd_show_spoilers") === "1"); } catch { setRevealed(false); }
         const c = await commentsP;
         if (cancelled) return;
         if (c) {

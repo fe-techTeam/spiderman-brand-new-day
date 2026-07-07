@@ -43,7 +43,7 @@ const MAP_CHIPS = [
   ["New York", "USA", "us", -74, 40.7, true], ["Los Angeles", "USA", "us", -118.2, 34, false],
   ["Mexico City", "Mexico", null, -99.1, 19.4, false], ["São Paulo", "Brazil", "br", -46.6, -23.5, true],
   ["Buenos Aires", "Argentina", null, -58.4, -34.6, false], ["London", "UK", "uk", -0.1, 51.5, true],
-  ["Moscow", "Russia", null, 37.6, 55.8, false], ["Lagos", "Nigeria", null, 3.4, 6.5, true],
+  ["Moscow", "Russia", null, 37.6, 55.8, false], ["Lagos", "Nigeria", "ng", 3.4, 6.5, true],
   ["Cairo", "Egypt", null, 31.2, 30, false], ["Dubai", "UAE", null, 55.3, 25.2, false],
   ["Mumbai", "India", "in", 72.8, 19.1, true], ["Beijing", "China", null, 116.4, 39.9, false],
   ["Tokyo", "Japan", "jp", 139.7, 35.7, true], ["Singapore", "Singapore", null, 103.8, 1.35, false],
@@ -52,11 +52,22 @@ const MAP_CHIPS = [
   city, country, labeled: !!labeled, flagCode: fk, x: projX(lon), y: projY(lat),
 }));
 
+/* landing sections in DOM order — drives the right-side web-rail nav */
+const RAIL_SECTIONS = [
+  { key: "hero", label: "Brand New Day" },
+  { key: "identity", label: "Find Your Identity" },
+  { key: "livingweb", label: "The Living Web" },
+  { key: "mjwall", label: "MJ Wall" },
+  { key: "feed", label: "Spider-Verse Feed" },
+  { key: "tracker", label: "Spidey Tracker" },
+  { key: "footer", label: "Official Trailer" },
+];
+
 /* ---------------------------------------------------------------- component */
 
 export default function Home() {
   const router = useRouter();
-  const { user, openAuth } = useSession();
+  const { user, openAuth, authOpen } = useSession();
 
   const [walkOpen, setWalkOpen] = useState(false);
   const [trailerOpen, setTrailerOpen] = useState(false);
@@ -94,12 +105,14 @@ export default function Home() {
   const trailerOpenRef = useRef(false);
   const mobileMenuOpenRef = useRef(false);
   const twinModeRef = useRef(false);
+  const authOpenRef = useRef(false);
 
   isDesktopRef.current = isDesktop;
   walkOpenRef.current = walkOpen;
   trailerOpenRef.current = trailerOpen;
   mobileMenuOpenRef.current = mobileMenuOpen;
   twinModeRef.current = twinMode;
+  authOpenRef.current = authOpen;
 
   /* ============================================================ mount effect */
   useEffect(() => {
@@ -208,7 +221,14 @@ export default function Home() {
     kickRAF();
 
     /* ---- walkthrough auto-open after the entrance finishes ---- */
-    const walkInT = setTimeout(() => { setWalkOpen(true); sfx.play("open"); }, entryMs + 1000);
+    const walkInT = setTimeout(() => {
+      // never yank the user out of a scroll: auto-open only while they are
+      // still sitting on the hero with nothing else on screen
+      if ((window.scrollY || 0) > (window.innerHeight || 800) * 0.5) return;
+      if (modalOpen() || paging) return;
+      setWalkOpen(true);
+      sfx.play("open");
+    }, entryMs + 1000);
 
     /* ---- canvases ---- */
     const globeInst = initGlobe(globeRef.current, { getTwinActive: () => twinModeRef.current });
@@ -276,8 +296,19 @@ export default function Home() {
     let pageIndex = 0, paging = false, gestureLive = false, wheelIdleTimer = null;
     const transStyle = "shutter";
     const pages = () => Array.from(document.querySelectorAll("[data-page]"));
-    const lastIndex = () => Math.max(0, pages().length - 1);
-    const modalOpen = () => trailerOpenRef.current || mobileMenuOpenRef.current || walkOpenRef.current;
+    const modalOpen = () => trailerOpenRef.current || mobileMenuOpenRef.current || walkOpenRef.current || authOpenRef.current;
+    // Pick the next section from the real scroll geometry, not the counter —
+    // the counter goes stale if the scroll drifts while a popup is open or
+    // after an anchor jump, and a stale counter blinks to the wrong section.
+    const nextPageIdx = (dir) => {
+      const list = pages();
+      if (dir > 0) {
+        for (let i = 0; i < list.length; i++) if (list[i].getBoundingClientRect().top > 8) return i;
+        return -1;
+      }
+      for (let i = list.length - 1; i >= 0; i--) if (list[i].getBoundingClientRect().top < -8) return i;
+      return -1;
+    };
     // A gesture ends only after the wheel is idle for 350ms AND no transition is
     // running — a stray gap during the transition can't split one fling into two.
     const endGesture = () => {
@@ -391,8 +422,9 @@ export default function Home() {
         targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
         return;
       }
-      // already on this section (e.g. clamped at a boundary) — no transition/blink
-      if (idx === pageIndex) return;
+      // already on this section AND actually aligned to it — no transition/blink.
+      // (if the scroll sits between sections, the "same" index still needs a snap)
+      if (idx === pageIndex && Math.abs(targetEl.getBoundingClientRect().top) < 8) return;
       if (paging) return;
       paging = true;
       pageIndex = idx;
@@ -423,15 +455,15 @@ export default function Home() {
       // starts a fresh gesture and advances again.
       clearTimeout(wheelIdleTimer);
       wheelIdleTimer = setTimeout(endGesture, 350);
-      if (gestureLive || paging) return;
+      if (gestureLive || paging || !ev.deltaY) return;
       gestureLive = true;
-      if (ev.deltaY > 0) { if (pageIndex < lastIndex()) goToPage(pageIndex + 1); } // nothing below the last
-      else if (ev.deltaY < 0) { if (pageIndex > 0) goToPage(pageIndex - 1); }        // nothing above the first
+      const nxt = nextPageIdx(ev.deltaY > 0 ? 1 : -1);
+      if (nxt >= 0) goToPage(nxt); // -1: nothing above the first / below the last
     };
     const onPagerKey = (ev) => {
       if (!isDesktopRef.current || modalOpen() || paging) return;
-      if (["ArrowDown", "PageDown"].includes(ev.key)) { ev.preventDefault(); goToPage(pageIndex + 1); }
-      else if (["ArrowUp", "PageUp"].includes(ev.key)) { ev.preventDefault(); goToPage(pageIndex - 1); }
+      if (["ArrowDown", "PageDown"].includes(ev.key)) { ev.preventDefault(); const n = nextPageIdx(1); if (n >= 0) goToPage(n); }
+      else if (["ArrowUp", "PageUp"].includes(ev.key)) { ev.preventDefault(); const n = nextPageIdx(-1); if (n >= 0) goToPage(n); }
     };
     let touchStartY = null;
     const onTouchStart = (ev) => { if (isDesktopRef.current) touchStartY = ev.touches[0].clientY; };
@@ -440,7 +472,7 @@ export default function Home() {
       if (!isDesktopRef.current || modalOpen() || paging || touchStartY == null) return;
       const endY = (ev.changedTouches && ev.changedTouches[0].clientY) || touchStartY;
       const diff = touchStartY - endY;
-      if (Math.abs(diff) > 50) goToPage(pageIndex + (diff > 0 ? 1 : -1));
+      if (Math.abs(diff) > 50) { const n = nextPageIdx(diff > 0 ? 1 : -1); if (n >= 0) goToPage(n); }
       touchStartY = null;
     };
 
@@ -507,6 +539,15 @@ export default function Home() {
     if (walkOpen) sfxRef.current.startHum();
     else sfxRef.current.stopHum();
   }, [walkOpen]);
+
+  /* lock the page scroll while any popup is up — otherwise the page drifts
+     to a halfway point behind the popup and the pager blinks oddly after it
+     closes (popups keep their own internal scrolling) */
+  useEffect(() => {
+    const lock = walkOpen || trailerOpen || mobileMenuOpen || authOpen;
+    document.documentElement.style.overflow = lock ? "hidden" : "";
+    return () => { document.documentElement.style.overflow = ""; };
+  }, [walkOpen, trailerOpen, mobileMenuOpen, authOpen]);
 
   /* live data: Living Web stats */
   useEffect(() => {
@@ -599,6 +640,7 @@ export default function Home() {
 
   const spideyWidth = isDesktop ? "clamp(300px, 32vw, 560px)" : "62vw";
   const logoWidth = isDesktop ? "min(720px, 42vw)" : "82vw";
+  const railIdx = Math.max(0, RAIL_SECTIONS.findIndex((sec) => sec.key === activeSection));
 
   const onWalkHover = () => sfxRef.current && sfxRef.current.play("hover");
 
@@ -972,6 +1014,34 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* ============ WEB RAIL: right-side section nav (desktop only) ============ */}
+      {isDesktop && (
+        <nav aria-label="Page sections" style={s("position: fixed; right: clamp(12px, 1.8vw, 28px); top: 50%; transform: translateY(-50%); z-index: 44;")}>
+          <div style={s("position: relative; display: flex; flex-direction: column; align-items: center;")}>
+            {/* web strand */}
+            <span aria-hidden="true" style={s("position: absolute; top: 6px; bottom: 6px; left: 50%; width: 1px; margin-left: -0.5px; background: linear-gradient(180deg, transparent, rgba(255,255,255,0.16) 12%, rgba(255,255,255,0.16) 88%, transparent); pointer-events: none;")}></span>
+            {/* the little spider rides the strand to the active section */}
+            <span aria-hidden="true" style={{ position: "absolute", left: "50%", top: `${railIdx * 34 + 4}px`, transform: "translateX(-50%)", transition: "top 600ms cubic-bezier(.22,1,.36,1)", pointerEvents: "none", zIndex: 2, filter: "drop-shadow(0 0 6px rgba(255,47,64,0.6))" }}>
+              <svg width="26" height="26" viewBox="0 0 100 100" fill="none" stroke="#ff3a4a" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="50" cy="44" rx="9" ry="12" /><path d="M50 32V16M42 36 22 26M58 36l20-10M43 52 27 66M57 52l16 14M50 56v20" /></svg>
+            </span>
+            {RAIL_SECTIONS.map((sec, i) => (
+              <button
+                key={sec.key}
+                onClick={() => { sfxRef.current && sfxRef.current.play("click"); goToPageRef.current(i); }}
+                data-web-hover="true"
+                className="bnd-rail-item"
+                aria-label={sec.label}
+                aria-current={i === railIdx ? "true" : undefined}
+                style={s("position: relative; width: 32px; height: 34px; border: 0; padding: 0; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center;")}
+              >
+                <span className="bnd-rail-dot" style={s(`width: 7px; height: 7px; border-radius: 50%; background: ${i === railIdx ? "transparent" : "rgba(255,255,255,0.3)"}; box-shadow: ${i === railIdx ? "none" : "0 0 0 1px rgba(255,255,255,0.1)"};`)}></span>
+                <span className="bnd-rail-label" style={s("position: absolute; right: 100%; margin-right: 12px; top: 50%; white-space: nowrap; font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255,255,255,0.82); background: rgba(8,8,14,0.75); border: 1px solid rgba(255,255,255,0.1); padding: 5px 11px; border-radius: 6px; backdrop-filter: blur(4px); pointer-events: none;")}>{sec.label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+      )}
 
       {/* CINEMATIC TRANSITION OVERLAY */}
       <div style={s("position: fixed; inset: 0; z-index: 95; pointer-events: none;")}>
