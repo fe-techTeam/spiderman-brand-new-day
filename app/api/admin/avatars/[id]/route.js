@@ -34,6 +34,8 @@ export async function PATCH(request, { params }) {
       return Response.json({ error: "Bad color" }, { status: 400 });
     push("color", body.color);
   }
+  // collectible card artwork shown on the identity reveal (path or URL)
+  if (body.cardImage !== undefined) push("badge_asset", vString(body.cardImage, { max: 255 }) || null);
   if (body.sortOrder !== undefined && Number.isInteger(body.sortOrder)) push("sort_order", body.sortOrder);
   if (body.isActive !== undefined) {
     if (!body.isActive) {

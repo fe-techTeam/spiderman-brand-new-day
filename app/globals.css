@@ -412,6 +412,40 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
   50%      { box-shadow: 0 0 0 2px #0c0a12, 0 0 0 6px rgba(255,58,74,0); }
 }
 
+/* ============================================================
+   REVEAL MY IDENTITY (quiz + reward) — Reveal My Identity.dc.html
+   ============================================================ */
+@keyframes ri-rise { from { opacity: 0; transform: translateY(28px) scale(1.04); filter: blur(8px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes ri-scan { 0% { top: 0; opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+@keyframes ri-emblem { 0%,100% { transform: scale(1); filter: drop-shadow(0 0 20px var(--gl)); } 50% { transform: scale(1.05); filter: drop-shadow(0 0 44px var(--gl)); } }
+@keyframes ri-ring { 0% { transform: scale(0.6); opacity: 0.8; } 100% { transform: scale(1.5); opacity: 0; } }
+@keyframes ri-decode { 0% { opacity: 0; transform: translateY(24px) scale(1.14); filter: blur(14px); letter-spacing: 0.3em; } 50% { opacity: 1; } 100% { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes ri-mote { 0% { transform: translateY(30px); opacity: 0; } 15% { opacity: .8; } 85% { opacity: .5; } 100% { transform: translateY(-140px); opacity: 0; } }
+@keyframes ri-burst { 0% { width: 40px; height: 40px; margin: -20px 0 0 -20px; opacity: 0.9; } 100% { width: 150vmax; height: 150vmax; margin: -75vmax 0 0 -75vmax; opacity: 0; } }
+@keyframes ri-flash { 0% { opacity: 0; } 18% { opacity: 0.85; } 100% { opacity: 0; } }
+@keyframes ri-spark { 0% { transform: translateY(0) scale(1); opacity: 0; } 12% { opacity: 1; } 100% { transform: translateY(-220px) scale(0.2); opacity: 0; } }
+@keyframes ri-bg-breathe { 0%,100% { transform: scale(1.04); } 50% { transform: scale(1.1); } }
+@keyframes ri-ray-drift { 0%,100% { opacity: 0.1; transform: rotate(9deg) translateX(-6%); } 50% { opacity: 0.28; transform: rotate(9deg) translateX(6%); } }
+@keyframes ri-ray-drift2 { 0%,100% { opacity: 0.08; transform: rotate(-7deg) translateX(6%); } 50% { opacity: 0.24; transform: rotate(-7deg) translateX(-6%); } }
+@keyframes ri-pulse-glow { 0%,100% { opacity: 0.25; } 50% { opacity: 0.55; } }
+@keyframes ri-scanline-bg { 0% { transform: translateY(-10%); } 100% { transform: translateY(110%); } }
+@keyframes ri-card-in { 0% { opacity: 0; transform: translateY(40px) scale(0.82) rotateX(18deg); filter: blur(14px); } 60% { opacity: 1; } 100% { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes ri-card-float { 0%,100% { transform: translateY(0) rotate(-0.6deg); } 50% { transform: translateY(-12px) rotate(0.6deg); } }
+@keyframes ri-q-in { 0% { opacity: 0; transform: translateY(22px) scale(1.05); filter: blur(10px); } 100% { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes ri-opt-in { 0% { opacity: 0; transform: translateX(-28px); filter: blur(5px); } 100% { opacity: 1; transform: none; filter: blur(0); } }
+.ri-anim-q { animation: ri-q-in .6s cubic-bezier(.16,.84,.3,1) both; }
+.ri-anim-o { animation: ri-opt-in .55s cubic-bezier(.16,.84,.3,1) both; }
+.ri-opt { transition: transform .3s cubic-bezier(.16,.84,.3,1), background .3s ease, border-color .3s ease, box-shadow .3s ease; }
+.ri-opt:hover { transform: translateX(6px); border-color: rgba(255,60,74,0.6) !important; background: rgba(255,40,60,0.12) !important; box-shadow: 0 10px 30px rgba(0,0,0,0.4), 0 0 22px rgba(255,40,60,0.25); }
+.ri-cta:hover .ri-sheen { animation: ri-sheen-go .8s ease; }
+.ri-sheen { position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.18), transparent); transform: skewX(-18deg); pointer-events: none; }
+@keyframes ri-sheen-go { from { left: -60%; } to { left: 140%; } }
+.ri-ghost:hover { color: #fff !important; border-color: rgba(255,60,74,0.6) !important; }
+@media (max-width: 680px) {
+  .ri-opt:hover { transform: none !important; }
+  .ri-progress-wrap { flex-wrap: wrap; justify-content: center; }
+}
+
 /* Respect reduced-motion for decorative loops (the JS branches on this too) */
 @media (prefers-reduced-motion: reduce) {
   .bnd-word, .bnd-reveal.in .bnd-line, .bnd-reveal.in .bnd-head { animation-duration: 1ms !important; }

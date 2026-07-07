@@ -33,6 +33,7 @@ const EMPTY_FORM = {
   tagline: "",
   description: "",
   color: "#e11d48",
+  cardImage: "",
   sortOrder: 0,
 };
 
@@ -71,6 +72,7 @@ export default function AdminAvatarsPage() {
       tagline: avatar.tagline || "",
       description: avatar.description || "",
       color: avatar.color || "#000000",
+      cardImage: avatar.badge_asset || "",
       sortOrder: avatar.sort_order ?? 0,
     });
     setEditing(avatar);
@@ -88,6 +90,7 @@ export default function AdminAvatarsPage() {
       tagline: form.tagline,
       description: form.description,
       color: form.color,
+      cardImage: form.cardImage.trim() || null,
       sortOrder: Number(form.sortOrder) || 0,
     };
     setSaving(true);
@@ -259,6 +262,18 @@ export default function AdminAvatarsPage() {
                 onChange={set("description")}
                 rows={3}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="avatar-card">Card image</Label>
+              <Input
+                id="avatar-card"
+                value={form.cardImage}
+                onChange={set("cardImage")}
+                placeholder="/assets/card-protector.png"
+              />
+              <p className="text-xs text-muted-foreground">
+                Collectible card artwork shown on the identity reveal. Leave empty for the emblem fallback.
+              </p>
             </div>
             <div className="flex gap-4">
               <div className="space-y-2">

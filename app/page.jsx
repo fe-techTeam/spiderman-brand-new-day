@@ -464,6 +464,14 @@ export default function Home() {
     };
     goToPageRef.current = goToPage;
 
+    /* deep link from the identity reveal (/#livingweb etc.): jump straight to
+       the section — the walkthrough auto-open guard sees the scroll and skips */
+    const hashKey = (window.location.hash || "").slice(1);
+    if (hashKey) {
+      const hashTarget = document.querySelector(`[data-page="${hashKey}"]`);
+      if (hashTarget) setTimeout(() => { scrollInstant(hashTarget); pageIndex = pages().indexOf(hashTarget); }, 60);
+    }
+
     const onWheel = (ev) => {
       if (!isDesktopRef.current) return; // mobile scrolls natively
       if (modalOpen()) return;

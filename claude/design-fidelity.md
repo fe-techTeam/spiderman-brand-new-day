@@ -68,10 +68,24 @@ live project via DesignSync; the following changed and were re-ported verbatim:
   export; the previous local copies remain in place until then.
 - **Not adopted (deliberate)**: the design's slower shutter (460/90/620ms +
   whoosh SFX) — the repo's snappy blink (180/260ms) was a explicit user
-  request and now also drives the mobile blink; the design's identity CTA →
-  `Reveal My Identity.dc.html` (our real auth/quiz flow supersedes it); the
-  MJ submit localStorage handoff (removed on purpose — messages must not
-  appear on the wall before approval).
+  request and now also drives the mobile blink; the MJ submit localStorage
+  handoff (removed on purpose — messages must not appear on the wall before
+  approval).
+- **`Reveal My Identity.dc.html` ported to `/quiz`** (user request): cinematic
+  stage (breathing bg, red core glow, drifting rays, motes, vignette), the
+  Identity Scan HUD progress, A/B/C/D option rows with slide-in/hover, and the
+  reward screen — scan sweep, energy burst, color flash, rising sparks, Spidey
+  Code eyebrow, collectible card with 3D tilt/glare/float (falls back to the
+  pulsing emblem + decoded name when the identity has no card art), Web Twins
+  + Retake CTAs, and the pick/reveal WebAudio cues. *Deviations:* content is
+  driven by the real quiz APIs (questions/submit/session) instead of the
+  mockup's local data; the site navbar replaces the design's minimal top bar
+  (user asked to keep it during onboarding); a tertiary "Enter the Forum ›"
+  link keeps the existing funnel; card artwork comes from the avatars master
+  (`badge_asset`, editable in Admin → Avatars as "Card image") rather than a
+  hardcoded map; the Twins CTA deep-links to `/#livingweb` (the landing now
+  honors section hashes). `reveal-bg.jpg` and `card-protector.png` exceed the
+  DesignSync read cap — pending a project export like the logo.
 
 ### Refresh deviations (with justification)
 
