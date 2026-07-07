@@ -69,6 +69,12 @@ export default function MjWallPage() {
   const spotRef = useRef(null);
   const moreRef = useRef(null);
 
+  // state mirrors for the auto-scroll RAF loop (reads every frame, no re-binds)
+  const selectedRef = useRef(null);
+  const nextCursorRef = useRef(null);
+  selectedRef.current = selected;
+  nextCursorRef.current = nextCursor;
+
   /* live messages — only admin-approved ones ever render on the wall */
   useEffect(() => {
     let on = true;
@@ -129,6 +135,76 @@ export default function MjWallPage() {
       window.removeEventListener("resize", onResize);
       window.removeEventListener("keydown", onKey);
       if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  /* constant crawl — the wall drifts down on its own like the design mockup's
+     living wall, but hands control back the moment the user scrolls: any
+     wheel / touch / key / scrollbar input pauses the crawl, and it resumes
+     after a few idle seconds. Also holds while the card modal is open or the
+     composer has focus. */
+  useEffect(() => {
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const SPEED = 24; // px/s — slow enough to read a card as it passes
+    const RESUME_MS = 4000; // idle time before the crawl takes over again
+    let pausedUntil = performance.now() + 2400; // let the entry animations land
+    let acc = 0; // fractional px carry — scrollTo only moves whole pixels
+    let lastY = window.scrollY;
+    let lastT = performance.now();
+    let atEndSince = null;
+    let raf = null;
+
+    const pause = () => { pausedUntil = performance.now() + RESUME_MS; };
+
+    const tick = (now) => {
+      raf = requestAnimationFrame(tick);
+      const dt = Math.min(100, now - lastT);
+      lastT = now;
+      // a scroll we didn't cause (scrollbar drag, touch momentum) also pauses —
+      // our own steps happen below, after this check, so they never trip it
+      if (Math.abs(window.scrollY - lastY) > 2) pause();
+      const held =
+        now < pausedUntil ||
+        selectedRef.current ||
+        document.activeElement === inputRef.current;
+      if (!held) {
+        const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        if (window.scrollY >= maxY - 1) {
+          // bottom reached: while more pages exist the infinite-scroll loader
+          // grows the document and the crawl continues; once the wall is truly
+          // exhausted, breathe, then wrap back to the top and keep flowing
+          if (!nextCursorRef.current) {
+            if (atEndSince == null) atEndSince = now;
+            else if (now - atEndSince > 2600) {
+              // instant: html has scroll-behavior:smooth, which would glide
+              window.scrollTo({ top: 0, behavior: "instant" });
+              atEndSince = null;
+            }
+          }
+        } else {
+          atEndSince = null;
+          acc += (SPEED * dt) / 1000;
+          const step = Math.floor(acc);
+          if (step >= 1) {
+            acc -= step;
+            window.scrollTo({ top: Math.min(maxY, window.scrollY + step), behavior: "instant" });
+          }
+        }
+      }
+      lastY = window.scrollY;
+    };
+    raf = requestAnimationFrame(tick);
+
+    window.addEventListener("wheel", pause, { passive: true });
+    window.addEventListener("touchstart", pause, { passive: true });
+    window.addEventListener("touchmove", pause, { passive: true });
+    window.addEventListener("keydown", pause);
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener("wheel", pause);
+      window.removeEventListener("touchstart", pause);
+      window.removeEventListener("touchmove", pause);
+      window.removeEventListener("keydown", pause);
     };
   }, []);
 

@@ -23,7 +23,7 @@ const WALK_ITEMS = [
   { icon: "/assets/icon-spider-id.png", line1: "Discover Your", line2: "Spider Identity", desc: "Answer a few questions to unlock your unique Spider-Verse Avatar." },
   { icon: "/assets/icon-find-spider.png", line1: "Find Your", line2: "Spider Twins", desc: "Meet fans around the world who share your Spider identity." },
   { icon: "/assets/icon-message.png", line1: "Leave a Message", line2: "For MJ", desc: "Share your thoughts and messages for MJ with the community." },
-  { icon: "/assets/icon-fan-art.png", line1: "Share Your", line2: "Fan Creations", desc: "Upload your artwork, edits, videos, and cosplay creations." },
+  { icon: "/assets/icon-trailer.svg", line1: "Watch the", line2: "Official Trailer", desc: "Step into the Spider-Verse — experience the Brand New Day trailer.", action: "trailer" },
   { icon: "/assets/icon-conversation.png", line1: "Join the", line2: "Conversation", desc: "Discuss theories, easter eggs, and all things Spider-Man." },
   { icon: "/assets/icon-track.png", line1: "Track", line2: "Spider-Man", desc: "Follow Spider-Man's latest sightings with Spidey Tracker." },
 ];
@@ -84,6 +84,9 @@ export default function Home() {
   // Logged-in members already picked their identity during onboarding — the
   // "Who Are You Under the Mask?" section only shows for guests / quiz-pending.
   const hideIdentity = !!user && !user.needsQuiz;
+  // The Living Web ("The Web grows a little every second" / Web Twins) is the
+  // inverse: members only — guests never see the section at all.
+  const showLivingWeb = !!user;
 
   // DOM refs
   const stageRef = useRef(null);
@@ -237,8 +240,8 @@ export default function Home() {
       sfx.play("open");
     }, entryMs + 1000);
 
-    /* ---- canvases ---- */
-    const globeInst = initGlobe(globeRef.current, { getTwinActive: () => twinModeRef.current });
+    /* ---- canvases (the globe lives in its own effect — its section is
+       members-only and mounts/unmounts with the session) ---- */
     const particlesInst = initParticles(idParticlesRef.current);
 
     /* ---- scroll-triggered Marvel reveals ---- */
@@ -493,15 +496,23 @@ export default function Home() {
       if (["ArrowDown", "PageDown"].includes(ev.key)) { ev.preventDefault(); const n = nextPageIdx(1); if (n >= 0) goToPage(n); }
       else if (["ArrowUp", "PageUp"].includes(ev.key)) { ev.preventDefault(); const n = nextPageIdx(-1); if (n >= 0) goToPage(n); }
     };
-    /* One swipe = one section on phones too (user request: "even a bit" of
-       scroll pages with the blink). Sections taller than the viewport
-       (MJ Wall, footer) still scroll natively inside — paging only takes
-       over at their edges. Pull-to-refresh stays available at the very top. */
-    let touchStartY = null, touchPager = false;
-    const onTouchStart = (ev) => { touchStartY = ev.touches[0].clientY; touchPager = false; };
+    /* One swipe = one section on phones (user request: "even a bit" of scroll
+       pages with the blink). The flip fires MID-GESTURE the moment the finger
+       has moved ~12px — waiting for touchend let small drags rest between
+       sections. Sections meaningfully taller than the viewport (MJ Wall,
+       footer) still scroll natively inside; the 1.15× slack matters because
+       the iOS URL bar makes every 100vh section read slightly "taller" than
+       the visible viewport, which used to hand those few px to native scroll
+       (the mid-section drift with no blink). Pull-to-refresh stays available
+       at the very top. */
+    let touchStartY = null, touchConsumed = false;
+    const onTouchStart = (ev) => { touchStartY = ev.touches[0].clientY; touchConsumed = false; };
     const onTouchMove = (ev) => {
       if (modalOpen() || touchStartY == null) return;
       if (isDesktopRef.current) { ev.preventDefault(); return; }
+      // gesture already spent its one page flip — keep eating the drag so the
+      // remaining finger travel can't scroll the page away from the section
+      if (touchConsumed) { ev.preventDefault(); return; }
       const dy = touchStartY - ev.touches[0].clientY;
       if (!dy) return;
       const dir = dy > 0 ? 1 : -1;
@@ -510,13 +521,18 @@ export default function Home() {
       const cur = pages().find((el) => { const r = el.getBoundingClientRect(); return r.top <= 8 && r.bottom >= vh - 8; });
       if (cur) {
         const r = cur.getBoundingClientRect();
-        // room left inside this tall section — let it scroll natively
-        if (dir > 0 ? r.bottom > vh + 8 : r.top < -8) return;
+        // genuinely tall section with room left inside — native scroll
+        if (r.height > vh * 1.15 && (dir > 0 ? r.bottom > vh + 8 : r.top < -8)) return;
       }
       ev.preventDefault();
-      touchPager = true;
+      if (Math.abs(dy) > 12) {
+        touchConsumed = true; // one gesture = one section, even if held/dragged on
+        if (!paging) { const n = nextPageIdx(dir); if (n >= 0) goToPage(n); }
+      }
     };
     const onTouchEnd = (ev) => {
+      const consumed = touchConsumed;
+      touchConsumed = false;
       if (modalOpen() || paging || touchStartY == null) { touchStartY = null; return; }
       const endY = (ev.changedTouches && ev.changedTouches[0].clientY) || touchStartY;
       const diff = touchStartY - endY;
@@ -525,8 +541,9 @@ export default function Home() {
         if (Math.abs(diff) > 50) { const n = nextPageIdx(diff > 0 ? 1 : -1); if (n >= 0) goToPage(n); }
         return;
       }
-      if (!touchPager) return; // it was a native scroll inside a tall section
-      if (Math.abs(diff) > 24) { const n = nextPageIdx(diff > 0 ? 1 : -1); if (n >= 0) goToPage(n); }
+      if (consumed) return; // the flip already happened mid-gesture
+      // fallback for sub-12px flicks the move handler ignored
+      if (Math.abs(diff) > 8) { const n = nextPageIdx(diff > 0 ? 1 : -1); if (n >= 0) goToPage(n); }
     };
 
     window.addEventListener("wheel", onWheel, { passive: false });
@@ -579,7 +596,6 @@ export default function Home() {
       if (spideyObs) spideyObs.disconnect();
       clearTimeout(spideyInitT);
       if (spideyLandT) clearTimeout(spideyLandT);
-      globeInst.destroy();
       particlesInst.destroy();
       sfx.destroy();
     };
@@ -593,19 +609,27 @@ export default function Home() {
     else sfxRef.current.stopHum();
   }, [walkOpen]);
 
-  /* the identity section mounts/unmounts with the session — observe any fresh
-     [data-reveal]/[data-page] nodes (observe() is a no-op on ones already
-     tracked) and re-measure the cached section offsets */
+  /* the identity + Living Web sections mount/unmount with the session —
+     observe any fresh [data-reveal]/[data-page] nodes (observe() is a no-op on
+     ones already tracked) and re-measure the cached section offsets */
   useEffect(() => {
     document.querySelectorAll("[data-reveal]").forEach((el) => revealObsRef.current && revealObsRef.current.observe(el));
     document.querySelectorAll("[data-page]").forEach((el) => sectionObsRef.current && sectionObsRef.current.observe(el));
     window.dispatchEvent(new Event("resize"));
-  }, [hideIdentity]);
+  }, [hideIdentity, showLivingWeb]);
 
   /* the Living Web keeps its revealed (twin) state once the user opens it */
   useEffect(() => {
     try { if (localStorage.getItem("bnd_twins_revealed") === "1") setTwinMode(true); } catch {}
   }, []);
+
+  /* the Living Web section is members-only, so its canvas mounts/unmounts with
+     the session — (re)initialize the globe whenever the section appears */
+  useEffect(() => {
+    if (!showLivingWeb) return;
+    const globeInst = initGlobe(globeRef.current, { getTwinActive: () => twinModeRef.current });
+    return () => globeInst.destroy();
+  }, [showLivingWeb]);
 
   /* mobile: play the film-shutter blink when a swipe lands on a new section —
      desktop's blink comes from the wheel pager, which is off on phones */
@@ -732,11 +756,26 @@ export default function Home() {
       : "perspective(1600px) rotateX(22deg) translateY(90px) scale(0.72)",
     filter: walkOpen ? "blur(0)" : "blur(14px)",
   };
-  const walkItems = WALK_ITEMS.map((w, i) => ({ ...w, delay: (walkOpen ? 620 + i * 150 : 0) + "ms" }));
+  const walkItems = WALK_ITEMS.map((w, i) => ({
+    ...w,
+    delay: (walkOpen ? 620 + i * 150 : 0) + "ms",
+    // the trailer card is a real CTA: close the walkthrough, open the lightbox
+    onClick:
+      w.action === "trailer"
+        ? () => {
+            sfxRef.current && sfxRef.current.play("click");
+            sfxRef.current && sfxRef.current.stopHum();
+            setWalkOpen(false);
+            setTrailerOpen(true);
+          }
+        : undefined,
+  }));
 
   const spideyWidth = isDesktop ? "clamp(300px, 32vw, 560px)" : "62vw";
   const logoWidth = isDesktop ? "min(720px, 42vw)" : "82vw";
-  const railSections = hideIdentity ? RAIL_SECTIONS.filter((sec) => sec.key !== "identity") : RAIL_SECTIONS;
+  const railSections = RAIL_SECTIONS.filter(
+    (sec) => !(hideIdentity && sec.key === "identity") && !(!showLivingWeb && sec.key === "livingweb")
+  );
   const railIdx = Math.max(0, railSections.findIndex((sec) => sec.key === activeSection));
 
   const onWalkHover = () => sfxRef.current && sfxRef.current.play("hover");
@@ -821,7 +860,8 @@ export default function Home() {
       </section>
       )}
 
-      {/* ================= THE LIVING WEB ================= */}
+      {/* ================= THE LIVING WEB (members only) ================= */}
+      {showLivingWeb && (
       <section data-page="livingweb" data-screen-label="The Living Web" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background: radial-gradient(120% 100% at 50% 26%, #0b1226 0%, #070711 55%, #040409 100%);")}>
         <div className="lw-map" style={s("position: absolute; top: 12%; bottom: 12%; left: 45%; transform: translateX(-50%); width: 84%; z-index: 1;")}>
           <canvas ref={globeRef} style={s("position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.95; pointer-events: none;")}></canvas>
@@ -901,6 +941,7 @@ export default function Home() {
           </div>
         )}
       </section>
+      )}
 
       {/* ================= MJ WALL ================= */}
       <section ref={mjWallRef} id="mj-wall-section" data-page="mjwall" data-screen-label="MJ Wall" style={s("position: relative; z-index: 22; min-height: 100vh; height: 100vh; scroll-snap-align: start; scroll-snap-stop: always; background-color: #0a1430; background-image: url('/assets/mj-bg.jpg'); background-size: cover; background-position: center; display: flex; align-items: center; overflow: hidden;")}>

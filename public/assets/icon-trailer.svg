@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Walkthrough "Official Trailer" icon — flat #E50101 glyph with transparent
+     cutouts, same language as the other walk-card icons. The cutouts (slate
+     stripes + play triangle) stay transparent under the shared hover filter
+     (brightness(0) invert(1)), which turns the glyph into a white silhouette:
+     that filter IS the hover state, exactly like the PNG icons. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <g fill="#E50101">
+    <!-- clapper slate, hinged open -->
+    <path fill-rule="evenodd" transform="rotate(-12 22 86)"
+      d="M28 40h144a8 8 0 0 1 8 8v22a8 8 0 0 1-8 8H28a8 8 0 0 1-8-8V48a8 8 0 0 1 8-8Zm14 38 14-38h20L62 78Zm42 0 14-38h20l-14 38Zm42 0 14-38h20l-14 38Z"/>
+    <!-- board body with play-triangle cutout -->
+    <path fill-rule="evenodd"
+      d="M20 86h160v84a14 14 0 0 1-14 14H34a14 14 0 0 1-14-14V86Zm64 25 54 24-54 24v-48Z"/>
+  </g>
+</svg>

@@ -244,15 +244,16 @@ body { width: 100%; }
 html, body, a, button, [data-web-hover] {
   cursor: url('/assets/cursor-spider.svg') 36 36, auto;
 }
-/* Hovering anything clickable: the same spidey silhouette in the theme red,
-   10% smaller. !important beats the inline `cursor: pointer` styles ported
-   from the mockup. This image swap is the no-JS fallback — with JS, CursorFx
-   fades a red overlay in/out instead so the transition is smooth.
+/* Hovering anything clickable: the same spidey silhouette in the theme red at
+   the SAME size — only the color changes, never the footprint. !important
+   beats the inline `cursor: pointer` styles ported from the mockup. This
+   image swap is the no-JS fallback — with JS, CursorFx fades a red overlay
+   in/out instead so the transition is smooth.
    The admin panel opts out entirely (:not(:has(.admin-root))). */
 html:not(:has(.admin-root)) a:hover, html:not(:has(.admin-root)) button:not(:disabled):hover,
 html:not(:has(.admin-root)) select:hover, html:not(:has(.admin-root)) summary:hover,
 html:not(:has(.admin-root)) [role="button"]:hover, html:not(:has(.admin-root)) [data-web-hover]:hover {
-  cursor: url('/assets/cursor-spider-red.svg') 32 32, pointer !important;
+  cursor: url('/assets/cursor-spider-red.svg') 36 36, pointer !important;
 }
 /* CursorFx active: hide the native cursor only while its red overlay is shown
    (the overlay fades/scales, which a native cursor swap can't do) */
@@ -265,13 +266,15 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
   position: fixed; left: 0; top: 0; z-index: 9998; pointer-events: none;
   will-change: transform; /* positioned via translate3d — never transitioned */
 }
+/* 72px = the white cursor's exact footprint; the reveal is a fade + settle
+   rotate only — no scale, so the cursor never changes size on hover */
 .bnd-cursor-fx .bnd-cursor-red {
-  width: 65px; height: 65px; margin: -32.5px 0 0 -32.5px;
+  width: 72px; height: 72px; margin: -36px 0 0 -36px;
   background: url('/assets/cursor-spider-red.svg') center / contain no-repeat;
-  opacity: 0; transform: scale(0.55) rotate(-8deg);
+  opacity: 0; transform: rotate(-8deg);
   transition: opacity 170ms ease, transform 220ms cubic-bezier(.2,.7,.3,1);
 }
-.bnd-cursor-fx.on .bnd-cursor-red { opacity: 1; transform: scale(1) rotate(0deg); }
+.bnd-cursor-fx.on .bnd-cursor-red { opacity: 1; transform: rotate(0deg); }
 /* Click feedback: a red ping that pops at the cursor (see CursorFx) */
 .bnd-click-ping {
   position: fixed; z-index: 9999; pointer-events: none;

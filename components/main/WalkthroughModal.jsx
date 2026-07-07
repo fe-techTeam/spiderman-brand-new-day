@@ -33,8 +33,12 @@ export default function WalkthroughModal({ walk, items, onClose, onJoin, onHover
                     key={i}
                     data-web-hover="true"
                     onMouseEnter={onHover}
+                    onClick={w.onClick}
+                    role={w.onClick ? "button" : undefined}
+                    tabIndex={w.onClick ? 0 : undefined}
+                    onKeyDown={w.onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); w.onClick(); } } : undefined}
                     className="bnd-card walk-card"
-                    style={s(`position: relative; padding: 1px; background: linear-gradient(140deg, rgba(120,150,220,0.3), rgba(255,40,60,0.28)); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); animation: bnd-walk-item 820ms cubic-bezier(.16,.84,.3,1) both; animation-delay: ${w.delay}; transition: transform 420ms cubic-bezier(.16,.84,.3,1), box-shadow 420ms ease, background 420ms ease; transform-style: preserve-3d;`)}
+                    style={s(`position: relative; padding: 1px; background: linear-gradient(140deg, rgba(120,150,220,0.3), rgba(255,40,60,0.28)); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); animation: bnd-walk-item 820ms cubic-bezier(.16,.84,.3,1) both; animation-delay: ${w.delay}; transition: transform 420ms cubic-bezier(.16,.84,.3,1), box-shadow 420ms ease, background 420ms ease; transform-style: preserve-3d; cursor: ${w.onClick ? "pointer" : "default"};`)}
                   >
                     <span className="bnd-card-sheen" style={s("position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);")}>
                       <span style={s("position: absolute; top: -40%; left: -60%; width: 40%; height: 180%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.22), transparent); transform: skewX(-18deg);")}></span>
