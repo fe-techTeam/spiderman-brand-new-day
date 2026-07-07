@@ -106,9 +106,14 @@ live project via DesignSync; the following changed and were re-ported verbatim:
 3. **Mobile uses natural scrolling instead of the touch pager.** The source hijacks
    touch to force a full-screen swipe pager on phones, which prevents scrolling
    within a section and can cut off the (auto-height) MJ Wall content. On `< 760px`
-   the pager hijack is disabled and sections scroll naturally; nav actions
-   smooth-scroll. All visuals/reveals are identical. The desktop pager is unchanged.
-   Given "majority of users are on phones," this is the correct trade-off.
+   the pager hijack is disabled and sections scroll naturally. All visuals/reveals
+   are identical. The desktop pager is unchanged. Given "majority of users are on
+   phones," this is the correct trade-off.
+   *(July 2026 update, user request: mobile now keeps CSS scroll-snap ON —
+   native physics, sections self-align, taller-than-viewport sections still
+   scroll inside — and the film-shutter blink plays whenever a swipe lands on
+   a new section. Menu/rail navigation blinks + jumps like desktop. Scrolling
+   is still never hijacked; reduced-motion skips the blink.)*
 
 4. **Hero `bg.jpg` served via `next/image`.** The source uses a raw 8.6 MB `<img>`.
    We serve it through `next/image` (`fill`, responsive AVIF/WebP) — visually

@@ -34,8 +34,10 @@ html, body {
      would break sticky. Vertical scroll stays on the document/window. */
   overflow-x: clip !important;
 }
+/* Snap stays on for mobile too: sections align themselves with native scroll
+   physics (areas taller than the viewport still scroll freely inside), and the
+   landing page blinks the film shutter when a swipe lands on a new section. */
 html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
-@media (max-width: 760px) { html { scroll-snap-type: none; } }
 body { width: 100%; }
 
 ::selection { background: #d6021a; color: #fff; }

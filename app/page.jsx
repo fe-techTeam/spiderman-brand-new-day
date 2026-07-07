@@ -105,6 +105,7 @@ export default function Home() {
   const goToPageRef = useRef(() => {});
   const revealObsRef = useRef(null);
   const sectionObsRef = useRef(null);
+  const mobileBlinkBusyRef = useRef(false);
   const sfxRef = useRef(null);
   const isDesktopRef = useRef(true);
   const walkOpenRef = useRef(false);
@@ -427,10 +428,17 @@ export default function Home() {
       idx = Math.max(0, Math.min(list.length - 1, idx));
       const targetEl = list[idx];
       if (!targetEl) return;
-      // mobile: natural smooth scroll, no hijack
+      // mobile: no scroll hijack, but menu/rail navigation still blinks the
+      // shutter like desktop (a long smooth scroll would fire the observer
+      // blink several times on the way down)
       if (!isDesktopRef.current) {
         pageIndex = idx;
-        targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (reduceMotion) {
+          targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+          mobileBlinkBusyRef.current = true;
+          transShutter(targetEl, () => { mobileBlinkBusyRef.current = false; });
+        }
         return;
       }
       // already on this section AND actually aligned to it — no transition/blink.
@@ -564,6 +572,28 @@ export default function Home() {
   useEffect(() => {
     try { if (localStorage.getItem("bnd_twins_revealed") === "1") setTwinMode(true); } catch {}
   }, []);
+
+  /* mobile: play the film-shutter blink when a swipe lands on a new section —
+     desktop's blink comes from the wheel pager, which is off on phones */
+  const prevSectionRef = useRef("hero");
+  useEffect(() => {
+    if (prevSectionRef.current === activeSection) return;
+    prevSectionRef.current = activeSection;
+    if (isDesktopRef.current || mobileBlinkBusyRef.current) return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const t = barTopRef.current, b = barBottomRef.current;
+    if (!t || !b) return;
+    mobileBlinkBusyRef.current = true;
+    const closeMs = 140, openMs = 220; // a touch quicker than desktop — no scroll jump under it
+    const cEase = "cubic-bezier(.5,0,.15,1)";
+    [t, b].forEach((el) => el.animate([{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: closeMs, easing: cEase, fill: "forwards" }));
+    // no effect cleanup on these timers — cancelling the reopen mid-blink
+    // (e.g. two quick section changes) would leave the shutter closed
+    setTimeout(() => {
+      [t, b].forEach((el) => el.animate([{ transform: "scaleY(1)" }, { transform: "scaleY(0)" }], { duration: openMs, easing: cEase, fill: "forwards" }));
+      setTimeout(() => { mobileBlinkBusyRef.current = false; }, openMs);
+    }, closeMs + 20);
+  }, [activeSection]);
 
   /* lock the page scroll while any popup is up — otherwise the page drifts
      to a halfway point behind the popup and the pager blinks oddly after it
