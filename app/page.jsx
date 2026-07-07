@@ -615,8 +615,8 @@ export default function Home() {
       await portalApi("/mj-wall/messages", { method: "POST", body: { body: mjMessage } });
       setMjSent(true);
       sfxRef.current && sfxRef.current.play("click");
-      // hand the fresh message to the MJ Wall page so it floats in immediately
-      try { localStorage.setItem("mj_pending_message", mjMessage.trim()); } catch {}
+      // no local handoff to the wall page — the message is pending moderation
+      // and must not show on the wall until an admin approves it
       setTimeout(() => router.push("/mj-wall"), 1400);
     } catch (err) {
       if (err.code === "quiz_required") { window.location.href = "/quiz"; return; }

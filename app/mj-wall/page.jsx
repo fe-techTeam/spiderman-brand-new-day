@@ -18,9 +18,6 @@ const PALS = [
   { edgeA: "rgba(120,150,220,0.4)", edgeB: "rgba(40,60,110,0.2)", bg: "linear-gradient(150deg, rgba(14,18,34,0.96), rgba(10,10,20,0.97))", accent: "#7ea6ff" },
   { edgeA: "rgba(255,210,63,0.4)", edgeB: "rgba(120,90,20,0.2)", bg: "linear-gradient(150deg, rgba(24,20,10,0.96), rgba(14,11,8,0.97))", accent: "#ffd23f" },
 ];
-/* the visitor's own cards glow a little hotter */
-const MINE_PAL = { edgeA: "rgba(255,40,60,0.6)", edgeB: "rgba(120,40,50,0.3)", bg: "linear-gradient(150deg, rgba(34,14,20,0.97), rgba(16,10,18,0.98))", accent: "#ff5a6a" };
-
 /* seeded wall (mockup copy) — shown until the API answers / when it's empty */
 const SEED_RAW = [
   ["Priya N.", "He always looked out for the little guy — even when nobody was watching."],
@@ -60,7 +57,6 @@ const mapMsg = (m, i) => ({
 export default function MjWallPage() {
   const { user, openAuth } = useSession();
   const [messages, setMessages] = useState(SEEDS); // seeded copy stays as the fallback
-  const [extra, setExtra] = useState([]);          // the visitor's fresh cards (float in first)
   const [nextCursor, setNextCursor] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -72,19 +68,9 @@ export default function MjWallPage() {
   const inputRef = useRef(null);
   const spotRef = useRef(null);
   const moreRef = useRef(null);
-  const uidRef = useRef(0);
 
-  /* localStorage handoff from the home section + live messages */
+  /* live messages — only admin-approved ones ever render on the wall */
   useEffect(() => {
-    try {
-      const pending = localStorage.getItem("mj_pending_message");
-      if (pending) {
-        localStorage.removeItem("mj_pending_message");
-        const nm = user ? "u/" + user.username : "You";
-        setExtra((x) => [{ id: "u" + uidRef.current++, name: nm, initial: nm.replace(/^u\//, "")[0].toUpperCase(), text: pending, ...MINE_PAL }, ...x]);
-        setJustSent(true);
-      }
-    } catch (e) {}
     let on = true;
     portalApi("/mj-wall/messages?limit=30")
       .then((data) => {
@@ -154,9 +140,9 @@ export default function MjWallPage() {
     setSending(true);
     setSendError("");
     try {
+      // the message goes to moderation — it only joins the wall once approved,
+      // so nothing is added optimistically here
       await portalApi("/mj-wall/messages", { method: "POST", body: { body: t } });
-      const nm = "u/" + user.username;
-      setExtra((x) => [{ id: "u" + uidRef.current++, name: nm, initial: nm.replace(/^u\//, "")[0].toUpperCase(), text: t, ...MINE_PAL }, ...x]);
       setDraft("");
       setJustSent(true);
     } catch (err) {
@@ -169,9 +155,8 @@ export default function MjWallPage() {
 
   /* deal the cards round-robin into masonry columns — every entry renders
      exactly once, and the page scrolls to reach all of them */
-  const all = [...extra, ...messages];
   const cols = Array.from({ length: ncol }, () => []);
-  all.forEach((m, i) => cols[i % ncol].push({ ...m, idx: i }));
+  messages.forEach((m, i) => cols[i % ncol].push({ ...m, idx: i }));
 
   const cardBody = (m) => (
     <div style={{ background: m.bg, clipPath: "polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px)", padding: "15px 16px" }}>
@@ -283,7 +268,7 @@ export default function MjWallPage() {
           {justSent ? (
             <div style={s("display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px; animation: mjw-rise .5s ease both; flex-wrap: wrap;")}>
               <span style={s("width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: linear-gradient(180deg, #ffd23f, #f7a91d); color: #6b2a00; display: flex; align-items: center; justify-content: center; font-size: 17px;")}>✓</span>
-              <span style={s("font-size: 14px; color: rgba(255,255,255,0.85);")}>Your memory joined the wall.</span>
+              <span style={s("font-size: 14px; color: rgba(255,255,255,0.85);")}>Sent! Your memory joins the wall once it&apos;s approved.</span>
               <a href="#" onClick={(e) => { e.preventDefault(); setJustSent(false); setTimeout(() => inputRef.current && inputRef.current.focus(), 50); }} data-web-hover="true" style={s("color: #ff5a6a; text-decoration: none; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;")}>Write another ›</a>
             </div>
           ) : (
