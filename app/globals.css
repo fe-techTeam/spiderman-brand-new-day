@@ -242,6 +242,26 @@ body { width: 100%; }
 html, body, a, button, [data-web-hover] {
   cursor: url('/assets/cursor-spider.svg') 36 36, auto;
 }
+/* Hovering anything clickable: the same spidey silhouette in the theme red,
+   10% smaller. !important beats the inline `cursor: pointer` styles ported
+   from the mockup. (Native cursors swap instantly — a true cross-fade would
+   need a JS-driven cursor, which this site deliberately doesn't use.) */
+a:hover, button:not(:disabled):hover, select:hover, summary:hover,
+[role="button"]:hover, [data-web-hover]:hover {
+  cursor: url('/assets/cursor-spider-red.svg') 32 32, pointer !important;
+}
+/* Click feedback: a subtle red ping that pops at the cursor (see CursorFx) */
+.bnd-click-ping {
+  position: fixed; z-index: 9999; pointer-events: none;
+  width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
+  border: 1.5px solid rgba(255,47,64,0.65);
+  box-shadow: 0 0 10px rgba(255,47,64,0.3);
+  animation: bnd-click-ping 380ms ease-out forwards;
+}
+@keyframes bnd-click-ping {
+  0%   { transform: scale(0.35); opacity: 0.9; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
 
 /* ============================================================
    MJ WALL page styles (MJ Wall.dc.html <style> block)

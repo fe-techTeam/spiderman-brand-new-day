@@ -1,5 +1,6 @@
 import "./globals.css";
 import SessionProvider from "@/components/auth/SessionProvider";
+import CursorFx from "@/components/CursorFx";
 
 export const metadata = {
   title: "Spider-Man: Brand New Day",
@@ -35,6 +36,7 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         <SessionProvider>{children}</SessionProvider>
+        <CursorFx />
       </body>
     </html>
   );
