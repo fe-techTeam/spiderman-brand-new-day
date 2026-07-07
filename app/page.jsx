@@ -16,6 +16,7 @@ import { useSession } from "@/components/auth/SessionProvider";
 import Nav from "@/components/main/Nav";
 import WalkthroughModal from "@/components/main/WalkthroughModal";
 import TrailerModal from "@/components/main/TrailerModal";
+import MusicPlayer from "@/components/main/MusicPlayer";
 
 /* ---------------------------------------------------------------- static data */
 
@@ -631,27 +632,11 @@ export default function Home() {
     return () => globeInst.destroy();
   }, [showLivingWeb]);
 
-  /* mobile: play the film-shutter blink when a swipe lands on a new section —
-     desktop's blink comes from the wheel pager, which is off on phones */
-  const prevSectionRef = useRef("hero");
-  useEffect(() => {
-    if (prevSectionRef.current === activeSection) return;
-    prevSectionRef.current = activeSection;
-    if (isDesktopRef.current || mobileBlinkBusyRef.current) return;
-    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const t = barTopRef.current, b = barBottomRef.current;
-    if (!t || !b) return;
-    mobileBlinkBusyRef.current = true;
-    const closeMs = 140, openMs = 220; // a touch quicker than desktop — no scroll jump under it
-    const cEase = "cubic-bezier(.5,0,.15,1)";
-    [t, b].forEach((el) => el.animate([{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: closeMs, easing: cEase, fill: "forwards" }));
-    // no effect cleanup on these timers — cancelling the reopen mid-blink
-    // (e.g. two quick section changes) would leave the shutter closed
-    setTimeout(() => {
-      [t, b].forEach((el) => el.animate([{ transform: "scaleY(1)" }, { transform: "scaleY(0)" }], { duration: openMs, easing: cEase, fill: "forwards" }));
-      setTimeout(() => { mobileBlinkBusyRef.current = false; }, openMs);
-    }, closeMs + 20);
-  }, [activeSection]);
+  /* NOTE: there used to be a second mobile blink here, fired whenever the
+     scroll-spy's activeSection changed — it predates the eager touch pager.
+     Now every mobile section change already blinks inside goToPage, so the
+     observer version only produced stray doubles (worst on the tall footer,
+     whose intersection threshold trips well after the pager's own blink). */
 
   /* lock the page scroll while any popup is up — otherwise the page drifts
      to a halfway point behind the popup and the pager blinks oddly after it
@@ -780,8 +765,12 @@ export default function Home() {
 
   const onWalkHover = () => sfxRef.current && sfxRef.current.play("hover");
 
+  // stage overflow-x is clip (not hidden) — hidden makes the div a
+  // programmatic horizontal scroller, and focusing an element that pokes past
+  // the edge (iOS) scrolls it sideways with no way to pan back, cutting every
+  // section off. clip forbids scrolling entirely.
   return (
-    <div ref={stageRef} style={s("position: relative; width: 100%; min-height: 100vh; background: #0a0a0c; overflow-x: hidden;")}>
+    <div ref={stageRef} style={s("position: relative; width: 100%; min-height: 100vh; background: #0a0a0c; overflow-x: clip;")}>
 
       {/* ================= HERO ================= */}
       <div data-page="hero" style={s("position: relative; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always;")}>
@@ -947,7 +936,7 @@ export default function Home() {
       <section ref={mjWallRef} id="mj-wall-section" data-page="mjwall" data-screen-label="MJ Wall" style={s("position: relative; z-index: 22; min-height: 100vh; height: 100vh; scroll-snap-align: start; scroll-snap-stop: always; background-color: #0a1430; background-image: url('/assets/mj-bg.jpg'); background-size: cover; background-position: center; display: flex; align-items: center; overflow: hidden;")}>
         <div id="mj-scrim" style={s("position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8,10,26,0) 35%, rgba(8,10,26,0.45) 62%, rgba(8,10,26,0.72) 100%); pointer-events: none;")}></div>
 
-        <div ref={mjHeaderRef} id="mj-inner" data-page-content style={s("position: relative; width: 100%; max-width: 1320px; margin: 0 auto; padding: clamp(60px, 10vh, 130px) clamp(24px, 6vw, 96px); display: flex; justify-content: flex-end; will-change: transform;")}>
+        <div ref={mjHeaderRef} id="mj-inner" data-page-content style={s("position: relative; width: 100%; max-width: 1320px; margin: 0 auto; box-sizing: border-box; padding: clamp(60px, 10vh, 130px) clamp(24px, 6vw, 96px); display: flex; justify-content: flex-end; will-change: transform;")}>
           <div data-reveal className="bnd-reveal" id="mj-prompt" style={s("width: min(520px, 100%);")}>
             <div className="bnd-line" style={s("animation-delay: 70ms; display: inline-flex; align-items: center; gap: 12px; margin-bottom: 18px;")}>
               <span style={s("width: 42px; height: 2px; background: linear-gradient(90deg, #ff1f33, transparent);")}></span>
@@ -1220,6 +1209,8 @@ export default function Home() {
       {trailerOpen && (
         <TrailerModal onClose={() => setTrailerOpen(false)} onStopProp={(e) => e.stopPropagation()} />
       )}
+
+      <MusicPlayer onSfx={() => sfxRef.current && sfxRef.current.play("click")} />
     </div>
   );
 }

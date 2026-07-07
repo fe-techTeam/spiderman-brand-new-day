@@ -87,6 +87,33 @@ live project via DesignSync; the following changed and were re-ported verbatim:
   honors section hashes). `reveal-bg.jpg` and `card-protector.png` exceed the
   DesignSync read cap — pending a project export like the logo.
 
+## July 7 2026 evening update (third DesignSync pull)
+
+- **Music player ported** from the design's fixed corner widget — hidden
+  looping YouTube IFrame player (`WSv4BfIMNRA`), spider-disc that spins while
+  playing, expandable label + 5-bar equalizer + play/mute/collapse controls
+  (`components/main/MusicPlayer.jsx`, keyframes in globals). *Deviation:* the
+  design places it bottom-right; ours sits bottom-LEFT (explicit user request)
+  and adds `env(safe-area-inset-bottom)`.
+- **PENDING (256KiB API cap)**: the refreshed `assets/identity-bg.jpg`
+  (AI-upscaled jail-cell still, 1616×640 baseline JPEG), `assets/mj-bg.jpg`
+  (now a PNG — mask close-up + blue photo-wall composite, 1920×1080) and
+  `assets/reveal-bg.jpg` (PNG — top-down mask shot, 1920×1080) all exceed the
+  DesignSync read cap in every copy (assets/, uploads/ sources, and the Jul 6
+  local export predates them). All three are already wired by filename — the
+  quiz stage points at `/assets/reveal-bg.jpg` with a dark fallback — so
+  dropping the files from a fresh user-side project export completes the swap
+  with zero code changes. (`assets/logo.png` from the earlier pull is still
+  pending the same export.)
+- **Mobile hardening beyond the design** (user feedback, not in the mockup):
+  fixed-height sections use `100svh` under 760px so bottom-anchored content
+  clears the iOS URL bar; the stage's `overflow-x` switched `hidden → clip`
+  and `#mj-inner` got `box-sizing: border-box` (it was 44px wider than the
+  viewport, letting iOS focus-scroll the page sideways with no way back);
+  CTAs drop one size tier on phones; forum vote rail/cards/CTAs compacted;
+  the scroll-spy's duplicate mobile blink was removed — the touch pager's
+  shutter is now the only blink, which also kills the footer double blink.
+
 ### Refresh deviations (with justification)
 
 - **MJ Wall page is wired to the real API.** The wall renders approved messages

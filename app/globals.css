@@ -208,6 +208,16 @@ body { width: 100%; }
   0%, 100% { opacity: 0.35; }
   50%      { opacity: 0.65; }
 }
+/* ===== Music player: spinning disc + dancing equalizer (design port) ===== */
+@keyframes bnd-disc-spin { to { transform: rotate(360deg); } }
+@keyframes bnd-eq { 0%,100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }
+[data-eq] { transform-origin: bottom; }
+.bnd-music-on [data-eq] { animation: bnd-eq 0.8s ease-in-out infinite; }
+.bnd-music-on [data-eq]:nth-child(2) { animation-duration: 0.62s; }
+.bnd-music-on [data-eq]:nth-child(3) { animation-duration: 0.9s; }
+.bnd-music-on [data-eq]:nth-child(4) { animation-duration: 0.54s; }
+.bnd-music-on [data-eq]:nth-child(5) { animation-duration: 0.74s; }
+
 @keyframes bnd-radar-sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes bnd-radar-ring { 0% { transform: scale(0.2); opacity: 0.9; } 100% { transform: scale(1); opacity: 0; } }
 @keyframes bnd-blip { 0%, 100% { opacity: 0.25; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.25); } }
@@ -238,6 +248,24 @@ body { width: 100%; }
   #mj-prompt { width: 100% !important; text-align: center !important; }
   #mj-prompt .bnd-line[style*="inline-flex"] { justify-content: center !important; }
   #mj-prompt textarea { font-size: 16px !important; }
+}
+
+/* ===== Landing mobile: safe viewport + calmer CTAs ===== */
+@media (max-width: 760px) {
+  /* 100vh hides the section bottom behind the iOS URL bar — svh is the small
+     viewport, so bottom-anchored content (hero logo, Living Web header,
+     tracker CTA) stays fully on screen. MJ Wall + footer grow with content
+     (their own rules above/below), so they are exempt. */
+  [data-page]:not([data-page="footer"]):not([data-page="mjwall"]) { height: 100svh !important; }
+  footer[data-page="footer"] {
+    height: auto !important;
+    min-height: 100svh !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* the desktop-sized CTAs read huge on phones — one tier down, everywhere */
+  .bnd-cta .bnd-cta-inner { padding: 11px 22px !important; font-size: 12px !important; }
+  /* MJ "Add to the wall" (landing) — same treatment, different structure */
+  #mj-prompt button > span > span { padding: 12px 24px !important; font-size: 12px !important; }
 }
 
 /* Custom spider cursor across the site (inputs keep the text caret for typing) */
@@ -305,6 +333,9 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
 @keyframes mjw-ray { 0%, 100% { opacity: .1; transform: translateX(-8%); } 50% { opacity: .26; transform: translateX(8%); } }
 @keyframes mjw-flicker { 0%, 100% { opacity: .05; } 50% { opacity: .11; } }
 @keyframes mjw-heartbeat { 0%, 100% { opacity: .18; transform: translate(-50%, -50%) scale(1); } 50% { opacity: .4; transform: translate(-50%, -50%) scale(1.14); } }
+@media (max-width: 760px) {
+  .mjw-cta > span > span { padding: 10px 18px !important; font-size: 12px !important; }
+}
 @keyframes mjw-mj-pulse { 0%, 100% { opacity: .11; filter: grayscale(0.28) contrast(1.05); } 50% { opacity: .2; filter: grayscale(0.15) contrast(1.08); } }
 
 /* ============================================================
@@ -384,8 +415,8 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
 
 /* ---- Forum responsive (source layout is desktop-only; add mobile) ---- */
 @media (max-width: 900px) {
-  .fm-layout { grid-template-columns: 1fr !important; }
-  .fm-right { position: static !important; top: auto !important; }
+  .fm-layout { grid-template-columns: 1fr !important; padding: 14px 12px 70px !important; gap: 14px !important; }
+  .fm-right { position: static !important; top: auto !important; gap: 12px !important; }
   /* sort tabs + spoiler toggle ride along under the sticky header (reddit-style) */
   .fm-sortbar {
     position: sticky; top: 65px; z-index: 30;
@@ -401,11 +432,18 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
   .fm-exit-label { display: none; }
   /* spoiler toggle collapses to icon + switch */
   .fm-spoiler-label { display: none; }
-  /* tighter cards: slimmer vote rail, less padding, calmer title */
-  .fm-vote { width: 44px !important; padding: 12px 0 !important; }
-  .fm-post-body { padding: 13px 14px !important; }
-  .fm-post-body h3 { font-size: 16.5px !important; }
-  .fm-post-body p { font-size: 13.5px !important; }
+  /* tighter cards: slimmer vote rail, less padding, calmer type — the desktop
+     chrome reads bulky on phones (user feedback), so everything drops a tier
+     while keeping the full feature set */
+  .fm-vote { width: 40px !important; padding: 10px 0 !important; gap: 3px !important; }
+  .fm-vote svg { width: 15px !important; height: 15px !important; }
+  .fm-vote span { font-size: 13px !important; }
+  .fm-post-body { padding: 11px 12px !important; }
+  .fm-post-body h3 { font-size: 15.5px !important; line-height: 1.25 !important; }
+  .fm-post-body p { font-size: 13px !important; line-height: 1.45 !important; }
+  .fm-post-body > div:first-child { margin-bottom: 6px !important; }
+  /* CTAs one tier down (load more / create post / post to the web) */
+  .fm-cta > span > span { padding: 10px 22px !important; font-size: 12px !important; }
 }
 .fm-exit:hover { border-color: rgba(255,60,74,0.5) !important; color: #ff8a95 !important; }
 
@@ -447,6 +485,7 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
 @media (max-width: 680px) {
   .ri-opt:hover { transform: none !important; }
   .ri-progress-wrap { flex-wrap: wrap; justify-content: center; }
+  .ri-cta span span { padding: 12px 24px !important; font-size: 12.5px !important; }
 }
 
 /* Respect reduced-motion for decorative loops (the JS branches on this too) */
