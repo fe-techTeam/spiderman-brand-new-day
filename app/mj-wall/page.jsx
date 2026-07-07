@@ -50,6 +50,7 @@ const mapMsg = (m, i) => ({
   id: m.id,
   name: "u/" + m.author.username,
   initial: m.author.username[0].toUpperCase(),
+  pic: m.author.avatarPic || null, // identity profile picture (avatars master)
   text: m.body,
   ...PALS[i % PALS.length],
 });
@@ -239,7 +240,11 @@ export default function MjWallPage() {
       <svg width="18" height="18" viewBox="0 0 24 24" fill={m.accent} style={{ opacity: 0.5, marginBottom: "7px" }}><path d="M10 7L8 11h3v6H5v-6l2-4h3zm9 0l-2 4h3v6h-6v-6l2-4h3z" /></svg>
       <p style={s("margin: 0 0 12px; font-size: 14px; line-height: 1.5; color: rgba(240,240,250,0.92); text-wrap: pretty;")}>{m.text}</p>
       <div style={s("display: flex; align-items: center; gap: 8px; min-width: 0;")}>
-        <span style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: m.accent, color: "#0a0713", fontFamily: "'Oswald', sans-serif", fontSize: "11px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600 }}>{m.initial}</span>
+        {m.pic ? (
+          <img src={m.pic} alt="" style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", objectFit: "cover", border: `1px solid ${m.accent}` }} />
+        ) : (
+          <span style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: m.accent, color: "#0a0713", fontFamily: "'Oswald', sans-serif", fontSize: "11px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600 }}>{m.initial}</span>
+        )}
         <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.04em; color: rgba(255,255,255,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;")}>{m.name}</span>
       </div>
     </div>
@@ -326,7 +331,11 @@ export default function MjWallPage() {
               <svg width="46" height="46" viewBox="0 0 24 24" fill={selected.accent} style={{ opacity: 0.5, marginBottom: "18px" }}><path d="M10 7L8 11h3v6H5v-6l2-4h3zm9 0l-2 4h3v6h-6v-6l2-4h3z" /></svg>
               <p style={s("margin: 0 0 26px; font-family: 'Oswald', sans-serif; font-weight: 400; text-transform: none; font-size: clamp(20px, 2.8vw, 30px); line-height: 1.35; color: #fff; text-wrap: pretty;")}>{selected.text}</p>
               <div style={s("display: flex; align-items: center; gap: 12px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);")}>
-                <span style={{ flexShrink: 0, width: "40px", height: "40px", borderRadius: "50%", background: selected.accent, color: "#0a0713", fontFamily: "'Oswald', sans-serif", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600 }}>{selected.initial}</span>
+                {selected.pic ? (
+                  <img src={selected.pic} alt="" style={{ flexShrink: 0, width: "40px", height: "40px", borderRadius: "50%", objectFit: "cover", border: `1.5px solid ${selected.accent}` }} />
+                ) : (
+                  <span style={{ flexShrink: 0, width: "40px", height: "40px", borderRadius: "50%", background: selected.accent, color: "#0a0713", fontFamily: "'Oswald', sans-serif", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600 }}>{selected.initial}</span>
+                )}
                 <div>
                   <div style={s("font-family: 'Oswald', sans-serif; font-size: 16px; letter-spacing: 0.04em; color: #fff;")}>{selected.name}</div>
                   <div style={s("font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.4);")}>Left this for MJ</div>

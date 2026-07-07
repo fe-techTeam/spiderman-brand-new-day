@@ -256,6 +256,9 @@ export default function Forum() {
                   {/* body */}
                   <div className="fm-post-body" style={s("flex: 1; min-width: 0; padding: 16px 20px;")}>
                     <div style={s("display: flex; align-items: center; gap: 8px; margin-bottom: 9px; font-size: 11.5px; color: rgba(255,255,255,0.5); flex-wrap: wrap;")}>
+                      {t.author?.avatarPic && (
+                        <img src={t.author.avatarPic} alt="" style={{ width: "20px", height: "20px", borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,60,74,0.45)", flexShrink: 0 }} />
+                      )}
                       <span>Posted by u/{t.author?.username}</span>
                       <span style={{ opacity: 0.5 }}>·</span><span>{relTime(t.createdAt)}</span>
                       {t.editedAt && (

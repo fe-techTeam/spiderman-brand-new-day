@@ -19,8 +19,10 @@ export async function GET(request) {
     args.push(Number(cursor.id));
   }
   const rows = await query(
-    `SELECT m.id, m.body, m.created_at, u.username
-     FROM mj_messages m JOIN users u ON u.id = m.user_id
+    `SELECT m.id, m.body, m.created_at, u.username, av.profile_asset AS avatar_pic
+     FROM mj_messages m
+     JOIN users u ON u.id = m.user_id
+     LEFT JOIN avatars av ON av.id = u.avatar_id
      ${where} ORDER BY m.id DESC LIMIT ${limit + 1}`,
     args
   );
@@ -32,7 +34,7 @@ export async function GET(request) {
       id: m.id,
       body: m.body,
       createdAt: m.created_at,
-      author: { username: m.username },
+      author: { username: m.username, avatarPic: m.avatar_pic || null },
     })),
     nextCursor: hasMore ? encodeCursor({ id: page[page.length - 1].id }) : null,
   });

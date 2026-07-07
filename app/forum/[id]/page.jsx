@@ -62,11 +62,17 @@ function PostVoteRail({ score, myVote, onVote }) {
   );
 }
 
-function CommentAvatar({ small }) {
+function CommentAvatar({ small, pic }) {
   const d = small ? 30 : 34;
   return (
-    <div style={s(`flex-shrink: 0; width: ${d}px; height: ${d}px; border-radius: 9px; background: radial-gradient(circle at 40% 32%, #2a1420, #0c0a16); border: 1px solid rgba(255,60,74,0.4); display: flex; align-items: center; justify-content: center;`)}>
-      <SpiderAvatar size="54%" strokeWidth={4} />
+    <div style={s(`flex-shrink: 0; width: ${d}px; height: ${d}px; border-radius: 9px; background: radial-gradient(circle at 40% 32%, #2a1420, #0c0a16); border: 1px solid rgba(255,60,74,0.4); display: flex; align-items: center; justify-content: center; overflow: hidden;`)}>
+      {pic ? (
+        // identity-wide profile picture from the avatars master (admin-managed)
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={pic} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+      ) : (
+        <SpiderAvatar size="54%" strokeWidth={4} />
+      )}
     </div>
   );
 }
@@ -277,7 +283,7 @@ export default function ForumPost() {
     const isMe = c.author.username === user?.username;
     return (
       <div style={s("display: flex; gap: 12px;")}>
-        <CommentAvatar small={small} />
+        <CommentAvatar small={small} pic={c.author.avatarPic} />
         <div style={s("min-width: 0; flex: 1;")}>
           <div style={s("display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 12px; color: rgba(255,255,255,0.55); flex-wrap: wrap;")}>
             <span style={s(`font-family: 'Oswald', sans-serif; letter-spacing: 0.03em; color: ${isMe ? "#ff8a96" : "rgba(255,255,255,0.85)"};`)}>{"u/" + c.author.username}{isMe ? " (you)" : ""}</span>
@@ -328,6 +334,9 @@ export default function ForumPost() {
                 <PostVoteRail score={post.score} myVote={post.myVote} onVote={votePost} />
                 <div style={s("flex: 1; min-width: 0; padding: 18px 22px;")}>
                   <div style={s("display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; color: rgba(255,255,255,0.5); flex-wrap: wrap;")}>
+                    {post.author.avatarPic && (
+                      <img src={post.author.avatarPic} alt="" style={{ width: "22px", height: "22px", borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,60,74,0.45)", flexShrink: 0 }} />
+                    )}
                     <span>Posted by u/{post.author.username}</span>
                     <span style={{ opacity: 0.5 }}>·</span><span>{relTime(post.createdAt)}</span>
                     {post.editedAt && (

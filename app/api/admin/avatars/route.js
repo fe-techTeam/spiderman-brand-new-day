@@ -8,7 +8,7 @@ export async function GET() {
 
   const avatars = await query(
     `SELECT a.id, a.slug, a.name, a.emoji, a.tagline, a.description, a.color,
-            a.badge_asset, a.sort_order, a.is_active,
+            a.badge_asset, a.profile_asset, a.sort_order, a.is_active,
             (SELECT COUNT(*) FROM users u WHERE u.avatar_id = a.id) AS user_count
      FROM avatars a ORDER BY a.sort_order, a.id`
   );
@@ -33,12 +33,14 @@ export async function POST(request) {
   const sortOrder = Number.isInteger(body.sortOrder) ? body.sortOrder : 99;
   // collectible card artwork shown on the identity reveal (path or URL)
   const cardImage = vString(body.cardImage, { max: 255 }) || null;
+  // member profile picture shown on forum posts/comments and the MJ Wall
+  const profileImage = vString(body.profileImage, { max: 255 }) || null;
 
   try {
     const result = await query(
-      `INSERT INTO avatars (slug, name, emoji, tagline, description, color, badge_asset, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [slug, name, emoji, tagline, description, color, cardImage, sortOrder]
+      `INSERT INTO avatars (slug, name, emoji, tagline, description, color, badge_asset, profile_asset, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [slug, name, emoji, tagline, description, color, cardImage, profileImage, sortOrder]
     );
     await auditLog(gate.admin.id, "avatar.create", "avatar", result.insertId, { name, slug });
     return Response.json({ ok: true, id: result.insertId }, { status: 201 });

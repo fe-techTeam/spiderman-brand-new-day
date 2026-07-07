@@ -36,6 +36,8 @@ export async function PATCH(request, { params }) {
   }
   // collectible card artwork shown on the identity reveal (path or URL)
   if (body.cardImage !== undefined) push("badge_asset", vString(body.cardImage, { max: 255 }) || null);
+  // member profile picture shown on forum posts/comments and the MJ Wall
+  if (body.profileImage !== undefined) push("profile_asset", vString(body.profileImage, { max: 255 }) || null);
   if (body.sortOrder !== undefined && Number.isInteger(body.sortOrder)) push("sort_order", body.sortOrder);
   if (body.isActive !== undefined) {
     if (!body.isActive) {

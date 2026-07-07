@@ -35,6 +35,7 @@ const EMPTY_FORM = {
   description: "",
   color: "#e11d48",
   cardImage: "",
+  profileImage: "",
   sortOrder: 0,
 };
 
@@ -76,6 +77,7 @@ export default function AdminAvatarsPage() {
       description: avatar.description || "",
       color: avatar.color || "#000000",
       cardImage: avatar.badge_asset || "",
+      profileImage: avatar.profile_asset || "",
       sortOrder: avatar.sort_order ?? 0,
     });
     setEditing(avatar);
@@ -94,6 +96,7 @@ export default function AdminAvatarsPage() {
       description: form.description,
       color: form.color,
       cardImage: form.cardImage.trim() || null,
+      profileImage: form.profileImage.trim() || null,
       sortOrder: Number(form.sortOrder) || 0,
     };
     setSaving(true);
@@ -114,17 +117,25 @@ export default function AdminAvatarsPage() {
     }
   }
 
-  async function onCardFile(e) {
+  // one hidden file input serves both assets — uploadFieldRef says which form
+  // field (cardImage / profileImage) the picked file belongs to
+  const uploadFieldRef = useRef("cardImage");
+  function pickFile(field) {
+    uploadFieldRef.current = field;
+    fileRef.current?.click();
+  }
+  async function onAssetFile(e) {
     const file = e.target.files?.[0];
     e.target.value = ""; // same file can be re-picked after an error
     if (!file) return;
+    const field = uploadFieldRef.current;
     setUploading(true);
     try {
       const fd = new FormData();
       fd.append("file", file);
       const { url } = await adminUpload("/avatars/card-asset", fd);
-      setForm((f) => ({ ...f, cardImage: url }));
-      toast.success("Card asset uploaded — save to apply");
+      setForm((f) => ({ ...f, [field]: url }));
+      toast.success(`${field === "cardImage" ? "Card asset" : "Profile picture"} uploaded — save to apply`);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -182,7 +193,16 @@ export default function AdminAvatarsPage() {
                 <TableRow key={a.id} className={a.is_active ? undefined : "opacity-60"}>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{a.emoji}</span>
+                      {a.profile_asset ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={a.profile_asset}
+                          alt={`${a.name} profile`}
+                          className="size-9 rounded-full border object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl">{a.emoji}</span>
+                      )}
                       <div>
                         <p className="font-bold">{a.name}</p>
                         <p className="text-xs text-muted-foreground">{a.slug}</p>
@@ -249,7 +269,7 @@ export default function AdminAvatarsPage() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent>
+        <DialogContent className="max-h-[88vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? `Edit ${editing.name}` : "New avatar"}</DialogTitle>
             <DialogDescription>
@@ -298,6 +318,52 @@ export default function AdminAvatarsPage() {
               />
             </div>
             <div className="space-y-2">
+              <Label>Profile picture</Label>
+              <div className="flex items-start gap-4">
+                <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted">
+                  {form.profileImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={form.profileImage}
+                      alt="Profile picture preview"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <ImageOff className="size-5 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={uploading}
+                      onClick={() => pickFile("profileImage")}
+                    >
+                      <Upload className="size-4" />
+                      {uploading ? "Uploading…" : form.profileImage ? "Replace" : "Upload image"}
+                    </Button>
+                    {form.profileImage && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={uploading}
+                        onClick={() => setForm((f) => ({ ...f, profileImage: "" }))}
+                      >
+                        <X className="size-4" /> Remove
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Shown as the member&apos;s avatar on forum posts, comments and the MJ Wall for
+                    everyone assigned this identity. Square works best. JPEG/PNG/WebP, max 5&nbsp;MB.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
               <Label>Final card asset</Label>
               <div className="flex items-start gap-4">
                 <div className="flex h-28 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
@@ -319,7 +385,7 @@ export default function AdminAvatarsPage() {
                       size="sm"
                       variant="outline"
                       disabled={uploading}
-                      onClick={() => fileRef.current?.click()}
+                      onClick={() => pickFile("cardImage")}
                     >
                       <Upload className="size-4" />
                       {uploading ? "Uploading…" : form.cardImage ? "Replace" : "Upload image"}
@@ -347,7 +413,7 @@ export default function AdminAvatarsPage() {
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
                 className="hidden"
-                onChange={onCardFile}
+                onChange={onAssetFile}
               />
             </div>
             <div className="flex gap-4">

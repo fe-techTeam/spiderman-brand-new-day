@@ -87,6 +87,29 @@ live project via DesignSync; the following changed and were re-ported verbatim:
   honors section hashes). `reveal-bg.jpg` and `card-protector.png` exceed the
   DesignSync read cap — pending a project export like the logo.
 
+## July 7 2026 night update (fourth DesignSync pull)
+
+- **Music player re-ported to the design's v2**: always-spinning album-cover
+  disc (12s idle → 4s while playing, groove overlay + center pin), controls
+  that slide out on hover (desktop) / disc-tap (touch), "Brand New Day · OST"
+  label, 16-bar gradient spectrum driven by a JS RAF loop (random heights
+  every ~140ms while playing), and a single red button that starts playback
+  unmuted on first press then toggles mute. *Deviations:* bottom-LEFT
+  placement (user request; design sits bottom-right); the design's `.bnd-vol`
+  volume-slider CSS + handler are dead code (no markup uses them) and were
+  not ported. `assets/music-cover.png` exceeds the read cap — shipped a
+  stand-in (square mask crop of the new MJ banner); swap from the next
+  export.
+- **New backgrounds installed from user-provided files** (`Desktop-Banner
+  (1).png` → `mj-bg.jpg`, `Reveal-BG.png` → `reveal-bg.jpg`, re-encoded
+  1920×1080 mozjpeg q88): the landing MJ Wall section now shows the
+  mask-with-MJ-reflection banner and the quiz stage its suit-chest art.
+  `identity-bg.jpg` + `logo.png` still pending export.
+- **Per-avatar profile pictures** (beyond the design): `avatars.profile_asset`
+  (migration 008) uploads in Admin → Avatars; forum posts/comments and MJ
+  Wall cards render the author's identity picture (spider-emblem/initial
+  fallbacks when unset).
+
 ## July 7 2026 evening update (third DesignSync pull)
 
 - **Music player ported** from the design's fixed corner widget — hidden

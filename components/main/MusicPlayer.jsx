@@ -1,23 +1,30 @@
 "use client";
 
-// Marvel music player (ported from the design's bottom corner widget, placed
-// bottom-LEFT per user request). A hidden 1×1 YouTube IFrame player loops the
-// score; the UI is a spinning spider disc that expands into label + equalizer
-// + play/mute/collapse controls. The disc spins and the eq bars dance only
-// while music is actually playing (synced from the player's state events).
+// Marvel music player — port of the design's corner widget, placed bottom-LEFT
+// per user request. A hidden looping YouTube player supplies the score; the UI
+// is an always-spinning album-cover disc (12s idle, 4s while playing) whose
+// controls slide out on hover (desktop) or disc-tap (touch): the track label,
+// a 16-bar spectrum that dances while the music plays, and one red button
+// that starts the track on first press and toggles mute afterwards.
 
 import { useEffect, useRef, useState } from "react";
 import { s } from "@/lib/style";
 
 const TRACK_ID = "WSv4BfIMNRA";
+// per-bar resting heights (verbatim from the design's specBars table)
+const SPEC_BARS = [0.55, 0.9, 0.4, 1, 0.7, 0.5, 0.95, 0.6, 0.85, 0.45, 1, 0.65, 0.5, 0.9, 0.6, 0.8];
 
 export default function MusicPlayer({ onSfx }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false); // touch devices: tapped-open controls
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const ytRef = useRef(null);
   const hostRef = useRef(null);
+  const specRef = useRef(null);
+  const playingRef = useRef(false);
+  playingRef.current = playing;
 
+  /* hidden 1×1 YouTube player — audio only */
   useEffect(() => {
     let retry = null;
     let cancelled = false;
@@ -57,24 +64,65 @@ export default function MusicPlayer({ onSfx }) {
     };
   }, []);
 
+  /* spectrum loop — randomized bar heights every ~140ms while playing, easing
+     back to the resting 0.22 scale when the track stops (design's _specLoop) */
+  useEffect(() => {
+    let raf = null;
+    let last = 0;
+    const loop = (now) => {
+      raf = requestAnimationFrame(loop);
+      const wrap = specRef.current;
+      if (!wrap) return;
+      const bars = wrap.children;
+      if (playingRef.current) {
+        if (now - last < 140) return;
+        last = now;
+        for (const b of bars) {
+          b.style.transition = "transform .14s ease-out";
+          b.style.transform = `scaleY(${(0.24 + Math.random() * 0.76).toFixed(3)})`;
+        }
+      } else {
+        for (const b of bars) {
+          if (b.style.transform !== "scaleY(0.22)") {
+            b.style.transition = "transform .3s ease";
+            b.style.transform = "scaleY(0.22)";
+          }
+        }
+      }
+    };
+    raf = requestAnimationFrame(loop);
+    return () => { if (raf) cancelAnimationFrame(raf); };
+  }, []);
+
   const sfx = () => onSfx && onSfx();
   const togglePlay = () => {
     sfx();
     const yt = ytRef.current;
-    if (!yt || !yt.playVideo) return;
-    if (playing) { yt.pauseVideo(); setPlaying(false); }
-    else { yt.playVideo(); setPlaying(true); }
+    const next = !playing;
+    setPlaying(next);
+    if (yt && yt.playVideo) { next ? yt.playVideo() : yt.pauseVideo(); }
   };
   const toggleMute = () => {
     sfx();
     const yt = ytRef.current;
-    if (!yt || !yt.mute) return;
+    // if the track hasn't started yet, first click starts it (unmuted)
+    if (!playing) {
+      setPlaying(true);
+      setMuted(false);
+      if (yt && yt.playVideo) { yt.unMute(); yt.playVideo(); }
+      return;
+    }
+    if (!yt || !yt.mute) { setMuted(!muted); return; }
     if (muted) { yt.unMute(); setMuted(false); }
     else { yt.mute(); setMuted(true); }
   };
   const onDiscClick = () => {
-    if (!open) { sfx(); setOpen(true); return; }
-    togglePlay();
+    sfx();
+    // hover devices expand on hover, so the disc is the play/pause; touch
+    // devices use the disc as the open/close toggle instead
+    const canHover = window.matchMedia && window.matchMedia("(hover: hover)").matches;
+    if (canHover) togglePlay();
+    else setOpen((v) => !v);
   };
 
   return (
@@ -82,48 +130,36 @@ export default function MusicPlayer({ onSfx }) {
       {/* hidden 1×1 player host — audio only */}
       <div ref={hostRef} style={s("position: fixed; width: 1px; height: 1px; left: -9999px; top: -9999px; overflow: hidden; pointer-events: none;")}></div>
 
-      <div style={s("position: fixed; left: clamp(16px, 2.5vw, 30px); bottom: calc(clamp(16px, 2.5vw, 30px) + env(safe-area-inset-bottom, 0px)); z-index: 90; display: flex; align-items: center; gap: 12px;")}>
-        <div style={s("position: relative; display: flex; align-items: center; gap: 10px; padding: 8px; background: linear-gradient(150deg, rgba(20,10,16,0.92), rgba(9,7,14,0.94)); border: 1px solid rgba(255,60,74,0.35); clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px); box-shadow: 0 12px 34px rgba(0,0,0,0.5), 0 0 22px rgba(255,40,60,0.15); backdrop-filter: blur(8px); transition: padding .3s ease;")}>
-          {/* spinning disc (also expand / play toggle) */}
-          <div onClick={onDiscClick} data-web-hover="true" role="button" aria-label={open ? "Play or pause music" : "Open music player"} style={{ position: "relative", width: "44px", height: "44px", borderRadius: "50%", background: "radial-gradient(circle at 50% 50%, #2a1420 0%, #0c0a16 62%, #1a0c12 100%)", border: "1px solid rgba(255,60,74,0.5)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", boxShadow: "0 0 14px rgba(255,40,60,0.25)", animation: playing ? "bnd-disc-spin 4s linear infinite" : "none" }}>
-            <div style={s("position: absolute; inset: 0; border-radius: 50%; background: repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.03) 0 2px, transparent 2px 4px);")}></div>
-            <svg viewBox="0 0 100 100" style={{ width: "46%", height: "46%", position: "relative" }} fill="none" stroke="#ff5a6a" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="50" cy="44" rx="9" ry="12" /><path d="M50 32V16M42 36 22 26M58 36l20-10M43 52 27 66M57 52l16 14M50 56v20" /></svg>
-            <span style={s("position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #0c0a16; border: 1px solid rgba(255,90,106,0.6);")}></span>
+      <div className={`bnd-music${open ? " open" : ""}`} style={s("position: fixed; left: clamp(16px, 2.5vw, 30px); bottom: calc(clamp(16px, 2.5vw, 30px) + env(safe-area-inset-bottom, 0px)); z-index: 90; display: flex; align-items: center;")}>
+        <div style={s("position: relative; display: flex; align-items: center; padding: 8px; background: linear-gradient(150deg, rgba(20,10,16,0.92), rgba(9,7,14,0.94)); border: 1px solid rgba(255,60,74,0.35); clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px); box-shadow: 0 12px 34px rgba(0,0,0,0.5), 0 0 22px rgba(255,40,60,0.15); backdrop-filter: blur(8px);")}>
+          {/* spinning cover disc (expand toggle on touch, play/pause on desktop) */}
+          <div onClick={onDiscClick} data-web-hover="true" role="button" aria-label={playing ? "Pause music" : "Play music"} style={{ position: "relative", width: "46px", height: "46px", borderRadius: "50%", overflow: "hidden", background: "#0c0a16", border: "1px solid rgba(255,60,74,0.55)", flexShrink: 0, cursor: "pointer", boxShadow: "0 0 14px rgba(255,40,60,0.3)", animation: `bnd-disc-spin ${playing ? "4s" : "12s"} linear infinite` }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/music-cover.png" alt="Brand New Day OST" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+            <div style={s("position: absolute; inset: 0; border-radius: 50%; background: repeating-radial-gradient(circle at 50% 50%, rgba(0,0,0,0.14) 0 2px, transparent 2px 4px); pointer-events: none;")}></div>
+            <span style={s("position: absolute; top: 50%; left: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: #0c0a16; border: 1px solid rgba(255,90,106,0.7); box-shadow: 0 0 0 2px rgba(0,0,0,0.4);")}></span>
           </div>
 
-          {open && (
-            <>
-              {/* label + equalizer */}
-              <div className={playing ? "bnd-music-on" : undefined} style={s("display: flex; flex-direction: column; gap: 3px; min-width: 0;")}>
-                <span style={s("font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #fff; white-space: nowrap;")}>Brand New Day</span>
-                <div style={s("display: flex; align-items: flex-end; gap: 2px; height: 12px;")}>
-                  <span data-eq style={s("width: 3px; height: 40%; background: #ff5a6a; border-radius: 1px;")}></span>
-                  <span data-eq style={s("width: 3px; height: 80%; background: #ff5a6a; border-radius: 1px;")}></span>
-                  <span data-eq style={s("width: 3px; height: 55%; background: #ff5a6a; border-radius: 1px;")}></span>
-                  <span data-eq style={s("width: 3px; height: 95%; background: #ff5a6a; border-radius: 1px;")}></span>
-                  <span data-eq style={s("width: 3px; height: 65%; background: #ff5a6a; border-radius: 1px;")}></span>
-                </div>
+          {/* collapsible controls: hover on desktop, tap on mobile */}
+          <div className="bnd-music-body">
+            <div style={s("display: flex; flex-direction: column; gap: 4px; min-width: 0; padding-left: 12px; padding-right: 4px;")}>
+              <span style={s("font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #fff; white-space: nowrap;")}>Brand New Day <span style={{ color: "rgba(255,255,255,0.4)" }}>· OST</span></span>
+              {/* spectrum */}
+              <div ref={specRef} style={s("display: flex; align-items: flex-end; gap: 2px; height: 16px;")}>
+                {SPEC_BARS.map((h, i) => (
+                  <span key={i} className="bnd-eq-bar" style={{ width: "2.5px", height: `${Math.round(h * 100)}%`, animationDuration: `${(0.5 + (i % 5) * 0.12).toFixed(2)}s`, animationDelay: `${((i % 7) * 0.07).toFixed(2)}s` }}></span>
+                ))}
               </div>
-              {/* play / pause */}
-              <button onClick={togglePlay} data-web-hover="true" aria-label="Play or pause" style={s("flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer; background: linear-gradient(180deg, #ff3a4a, #c00014); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(214,2,26,0.45);")}>
-                {playing ? (
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
-                ) : (
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="#fff" style={{ marginLeft: "2px" }}><path d="M5 3l16 9-16 9z" /></svg>
-                )}
-              </button>
-              {/* mute */}
-              <button onClick={toggleMute} data-web-hover="true" aria-label="Mute or unmute" style={s("flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.16); cursor: pointer; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;")}>
-                {muted ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z" /><path d="M22 9l-6 6M16 9l6 6" /></svg>
-                ) : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z" /><path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13" /></svg>
-                )}
-              </button>
-              {/* collapse */}
-              <button onClick={() => { sfx(); setOpen(false); }} data-web-hover="true" aria-label="Minimize player" style={s("flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; border: 0; cursor: pointer; background: transparent; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.5);")}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 9l6 6 6-6" /></svg></button>
-            </>
-          )}
+            </div>
+            {/* mute (also starts playback if idle) */}
+            <button onClick={toggleMute} data-web-hover="true" aria-label="Mute or unmute" style={s("flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer; background: linear-gradient(180deg, #ff3a4a, #c00014); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(214,2,26,0.45);")}>
+              {muted ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z" /><path d="M22 9l-6 6M16 9l6 6" /></svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z" /><path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13" /></svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </>

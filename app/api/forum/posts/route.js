@@ -9,10 +9,12 @@ const MAX_POST_MEDIA = 4;
 
 const SELECT = `
   SELECT p.id, p.title, p.body, p.is_spoiler, p.score, p.comment_count, p.hot_score, p.created_at, p.edited_at,
-         u.username, c.handle AS community_handle, c.color AS community_color, f.label AS flair_label,
+         u.username, av.profile_asset AS author_avatar_pic,
+         c.handle AS community_handle, c.color AS community_color, f.label AS flair_label,
          pv.value AS my_vote
   FROM posts p
   JOIN users u ON u.id = p.user_id
+  LEFT JOIN avatars av ON av.id = u.avatar_id
   LEFT JOIN communities c ON c.id = p.community_id
   LEFT JOIN flairs f ON f.id = p.flair_id
   LEFT JOIN post_votes pv ON pv.post_id = p.id AND pv.user_id = ?`;
