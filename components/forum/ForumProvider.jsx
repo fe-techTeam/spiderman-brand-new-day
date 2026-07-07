@@ -1,30 +1,67 @@
 "use client";
 
-import { createContext, useContext, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useSession } from "@/components/auth/SessionProvider";
+import { portalApi } from "@/lib/portal/api";
 
-// Client-side notifications store for the forum. Phase 1 has no backend, so it's
-// seeded with a couple of examples and can receive simulated events (e.g. a bot
-// "replies" shortly after you post). Notifications only ever cover replies to you
-// or comments on your post — never upvotes.
+// Notifications store for the forum, backed by /api/me/notifications.
+// Logged out → empty list, no fetching. Logged in → fetch on mount, every 30s,
+// and on window focus. `time` is the raw ISO string from the API; the header
+// formats it with relTime() at render time.
 const ForumCtx = createContext(null);
 export function useForum() {
   return useContext(ForumCtx);
 }
 
-const SEED = [
-  { id: "seed-1", kind: "reply", who: "u/nightmonkey", snippet: "@you this is exactly it — saving this thread forever.", href: "/forum/1", time: "2m", read: false },
-  { id: "seed-2", kind: "post-comment", who: "u/gwen_s", snippet: "Built one for my sister too — parts list incoming!", href: "/forum/5", time: "18m", read: false },
-];
-
 export function ForumProvider({ children }) {
-  const [notifs, setNotifs] = useState(SEED);
+  const { user } = useSession();
+  const [notifs, setNotifs] = useState([]);
+  const [unread, setUnread] = useState(0);
+  // Sequence guard: stale in-flight responses (e.g. resolved after logout or
+  // after an optimistic markAllRead) are dropped.
   const seq = useRef(0);
 
-  const add = (n) =>
-    setNotifs((list) => [{ id: "live-" + seq.current++, time: "now", read: false, ...n }, ...list]);
-  const markAllRead = () => setNotifs((list) => list.map((n) => ({ ...n, read: true })));
+  const userId = user?.id ?? null;
 
-  const unread = notifs.reduce((a, n) => a + (n.read ? 0 : 1), 0);
+  const load = useCallback(async () => {
+    const ticket = ++seq.current;
+    try {
+      const data = await portalApi("/me/notifications");
+      if (ticket !== seq.current) return;
+      setNotifs(data.notifications || []);
+      setUnread(data.unreadCount || 0);
+    } catch {
+      // Keep whatever we have; the next poll/focus will retry.
+    }
+  }, []);
+
+  useEffect(() => {
+    // Session changed (login/logout/switch): drop any in-flight response from
+    // the previous session and start clean before the fresh fetch lands.
+    seq.current++;
+    setNotifs([]);
+    setUnread(0);
+    if (!userId) return;
+    load();
+    const timer = setInterval(load, 30000);
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [userId, load]);
+
+  const markAllRead = useCallback(() => {
+    // Optimistic: zero the badge and mark rows read, then tell the server.
+    seq.current++;
+    setNotifs((list) => list.map((n) => (n.read ? n : { ...n, read: true })));
+    setUnread(0);
+    portalApi("/me/notifications/read-all", { method: "POST" }).catch(() => {});
+  }, []);
+
+  // Legacy no-op kept so any remaining Phase 1 call sites don't crash.
+  const add = useCallback(() => {}, []);
 
   return (
     <ForumCtx.Provider value={{ notifs, unread, add, markAllRead }}>

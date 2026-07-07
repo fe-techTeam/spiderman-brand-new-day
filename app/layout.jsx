@@ -1,4 +1,5 @@
 import "./globals.css";
+import SessionProvider from "@/components/auth/SessionProvider";
 
 export const metadata = {
   title: "Spider-Man: Brand New Day",
@@ -32,7 +33,9 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <SessionProvider>{children}</SessionProvider>
+      </body>
     </html>
   );
 }

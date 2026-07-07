@@ -1,15 +1,18 @@
-import ComingSoon from "@/components/ComingSoon";
+"use client";
 
-export const metadata = {
-  title: "Swing In — Spider-Man: Brand New Day",
-};
+// /signup now just opens the global register modal and returns home.
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "@/components/auth/SessionProvider";
 
 export default function SignupPage() {
-  return (
-    <ComingSoon
-      eyebrow="Join the Spider-Verse"
-      title="Claim Your Identity"
-      blurb="The sign-up experience — email verification, your Spider identity reveal, and the walkthrough — arrives in Phase 2. For now, swing back and keep exploring the Web."
-    />
-  );
+  const router = useRouter();
+  const { openAuth } = useSession();
+
+  useEffect(() => {
+    openAuth("register");
+    router.replace("/");
+  }, [openAuth, router]);
+
+  return null;
 }

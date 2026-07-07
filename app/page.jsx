@@ -9,11 +9,13 @@ import { s } from "@/lib/style";
 import { createSfx } from "@/lib/sfx";
 import { initGlobe } from "@/lib/globe";
 import { initParticles } from "@/lib/particles";
+import { portalApi } from "@/lib/portal/api";
+import { relTime, fmtCount } from "@/lib/time";
 import { Flag } from "@/components/Flags";
+import { useSession } from "@/components/auth/SessionProvider";
 import Nav from "@/components/main/Nav";
 import WalkthroughModal from "@/components/main/WalkthroughModal";
 import TrailerModal from "@/components/main/TrailerModal";
-import AuthModal from "@/components/main/AuthModal";
 
 /* ---------------------------------------------------------------- static data */
 
@@ -69,16 +71,20 @@ const FORUM_THREADS = [
 
 export default function Home() {
   const router = useRouter();
+  const { user, openAuth } = useSession();
 
   const [walkOpen, setWalkOpen] = useState(false);
   const [trailerOpen, setTrailerOpen] = useState(false);
-  const [authOpen, setAuthOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mjMessage, setMjMessage] = useState("");
   const [mjSent, setMjSent] = useState(false);
+  const [mjSending, setMjSending] = useState(false);
+  const [mjError, setMjError] = useState("");
   const [twinMode, setTwinMode] = useState(false);
   const [activeSection, setActiveSection] = useState("hero");
+  const [stats, setStats] = useState(null);
+  const [feedThreads, setFeedThreads] = useState(FORUM_THREADS); // hardcoded until the API answers
 
   // DOM refs
   const stageRef = useRef(null);
@@ -102,14 +108,12 @@ export default function Home() {
   const isDesktopRef = useRef(true);
   const walkOpenRef = useRef(false);
   const trailerOpenRef = useRef(false);
-  const authOpenRef = useRef(false);
   const mobileMenuOpenRef = useRef(false);
   const twinModeRef = useRef(false);
 
   isDesktopRef.current = isDesktop;
   walkOpenRef.current = walkOpen;
   trailerOpenRef.current = trailerOpen;
-  authOpenRef.current = authOpen;
   mobileMenuOpenRef.current = mobileMenuOpen;
   twinModeRef.current = twinMode;
 
@@ -186,7 +190,6 @@ export default function Home() {
     const onKeyDown = (ev) => {
       if (ev.key !== "Escape") return;
       if (trailerOpenRef.current) setTrailerOpen(false);
-      if (authOpenRef.current) setAuthOpen(false);
       if (mobileMenuOpenRef.current) setMobileMenuOpen(false);
       if (walkOpenRef.current) { sfx.stopHum(); setWalkOpen(false); }
     };
@@ -257,7 +260,7 @@ export default function Home() {
     const transStyle = "shutter";
     const pages = () => Array.from(document.querySelectorAll("[data-page]"));
     const lastIndex = () => Math.max(0, pages().length - 1);
-    const modalOpen = () => trailerOpenRef.current || authOpenRef.current || mobileMenuOpenRef.current || walkOpenRef.current;
+    const modalOpen = () => trailerOpenRef.current || mobileMenuOpenRef.current || walkOpenRef.current;
     // A gesture ends only after the wheel is idle for 350ms AND no transition is
     // running — a stray gap during the transition can't split one fling into two.
     const endGesture = () => {
@@ -481,14 +484,80 @@ export default function Home() {
     else sfxRef.current.stopHum();
   }, [walkOpen]);
 
+  /* live data: Living Web stats + trending forum posts (hardcoded copy stays as fallback) */
+  useEffect(() => {
+    let cancelled = false;
+    portalApi("/stats")
+      .then((data) => { if (!cancelled) setStats(data); })
+      .catch(() => {});
+    portalApi("/forum/posts?sort=hot&limit=4")
+      .then((data) => {
+        if (cancelled || !Array.isArray(data.posts) || !data.posts.length) return;
+        setFeedThreads(data.posts.map((p, i) => ({
+          id: p.id,
+          votes: fmtCount(p.score),
+          community: p.community?.handle ?? "w/TheWeb",
+          color: p.community?.color ?? "#ff5a6a",
+          author: "u/" + p.author.username,
+          time: relTime(p.createdAt),
+          title: p.title,
+          snippet: p.body,
+          comments: fmtCount(p.commentCount),
+          tag: p.flair ?? "Story",
+          delay: `${160 + i * 80}ms`,
+        })));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   /* ---------------------------------------------------------- derived / handlers */
-  const goToForm = () => setAuthOpen(true); // register/login popup
+  const goToForm = () => {
+    if (user) {
+      router.push(user.needsQuiz ? "/quiz" : "/forum");
+      return;
+    }
+    openAuth("register"); // register/login popup
+  };
   const doNav = (action) => {
     if (action === "trailer") setTrailerOpen(true);
     else if (action === "mjwall") goToPageRef.current(3); // MJ Wall section
     else if (action === "forum") router.push("/forum");
-    else goToForm(); // fanhub
+    else router.push("/fan-art"); // fanhub
   };
+
+  const onMjSubmit = async () => {
+    if (!mjMessage.trim()) { mjInputRef.current && mjInputRef.current.focus(); return; }
+    if (!user) { openAuth("login"); return; }
+    if (mjSending) return;
+    setMjSending(true);
+    setMjError("");
+    try {
+      await portalApi("/mj-wall/messages", { method: "POST", body: { body: mjMessage } });
+      setMjSent(true);
+    } catch (err) {
+      if (err.code === "quiz_required") { window.location.href = "/quiz"; return; }
+      setMjError(err.message || "Couldn't send your message. Try again.");
+    } finally {
+      setMjSending(false);
+    }
+  };
+
+  // Living Web numbers — the hardcoded copy stays as the loading fallback.
+  let webWho = "12,480 Dreamers";
+  let webWhere = "34 countries";
+  if (stats) {
+    if (user?.avatar) {
+      const entry = Array.isArray(stats.identities)
+        ? stats.identities.find((it) => it.slug === user.avatar.slug)
+        : null;
+      const identityMembers = entry?.members ?? stats.members;
+      webWho = `${fmtCount(identityMembers)} ${user.avatar.name}s`;
+    } else {
+      webWho = `${fmtCount(stats.members)} members`;
+    }
+    webWhere = `${stats.countries ?? 0} countries`;
+  }
   // Which section (if any) each nav item corresponds to — drives the active highlight.
   const navSections = [null, "mjwall", null, null];
   const navItems = ["TRAILER", "MJ WALL", "FAN HUB", "FORUM"].map((label, i) => {
@@ -643,7 +712,7 @@ export default function Home() {
                 <span style={s("width: 42px; height: 2px; background: linear-gradient(90deg, #ff2f40, transparent);")}></span>
               </div>
               <h2 className="bnd-head" style={s("animation-delay: 280ms; margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(30px, 4.6vw, 60px); line-height: 0.96; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 34px rgba(0,0,0,0.6);")}>You're a <span style={{ color: "#ff2f40" }}>Dreamer</span></h2>
-              <p className="bnd-line" style={s("animation-delay: 560ms; margin: 12px auto 0; max-width: 600px; font-size: clamp(13px, 1.4vw, 16px); line-height: 1.6; color: rgba(226,226,240,0.75); text-wrap: pretty;")}>You share your identity with <span style={{ color: "#fff", fontWeight: 600 }}>12,480 Dreamers</span> across <span style={{ color: "#ffd23f", fontWeight: 600 }}>34 countries</span>. Here are a few of your Web Twins.</p>
+              <p className="bnd-line" style={s("animation-delay: 560ms; margin: 12px auto 0; max-width: 600px; font-size: clamp(13px, 1.4vw, 16px); line-height: 1.6; color: rgba(226,226,240,0.75); text-wrap: pretty;")}>You share your identity with <span style={{ color: "#fff", fontWeight: 600 }}>{webWho}</span> across <span style={{ color: "#ffd23f", fontWeight: 600 }}>{webWhere}</span>. Here are a few of your Web Twins.</p>
             </div>
 
             <div style={s("flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;")}>
@@ -692,7 +761,7 @@ export default function Home() {
                   <span style={s("width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(180deg, #ffd23f 0%, #f7a91d 100%); color: #6b2a00; display: flex; align-items: center; justify-content: center; font-size: 20px;")}>✓</span>
                   Sent!
                 </div>
-                <p style={s("margin: 0; font-size: 14px; color: rgba(255,255,255,0.72); text-shadow: 0 2px 8px rgba(0,0,0,0.6);")}>Your memory is now part of the wall. Thanks for helping MJ remember.</p>
+                <p style={s("margin: 0; font-size: 14px; color: rgba(255,255,255,0.72); text-shadow: 0 2px 8px rgba(0,0,0,0.6);")}>Your memory joins the wall once approved.</p>
                 <button onClick={() => { setMjSent(false); setMjMessage(""); setTimeout(() => mjInputRef.current && mjInputRef.current.focus(), 60); }} style={s("background: transparent; border: 0; color: #ff5a6a; font: inherit; letter-spacing: 0.18em; text-transform: uppercase; font-size: 12px; cursor: pointer; padding: 4px 0;")}>Write another ›</button>
               </div>
             ) : (
@@ -708,13 +777,14 @@ export default function Home() {
                   ></textarea>
                 </div>
                 <div style={s("margin-top: 20px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap;")}>
-                  <button onClick={() => { if (!mjMessage.trim()) { mjInputRef.current && mjInputRef.current.focus(); return; } setMjSent(true); }} style={s("position: relative; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
+                  <button onClick={onMjSubmit} disabled={mjSending} style={s(`position: relative; border: 0; padding: 0; background: transparent; cursor: ${mjSending ? "default" : "pointer"}; opacity: ${mjSending ? "0.7" : "1"}; font-family: inherit;`)}>
                     <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #1f4cd6 0%, #0b2a8a 100%); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); box-shadow: 0 10px 28px rgba(0,0,0,0.4);")}>
                       <span style={s("display: block; padding: 15px 34px; background: linear-gradient(180deg, #ffd23f 0%, #f7a91d 100%); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #6b2a00; font-weight: 700; font-size: 14px; letter-spacing: 0.24em; text-transform: uppercase; text-shadow: 0 1px 0 rgba(255,255,255,0.35);")}>Add to the wall</span>
                     </span>
                   </button>
                   <Link href="/mj-wall" data-web-hover="true" className="link-hover-red" style={s("display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(255,255,255,0.85); text-decoration: none; text-shadow: 0 2px 8px rgba(0,0,0,0.6); transition: color 200ms ease;")}>View all messages <span style={{ fontSize: "15px" }}>›</span></Link>
                 </div>
+                {mjError && <p style={s("font-size: 12px; color: #ff6b79; margin-top: 4px; text-shadow: 0 2px 8px rgba(0,0,0,0.6);")}>{mjError}</p>}
               </div>
             )}
           </div>
@@ -754,8 +824,8 @@ export default function Home() {
 
           {/* trending threads */}
           <div style={s("flex: 1; min-height: 0; overflow-y: auto; padding-right: 6px; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: clamp(10px, 1.4vh, 14px);")}>
-            {FORUM_THREADS.map((t, i) => (
-              <Link key={i} href="/forum" data-web-hover="true" className="bnd-line bnd-card feed-thread" style={s(`animation-delay: ${t.delay}; text-decoration: none; position: relative; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.24), rgba(255,40,60,0.28)); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); transition: transform 340ms cubic-bezier(.16,.84,.3,1), box-shadow 340ms ease;`)}>
+            {feedThreads.map((t, i) => (
+              <Link key={t.id ?? i} href={t.id ? `/forum/${t.id}` : "/forum"} data-web-hover="true" className="bnd-line bnd-card feed-thread" style={s(`animation-delay: ${t.delay}; text-decoration: none; position: relative; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.24), rgba(255,40,60,0.28)); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); transition: transform 340ms cubic-bezier(.16,.84,.3,1), box-shadow 340ms ease;`)}>
                 <div className="bnd-card-body" style={s("display: flex; align-items: stretch; gap: 0; background: linear-gradient(150deg, rgba(16,18,34,0.96), rgba(9,10,20,0.97)); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);")}>
                   <div style={s("flex-shrink: 0; width: clamp(56px, 6vw, 72px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: rgba(255,40,60,0.06); border-right: 1px solid rgba(255,255,255,0.06);")}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff5a6a" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5l7 8h-4v6h-6v-6H5z" /></svg>
@@ -835,7 +905,7 @@ export default function Home() {
         mobileMenuVisible={!isDesktop && mobileMenuOpen}
         navItems={navItems}
         onGoHome={() => goToPageRef.current(0)}
-        onGetStarted={() => setAuthOpen(true)}
+        onGetStarted={goToForm}
         onToggleMobileMenu={() => setMobileMenuOpen((v) => !v)}
         onMobileSwingIn={() => { setMobileMenuOpen(false); goToForm(); }}
       />
@@ -850,10 +920,6 @@ export default function Home() {
 
       {trailerOpen && (
         <TrailerModal onClose={() => setTrailerOpen(false)} onStopProp={(e) => e.stopPropagation()} />
-      )}
-
-      {authOpen && (
-        <AuthModal onClose={() => setAuthOpen(false)} onHover={onWalkHover} />
       )}
     </div>
   );

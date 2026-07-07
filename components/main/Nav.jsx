@@ -1,9 +1,13 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
+import { useRouter } from "next/navigation";
 import { s } from "@/lib/style";
+import { useSession } from "@/components/auth/SessionProvider";
 
 // Fixed top navigation + mobile dropdown menu. Ported from the hero's <nav>.
+// Logged-in users see "u/username" (→ /quiz or /forum) plus a Sign out link
+// instead of the SWING IN CTA.
 export default function Nav({
   isDesktop,
   mobileMenuVisible,
@@ -13,6 +17,10 @@ export default function Nav({
   onToggleMobileMenu,
   onMobileSwingIn,
 }) {
+  const router = useRouter();
+  const { user, logout } = useSession();
+  const goAccount = () => router.push(user && user.needsQuiz ? "/quiz" : "/forum");
+
   return (
     <>
       <nav style={s("position: fixed; top: 0; left: 0; right: 0; z-index: 50; padding: clamp(14px, 2vh, 22px) clamp(24px, 4vw, 60px); display: flex; align-items: center; justify-content: space-between; gap: clamp(12px, 2vw, 24px); opacity: 1; background: linear-gradient(to bottom, rgba(8,8,12,0.55) 0%, rgba(8,8,12,0) 100%);")}>
@@ -47,11 +55,22 @@ export default function Nav({
                 </li>
               ))}
             </ul>
-            <button onClick={onGetStarted} style={s("position: relative; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
-              <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #1f4cd6 0%, #0b2a8a 100%); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); box-shadow: 0 6px 22px rgba(31,76,214,0.45), 0 0 0 1px rgba(255,255,255,0.05);")}>
-                <span style={s("display: block; padding: 14px 28px; background: linear-gradient(180deg, #ff1f33 0%, #c00014 100%); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-weight: 700; font-size: 14px; letter-spacing: 0.22em; text-transform: uppercase; text-shadow: 0 1px 0 rgba(0,0,0,0.35);")}>SWING IN</span>
-              </span>
-            </button>
+            {user ? (
+              <div style={s("display: flex; align-items: center; gap: 16px;")}>
+                <button onClick={goAccount} style={s("position: relative; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
+                  <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #1f4cd6 0%, #0b2a8a 100%); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); box-shadow: 0 6px 22px rgba(31,76,214,0.45), 0 0 0 1px rgba(255,255,255,0.05);")}>
+                    <span style={s("display: block; padding: 14px 28px; background: linear-gradient(180deg, #ff1f33 0%, #c00014 100%); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-weight: 700; font-size: 14px; letter-spacing: 0.22em; text-transform: none; text-shadow: 0 1px 0 rgba(0,0,0,0.35);")}>{"u/" + user.username}</span>
+                  </span>
+                </button>
+                <button onClick={logout} data-web-hover="true" className="link-hover-red" style={s("border: 0; background: transparent; cursor: pointer; padding: 4px 0; color: rgba(255,255,255,0.6); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; font-family: inherit; transition: color 200ms ease;")}>Sign out</button>
+              </div>
+            ) : (
+              <button onClick={onGetStarted} style={s("position: relative; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
+                <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #1f4cd6 0%, #0b2a8a 100%); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); box-shadow: 0 6px 22px rgba(31,76,214,0.45), 0 0 0 1px rgba(255,255,255,0.05);")}>
+                  <span style={s("display: block; padding: 14px 28px; background: linear-gradient(180deg, #ff1f33 0%, #c00014 100%); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-weight: 700; font-size: 14px; letter-spacing: 0.22em; text-transform: uppercase; text-shadow: 0 1px 0 rgba(0,0,0,0.35);")}>SWING IN</span>
+                </span>
+              </button>
+            )}
           </div>
         )}
 
@@ -83,7 +102,14 @@ export default function Nav({
               )}
             </a>
           ))}
-          <button onClick={onMobileSwingIn} style={s("width: 100%; margin-top: 14px; border: 0; padding: 16px; background: linear-gradient(180deg, #ff1f33 0%, #c00014 100%); color: #fff; font-weight: 700; font-size: 15px; letter-spacing: 0.24em; text-transform: uppercase; border-radius: 10px; cursor: pointer; font-family: inherit;")}>SWING IN</button>
+          {user ? (
+            <>
+              <button onClick={goAccount} style={s("width: 100%; margin-top: 14px; border: 0; padding: 16px; background: linear-gradient(180deg, #ff1f33 0%, #c00014 100%); color: #fff; font-weight: 700; font-size: 15px; letter-spacing: 0.24em; text-transform: none; border-radius: 10px; cursor: pointer; font-family: inherit;")}>{"u/" + user.username}</button>
+              <button onClick={logout} style={s("width: 100%; margin-top: 10px; border: 0; padding: 12px; background: transparent; color: rgba(255,255,255,0.65); font-size: 13px; letter-spacing: 0.22em; text-transform: uppercase; border-radius: 10px; cursor: pointer; font-family: inherit;")}>Sign out</button>
+            </>
+          ) : (
+            <button onClick={onMobileSwingIn} style={s("width: 100%; margin-top: 14px; border: 0; padding: 16px; background: linear-gradient(180deg, #ff1f33 0%, #c00014 100%); color: #fff; font-weight: 700; font-size: 15px; letter-spacing: 0.24em; text-transform: uppercase; border-radius: 10px; cursor: pointer; font-family: inherit;")}>SWING IN</button>
+          )}
         </div>
       )}
     </>
