@@ -246,12 +246,30 @@ html, body, a, button, [data-web-hover] {
 }
 /* Hovering anything clickable: the same spidey silhouette in the theme red,
    10% smaller. !important beats the inline `cursor: pointer` styles ported
-   from the mockup. (Native cursors swap instantly — a true cross-fade would
-   need a JS-driven cursor, which this site deliberately doesn't use.) */
+   from the mockup. This image swap is the no-JS fallback — with JS, CursorFx
+   fades a red overlay in/out instead so the transition is smooth. */
 a:hover, button:not(:disabled):hover, select:hover, summary:hover,
 [role="button"]:hover, [data-web-hover]:hover {
   cursor: url('/assets/cursor-spider-red.svg') 32 32, pointer !important;
 }
+/* CursorFx active: hide the native cursor only while its red overlay is shown
+   (the overlay fades/scales, which a native cursor swap can't do) */
+html.bnd-fx-cursor a:hover, html.bnd-fx-cursor button:not(:disabled):hover,
+html.bnd-fx-cursor select:hover, html.bnd-fx-cursor summary:hover,
+html.bnd-fx-cursor [role="button"]:hover, html.bnd-fx-cursor [data-web-hover]:hover {
+  cursor: none !important;
+}
+.bnd-cursor-fx {
+  position: fixed; left: 0; top: 0; z-index: 9998; pointer-events: none;
+  will-change: transform; /* positioned via translate3d — never transitioned */
+}
+.bnd-cursor-fx .bnd-cursor-red {
+  width: 65px; height: 65px; margin: -32.5px 0 0 -32.5px;
+  background: url('/assets/cursor-spider-red.svg') center / contain no-repeat;
+  opacity: 0; transform: scale(0.55) rotate(-8deg);
+  transition: opacity 170ms ease, transform 220ms cubic-bezier(.2,.7,.3,1);
+}
+.bnd-cursor-fx.on .bnd-cursor-red { opacity: 1; transform: scale(1) rotate(0deg); }
 /* Click feedback: a red ping that pops at the cursor (see CursorFx) */
 .bnd-click-ping {
   position: fixed; z-index: 9999; pointer-events: none;
