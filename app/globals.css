@@ -128,13 +128,20 @@ body { width: 100%; }
 .bnd-cta .bnd-cta-inner { position: relative; overflow: hidden; }
 .bnd-cta .bnd-cta-sheen { position: absolute; top: -40%; left: -70%; width: 45%; height: 180%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.45), transparent); transform: skewX(-18deg); pointer-events: none; }
 .bnd-cta:hover .bnd-cta-sheen { animation: bnd-sheen 720ms cubic-bezier(.2,.7,.2,1) forwards; }
-/* Marvel-style cinematic reveal: emerge from dark (blur + scale-down + rise) */
-.bnd-reveal .bnd-line, .bnd-reveal .bnd-head { opacity: 0; }
+/* Marvel-style cinematic reveal: emerge from dark (blur + scale-down + rise).
+   will-change keeps these on their own compositor layers so the blur/transform
+   tracks never touch the main thread mid-animation. */
+.bnd-reveal .bnd-line, .bnd-reveal .bnd-head { opacity: 0; will-change: opacity, transform, filter; }
 .bnd-reveal.in .bnd-line {
   animation: bnd-marvel-in 1000ms cubic-bezier(.16,.84,.3,1) both;
 }
+/* letter-spacing + text-shadow force layout/paint every frame, so they run as
+   a separate animation (same duration/easing = same look) — this lets the
+   opacity/transform/blur track stay fully compositor-driven. */
 .bnd-reveal.in .bnd-head {
-  animation: bnd-marvel-head 1300ms cubic-bezier(.16,.84,.3,1) both;
+  animation:
+    bnd-marvel-head 1300ms cubic-bezier(.16,.84,.3,1) both,
+    bnd-marvel-head-track 1300ms cubic-bezier(.16,.84,.3,1) both;
 }
 @keyframes bnd-marvel-in {
   0%   { opacity: 0; transform: translateY(26px) scale(1.06); filter: blur(9px); }
@@ -142,16 +149,23 @@ body { width: 100%; }
   100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
 @keyframes bnd-marvel-head {
-  0%   { opacity: 0; transform: translateY(40px) scale(1.14); filter: blur(16px); letter-spacing: 0.24em; }
-  45%  { opacity: 1; text-shadow: 0 6px 40px rgba(0,0,0,0.7), 0 0 120px rgba(255,47,64,0.7); }
-  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); letter-spacing: 0.005em; text-shadow: 0 6px 40px rgba(0,0,0,0.7), 0 0 70px rgba(214,2,26,0.22); }
+  0%   { opacity: 0; transform: translateY(40px) scale(1.14); filter: blur(16px); }
+  45%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
+@keyframes bnd-marvel-head-track {
+  0%   { letter-spacing: 0.24em; }
+  45%  { text-shadow: 0 6px 40px rgba(0,0,0,0.7), 0 0 120px rgba(255,47,64,0.7); }
+  100% { letter-spacing: 0.005em; text-shadow: 0 6px 40px rgba(0,0,0,0.7), 0 0 70px rgba(214,2,26,0.22); }
+}
+/* runs on a full-height track div; translateY(100%) of the track == the old
+   `top: 100%` of the 2px line, but composited instead of re-layout per frame */
 @keyframes bnd-id-scan {
-  0%   { top: 0%; opacity: 0; }
+  0%   { transform: translateY(0); opacity: 0; }
   12%  { opacity: 1; }
-  50%  { top: 100%; opacity: 1; }
+  50%  { transform: translateY(100%); opacity: 1; }
   62%  { opacity: 0; }
-  100% { top: 0%; opacity: 0; }
+  100% { transform: translateY(0); opacity: 0; }
 }
 @keyframes bnd-id-glitch {
   0%   { transform: translateX(0); filter: none; }

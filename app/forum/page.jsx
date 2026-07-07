@@ -19,7 +19,7 @@ const RULES = [
 ];
 
 const SORT_DEFS = [
-  { key: "new", label: "✦ New" }, { key: "top", label: "▲ Top" },
+  { key: "top", label: "▲ Top" }, { key: "new", label: "✦ New" },
 ];
 
 const snippet = (text, max = 220) => {
@@ -31,7 +31,7 @@ export default function Forum() {
   const router = useRouter();
   const { user, openAuth } = useSession();
 
-  const [sort, setSort] = useState("new");
+  const [sort, setSort] = useState("top");
   const [posts, setPosts] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [hasMore, setHasMore] = useState(false);
@@ -227,6 +227,12 @@ export default function Forum() {
                     <div style={s("display: flex; align-items: center; gap: 8px; margin-bottom: 9px; font-size: 11.5px; color: rgba(255,255,255,0.5); flex-wrap: wrap;")}>
                       <span>Posted by u/{t.author?.username}</span>
                       <span style={{ opacity: 0.5 }}>·</span><span>{relTime(t.createdAt)}</span>
+                      {t.editedAt && (
+                        <>
+                          <span style={{ opacity: 0.5 }}>·</span>
+                          <span style={s("font-style: italic; color: rgba(255,255,255,0.45);")}>edited {relTime(t.editedAt)}</span>
+                        </>
+                      )}
                       {t.flair && (
                         <span style={s("display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: rgba(255,40,60,0.12); border: 1px solid rgba(255,60,74,0.35); color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;")}>{t.flair}</span>
                       )}

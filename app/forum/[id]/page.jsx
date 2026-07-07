@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { s } from "@/lib/style";
 import SpiderAvatar from "@/components/SpiderAvatar";
 import ShareButton from "@/components/forum/ShareButton";
@@ -72,10 +72,18 @@ function CommentAvatar({ small }) {
 
 export default function ForumPost() {
   const { id } = useParams();
+  const router = useRouter();
   const { user, openAuth } = useSession();
 
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
+  // owner (author) actions: inline edit + two-step delete
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [ownerBusy, setOwnerBusy] = useState(false);
+  const [ownerErr, setOwnerErr] = useState("");
+  const [deleteArmed, setDeleteArmed] = useState(false);
   const [roots, setRoots] = useState([]);
   const [total, setTotal] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -149,6 +157,50 @@ export default function ForumPost() {
     } catch (err) {
       if (err.code === "quiz_required") { window.location.href = "/quiz"; return; }
       updateComment(c.id, () => prev);
+    }
+  };
+
+  const isMine = !!user && !!post && post.author.username === user.username;
+
+  const startEdit = () => {
+    setEditTitle(post.title);
+    setEditBody(post.body);
+    setOwnerErr("");
+    setDeleteArmed(false);
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    if (ownerBusy) return;
+    setOwnerBusy(true);
+    setOwnerErr("");
+    try {
+      const { post: p } = await portalApi(`/forum/posts/${id}`, {
+        method: "PATCH",
+        body: { title: editTitle, body: editBody },
+      });
+      setPost(p); // server copy carries the new editedAt
+      setEditing(false);
+    } catch (err) {
+      setOwnerErr(err.message);
+    } finally {
+      setOwnerBusy(false);
+    }
+  };
+
+  // First click arms the button ("Really delete?"), second click deletes.
+  const deletePost = async () => {
+    if (!deleteArmed) { setDeleteArmed(true); return; }
+    if (ownerBusy) return;
+    setOwnerBusy(true);
+    setOwnerErr("");
+    try {
+      await portalApi(`/forum/posts/${id}`, { method: "DELETE" });
+      router.replace("/forum");
+    } catch (err) {
+      setOwnerErr(err.message);
+      setDeleteArmed(false);
+      setOwnerBusy(false);
     }
   };
 
@@ -260,7 +312,40 @@ export default function ForumPost() {
                   <div style={s("display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; color: rgba(255,255,255,0.5); flex-wrap: wrap;")}>
                     <span>Posted by u/{post.author.username}</span>
                     <span style={{ opacity: 0.5 }}>·</span><span>{relTime(post.createdAt)}</span>
+                    {post.editedAt && (
+                      <>
+                        <span style={{ opacity: 0.5 }}>·</span>
+                        <span style={s("font-style: italic; color: rgba(255,255,255,0.45);")}>edited {relTime(post.editedAt)}</span>
+                      </>
+                    )}
+                    {isMine && !editing && (
+                      <span style={s("margin-left: auto; display: inline-flex; align-items: center; gap: 14px;")}>
+                        <button onClick={startEdit} data-web-hover="true" className="link-hover-red" style={s("display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; cursor: pointer; padding: 0; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.55); transition: color 200ms ease;")}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" /></svg>Edit
+                        </button>
+                        <button onClick={deletePost} data-web-hover="true" style={s(`display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; cursor: pointer; padding: 0; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: ${deleteArmed ? "#ff5a6a" : "rgba(255,255,255,0.55)"}; transition: color 200ms ease;`)}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" /></svg>{deleteArmed ? "Really delete?" : "Delete"}
+                        </button>
+                      </span>
+                    )}
                   </div>
+                  {ownerErr && !editing && <div style={s("margin: -4px 0 10px; font-size: 12px; color: #ff8a96;")}>{ownerErr}</div>}
+                  {editing ? (
+                    <div style={s("margin-bottom: 16px;")}>
+                      <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="An interesting title…" style={s("width: 100%; box-sizing: border-box; border: 0; outline: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 12px 14px; color: #fff; font-family: inherit; font-size: 15px; margin-bottom: 10px;")} />
+                      <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={6} placeholder="Tell the Web what happened…" style={s("width: 100%; box-sizing: border-box; resize: vertical; border: 0; outline: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 12px 14px; color: #fff; font-family: inherit; font-size: 14px; line-height: 1.6;")}></textarea>
+                      {ownerErr && <div style={s("margin-top: 8px; font-size: 12px; color: #ff8a96;")}>{ownerErr}</div>}
+                      <div style={s("display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;")}>
+                        <button onClick={() => { setEditing(false); setOwnerErr(""); }} data-web-hover="true" style={s("border: 0; background: transparent; color: rgba(255,255,255,0.55); font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; padding: 8px 12px;")}>Cancel</button>
+                        <button onClick={saveEdit} disabled={ownerBusy} data-web-hover="true" className="fm-cta" style={s(`position: relative; border: 0; padding: 0; background: transparent; cursor: ${ownerBusy ? "default" : "pointer"}; opacity: ${ownerBusy ? "0.7" : "1"};`)}>
+                          <span style={s("display: block; padding: 2px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);")}>
+                            <span style={s("position: relative; overflow: hidden; display: inline-flex; padding: 9px 20px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px); color: #fff; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;")}><span className="fm-sheen"></span>{ownerBusy ? "Saving…" : "Save changes"}</span>
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                  <>
                   <h1 style={s("font-family: 'Oswald', sans-serif; font-weight: 500; font-size: clamp(22px, 3.4vw, 30px); line-height: 1.12; color: #fff; margin-bottom: 14px;")}>{post.title}</h1>
                   {post.isSpoiler && !revealed ? (
                     <div style={s("position: relative; margin: 0 0 16px;")}>
@@ -279,6 +364,8 @@ export default function ForumPost() {
                       )}
                       <p style={s("margin: 0 0 16px; font-size: 15px; line-height: 1.65; color: rgba(226,226,240,0.82); text-wrap: pretty;")}>{post.body}</p>
                     </>
+                  )}
+                  </>
                   )}
                   {post.media?.length > 0 && (
                     <div style={s(`display: flex; flex-direction: column; gap: 12px; margin: 0 0 16px; ${post.isSpoiler && !revealed ? "filter: blur(16px); pointer-events: none;" : ""}`)}>

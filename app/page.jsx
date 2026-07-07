@@ -127,6 +127,8 @@ export default function Home() {
     const scrollCur = { v: 0 };
     let raf = null;
     let reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let mjTopCache = 0;      // document-space top of the MJ section (re-measured on resize)
+    let entrySettled = false; // stop re-writing the bg filter once the entrance is done
 
     const sfx = createSfx();
     sfxRef.current = sfx;
@@ -147,13 +149,19 @@ export default function Home() {
         if (bgRef.current) {
           const sc = entryScale * (1 + Math.abs(my) * 0.005);
           bgRef.current.style.transform = `translate3d(${(-mx * 14).toFixed(2)}px, ${(-my * 10 - sy * 0.18 + entryY).toFixed(2)}px, 0) scale(${sc.toFixed(4)})`;
-          bgRef.current.style.filter = `brightness(${(0.55 + 0.45 * e).toFixed(3)}) saturate(${(0.7 + 0.3 * e).toFixed(3)})`;
+          if (!entrySettled) {
+            bgRef.current.style.filter = `brightness(${(0.55 + 0.45 * e).toFixed(3)}) saturate(${(0.7 + 0.3 * e).toFixed(3)})`;
+            entrySettled = eRaw >= 1;
+          }
         }
         if (heroStackRef.current) {
           heroStackRef.current.style.transform = `translate3d(0, ${(sy * -0.08).toFixed(2)}px, 0)`;
         }
-        if (isDesktopRef.current && mjWallRef.current && mjHeaderRef.current) {
-          const secTop = mjWallRef.current.getBoundingClientRect().top;
+        if (isDesktopRef.current && mjHeaderRef.current && mjTopCache > 0) {
+          // cached offsetTop instead of getBoundingClientRect(): no forced
+          // layout inside the frame loop (sections are fixed 100vh, so the
+          // offset only moves on resize)
+          const secTop = mjTopCache - (window.scrollY || 0);
           const enter = Math.max(-0.4, Math.min(1, 1 - secTop / (window.innerHeight || 800)));
           mjHeaderRef.current.style.transform = `translate3d(0, ${((1 - enter) * 140).toFixed(2)}px, 0)`;
           mjHeaderRef.current.style.opacity = Math.max(0, Math.min(1, enter * 1.6 + 0.2)).toFixed(3);
@@ -162,10 +170,6 @@ export default function Home() {
         }
         if (logoRef.current) {
           logoRef.current.style.transform = `translate3d(${(-mx * 14).toFixed(2)}px, ${(-my * 8).toFixed(2)}px, 0)`;
-        }
-        if (spideyWrapRef.current) {
-          const offX = isDesktopRef.current ? 11 : 0;
-          spideyWrapRef.current.style.transform = `translateX(calc(-50% - ${offX}vw - 10px))`;
         }
 
         const entryRunning = (performance.now() - entryStart) < entryMs + 50;
@@ -195,6 +199,11 @@ export default function Home() {
     };
     const onResize = () => {
       const desktop = window.innerWidth >= 760;
+      // constant per breakpoint — set here instead of every RAF frame
+      if (spideyWrapRef.current) {
+        spideyWrapRef.current.style.transform = `translateX(calc(-50% - ${desktop ? 11 : 0}vw - 10px))`;
+      }
+      if (mjWallRef.current) mjTopCache = mjWallRef.current.offsetTop;
       setIsDesktop((prev) => {
         if (desktop !== prev && !desktop) setMobileMenuOpen(false);
         return desktop;
@@ -231,8 +240,9 @@ export default function Home() {
         entries.forEach((en) => {
           const el = en.target;
           if (en.isIntersecting && en.intersectionRatio > 0.4) {
-            el.classList.remove("in");
-            void el.offsetWidth; // re-arm so it replays on each entry
+            // add() is a no-op while already "in" — crossing the 1.0 threshold
+            // right after 0.4 must not restart the animation mid-play. Leaving
+            // (below) removes the class, which re-arms the replay on re-entry.
             el.classList.add("in");
           } else {
             el.classList.remove("in");
@@ -275,7 +285,9 @@ export default function Home() {
       const t0 = performance.now();
       const stepFn = (now) => {
         const p = Math.min(1, (now - t0) / dur);
-        window.scrollTo(0, startY + dist * ease(p));
+        // behavior:"instant" — html has scroll-behavior:smooth, so a plain
+        // scrollTo() would start its own smooth animation on every step
+        window.scrollTo({ top: startY + dist * ease(p), behavior: "instant" });
         kickRAF();
         if (p < 1) requestAnimationFrame(stepFn);
         else if (cb) cb();
@@ -283,7 +295,9 @@ export default function Home() {
       requestAnimationFrame(stepFn);
     };
     const scrollInstant = (target) => {
-      window.scrollTo(0, target.getBoundingClientRect().top + window.scrollY);
+      // must actually be instant: with CSS smooth-scroll the page would still
+      // be gliding when the shutter reopens
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY, behavior: "instant" });
       kickRAF();
     };
     const revealPage = (el) => {
@@ -522,8 +536,8 @@ export default function Home() {
   const doNav = (action) => {
     if (action === "trailer") setTrailerOpen(true);
     else if (action === "mjwall") goToPageRef.current(3); // MJ Wall section
-    else if (action === "forum") router.push("/forum");
-    else router.push("/fan-art"); // fanhub
+    else if (action === "tracker") goToPageRef.current(5); // Spidey Tracker section
+    else router.push("/forum");
   };
 
   const onMjSubmit = async () => {
@@ -559,9 +573,9 @@ export default function Home() {
     webWhere = `${stats.countries ?? 0} countries`;
   }
   // Which section (if any) each nav item corresponds to — drives the active highlight.
-  const navSections = [null, "mjwall", null, null];
-  const navItems = ["TRAILER", "MJ WALL", "FAN HUB", "FORUM"].map((label, i) => {
-    const action = ["trailer", "mjwall", "fanhub", "forum"][i];
+  const navSections = [null, "mjwall", "tracker", null];
+  const navItems = ["TRAILER", "MJ WALL", "SPIDEY TRACKER", "FORUM"].map((label, i) => {
+    const action = ["trailer", "mjwall", "tracker", "forum"][i];
     const active = !!navSections[i] && navSections[i] === activeSection;
     return {
       label, locked: false, active,
@@ -575,6 +589,10 @@ export default function Home() {
     scrim: walkOpen ? "0.78" : "0",
     blur: walkOpen ? "10px" : "0px",
     pe: walkOpen ? "auto" : "none",
+    // fully hide once the close transition ends — an invisible fixed overlay
+    // with backdrop-filter still costs every scrolled frame
+    vis: walkOpen ? "visible" : "hidden",
+    visDelay: walkOpen ? "0s" : "1500ms",
     opacity: walkOpen ? "1" : "0",
     transform: walkOpen
       ? "perspective(1600px) rotateX(0deg) translateY(0) scale(1)"
@@ -638,7 +656,11 @@ export default function Home() {
           <span style={s("position: absolute; bottom: 0; left: 0; width: 38px; height: 38px; border-bottom: 2px solid rgba(120,160,255,0.6); border-left: 2px solid rgba(120,160,255,0.6);")}></span>
           <span style={s("position: absolute; bottom: 0; right: 0; width: 38px; height: 38px; border-bottom: 2px solid rgba(255,60,74,0.7); border-right: 2px solid rgba(255,60,74,0.7);")}></span>
           <span style={s("position: absolute; top: 8px; right: 8px; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.34em; text-transform: uppercase; color: rgba(120,160,255,0.8); text-align: right;")}>Identity Scan // Active</span>
-          <span style={s("position: absolute; left: 0; right: 0; height: 2px; top: 0; background: linear-gradient(90deg, transparent, rgba(255,60,74,0.9), rgba(120,160,255,0.7), transparent); box-shadow: 0 0 18px rgba(255,60,74,0.6); animation: bnd-id-scan 5.5s cubic-bezier(.5,0,.5,1) infinite, bnd-id-glitch 0.22s steps(2) infinite;")}></span>
+          {/* full-height track carries the scan travel as a transform (composited);
+              the 2px line keeps only the glitch — animating `top` re-laid-out every frame */}
+          <div style={s("position: absolute; inset: 0; will-change: transform; animation: bnd-id-scan 5.5s cubic-bezier(.5,0,.5,1) infinite;")}>
+            <span style={s("position: absolute; left: 0; right: 0; height: 2px; top: 0; background: linear-gradient(90deg, transparent, rgba(255,60,74,0.9), rgba(120,160,255,0.7), transparent); box-shadow: 0 0 18px rgba(255,60,74,0.6); animation: bnd-id-glitch 0.22s steps(2) infinite;")}></span>
+          </div>
         </div>
 
         <div data-page-content data-reveal className="bnd-reveal" style={s("position: relative; z-index: 6; width: 100%; max-width: 1000px; padding: 0 clamp(24px, 6vw, 80px); display: flex; flex-direction: column; align-items: center; text-align: center;")}>
@@ -794,7 +816,7 @@ export default function Home() {
       {/* ================= SPIDER-VERSE FEED ================= */}
       <section data-page="feed" data-screen-label="Spider-Verse Feed" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background: radial-gradient(120% 90% at 78% 6%, #1a0510 0%, #0a0713 52%, #050308 100%); display: flex;")}>
         <img src="/assets/web.png" alt="" style={s("position: absolute; top: -10%; left: -8%; width: min(680px, 46vw); opacity: 0.06; mix-blend-mode: screen; pointer-events: none;")} />
-        <div data-reveal className="bnd-reveal" style={s("position: relative; z-index: 4; width: 100%; max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: clamp(78px, 12vh, 118px) clamp(24px, 5vw, 80px) clamp(28px, 5vh, 52px); display: flex; flex-direction: column; min-height: 0;")}>
+        <div data-page-content data-reveal className="bnd-reveal" style={s("position: relative; z-index: 4; width: 100%; max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: clamp(78px, 12vh, 118px) clamp(24px, 5vw, 80px) clamp(28px, 5vh, 52px); display: flex; flex-direction: column; min-height: 0;")}>
           <div style={s("display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; flex-wrap: wrap; margin-bottom: clamp(16px, 2.4vh, 26px);")}>
             <div style={s("max-width: 660px;")}>
               <div className="bnd-line" style={s("animation-delay: 120ms; display: inline-flex; align-items: center; gap: 10px; margin-bottom: 12px;")}>
@@ -858,7 +880,7 @@ export default function Home() {
       {/* ================= SPIDEY TRACKER ================= */}
       <section data-page="tracker" data-screen-label="Spidey Tracker" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background: radial-gradient(120% 100% at 22% 30%, #0d1420 0%, #080a12 52%, #050608 100%); display: flex; align-items: center;")}>
         <img src="/assets/web.png" alt="" style={s("position: absolute; bottom: -14%; right: -8%; width: min(640px, 42vw); opacity: 0.05; mix-blend-mode: screen; pointer-events: none;")} />
-        <div data-reveal className="bnd-reveal" style={s("position: relative; z-index: 4; width: 100%; max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: clamp(78px, 12vh, 120px) clamp(24px, 5vw, 80px) clamp(40px, 7vh, 70px); display: flex; align-items: center; justify-content: space-between; gap: clamp(30px, 5vw, 70px); flex-wrap: wrap;")}>
+        <div data-page-content data-reveal className="bnd-reveal" style={s("position: relative; z-index: 4; width: 100%; max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: clamp(78px, 12vh, 120px) clamp(24px, 5vw, 80px) clamp(40px, 7vh, 70px); display: flex; align-items: center; justify-content: space-between; gap: clamp(30px, 5vw, 70px); flex-wrap: wrap;")}>
           <div style={s("flex: 1; min-width: 300px; max-width: 560px;")}>
             <img src="/assets/tracker-logo.png" alt="Spidey Tracker" className="bnd-line" style={s("animation-delay: 120ms; display: block; width: clamp(240px, 26vw, 360px); height: auto; margin-bottom: 22px; filter: drop-shadow(0 6px 20px rgba(0,0,0,0.5));")} />
             <h2 className="bnd-head" style={s("animation-delay: 300ms; margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(24px, 3.4vw, 46px); line-height: 1.02; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 34px rgba(0,0,0,0.6);")}>You don't have to look far…<br /><span style={{ color: "#ff2f40" }}>he might already be around the corner.</span></h2>
@@ -891,8 +913,8 @@ export default function Home() {
 
       {/* CINEMATIC TRANSITION OVERLAY */}
       <div style={s("position: fixed; inset: 0; z-index: 95; pointer-events: none;")}>
-        <div ref={barTopRef} style={s("position: absolute; top: 0; left: 0; right: 0; height: 51vh; background: linear-gradient(180deg, #050507 0%, #0b0b12 100%); transform: scaleY(0); transform-origin: top; box-shadow: 0 3px 0 rgba(255,31,51,0.55);")}></div>
-        <div ref={barBottomRef} style={s("position: absolute; bottom: 0; left: 0; right: 0; height: 51vh; background: linear-gradient(0deg, #050507 0%, #0b0b12 100%); transform: scaleY(0); transform-origin: bottom; box-shadow: 0 -3px 0 rgba(255,31,51,0.55);")}></div>
+        <div ref={barTopRef} style={s("position: absolute; top: 0; left: 0; right: 0; height: 51vh; background: linear-gradient(180deg, #050507 0%, #0b0b12 100%); transform: scaleY(0); transform-origin: top; box-shadow: 0 3px 0 rgba(255,31,51,0.55); will-change: transform;")}></div>
+        <div ref={barBottomRef} style={s("position: absolute; bottom: 0; left: 0; right: 0; height: 51vh; background: linear-gradient(0deg, #050507 0%, #0b0b12 100%); transform: scaleY(0); transform-origin: bottom; box-shadow: 0 -3px 0 rgba(255,31,51,0.55); will-change: transform;")}></div>
         <div ref={flashRef} style={s("position: absolute; inset: 0; background: radial-gradient(circle at 50% 45%, #ffffff 0%, rgba(255,255,255,0.85) 100%); opacity: 0;")}></div>
         <div ref={irisRef} style={s("position: absolute; inset: 0; display: none; background: radial-gradient(circle at 50% 50%, #0b0b14 0%, #050507 70%); clip-path: circle(0% at 50% 50%); align-items: center; justify-content: center;")}>
           <img src="/assets/web.png" alt="" style={s("position: absolute; top: 50%; left: 50%; width: 120vh; transform: translate(-50%, -50%); opacity: 0.18; mix-blend-mode: screen;")} />

@@ -8,7 +8,7 @@ import { rateLimit } from "@/lib/server/rate-limit";
 const MAX_POST_MEDIA = 4;
 
 const SELECT = `
-  SELECT p.id, p.title, p.body, p.is_spoiler, p.score, p.comment_count, p.hot_score, p.created_at,
+  SELECT p.id, p.title, p.body, p.is_spoiler, p.score, p.comment_count, p.hot_score, p.created_at, p.edited_at,
          u.username, c.handle AS community_handle, c.color AS community_color, f.label AS flair_label,
          pv.value AS my_vote
   FROM posts p

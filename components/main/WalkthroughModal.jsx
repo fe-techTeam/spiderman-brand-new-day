@@ -7,7 +7,7 @@ import { s } from "@/lib/style";
 // hero's cinematic entrance. Ported from the mockup's walkthrough block.
 export default function WalkthroughModal({ walk, items, onClose, onJoin, onHover }) {
   return (
-    <div style={s(`position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: clamp(14px, 3vh, 32px); background: rgba(4,6,14,${walk.scrim}); backdrop-filter: blur(${walk.blur}); transition: background 500ms ease, backdrop-filter 500ms ease; pointer-events: ${walk.pe};`)}>
+    <div style={s(`position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: clamp(14px, 3vh, 32px); background: rgba(4,6,14,${walk.scrim}); backdrop-filter: blur(${walk.blur}); visibility: ${walk.vis}; transition: background 500ms ease, backdrop-filter 500ms ease, visibility 0s linear ${walk.visDelay}; pointer-events: ${walk.pe};`)}>
       <div style={s(`position: relative; width: min(1000px, 100%); max-height: 94vh; transform-style: preserve-3d; opacity: ${walk.opacity}; transform: ${walk.transform}; filter: ${walk.filter}; transition: opacity 900ms ease, transform 1400ms cubic-bezier(.16,.9,.28,1), filter 1100ms ease;`)}>
         {/* HUD PANEL */}
         <div style={s("position: relative; padding: 1px; background: linear-gradient(135deg, rgba(120,150,220,0.35) 0%, rgba(255,40,60,0.5) 50%, rgba(120,150,220,0.2) 100%); clip-path: polygon(28px 0, 100% 0, 100% calc(100% - 28px), calc(100% - 28px) 100%, 0 100%, 0 28px); box-shadow: 0 40px 110px rgba(0,0,0,0.7), 0 0 70px rgba(30,50,110,0.3);")}>
