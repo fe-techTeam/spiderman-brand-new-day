@@ -3,9 +3,9 @@
 
 // The MJ Wall — "Living Memory Wall" (ported from MJ Wall.dc.html). Four
 // marquee columns of memory cards flow past a heartbeat spider emblem; cards
-// expand into a modal, hearts toggle locally, and a fixed composer posts to
-// the real API. A message just sent from the home section arrives via the
-// localStorage handoff and floats in at the top of the wall.
+// expand into a modal, and a fixed composer posts to the real API. A message
+// just sent from the home section arrives via the localStorage handoff and
+// floats in at the top of the wall.
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -24,37 +24,34 @@ const MINE_PAL = { edgeA: "rgba(255,40,60,0.6)", edgeB: "rgba(120,40,50,0.3)", b
 
 /* seeded wall (mockup copy) — shown until the API answers / when it's empty */
 const SEED_RAW = [
-  ["Priya N.", "He always looked out for the little guy — even when nobody was watching.", 2100],
-  ["Leo M.", "Peter never let go of a promise. Remind her of that.", 1400],
-  ["Diego A.", "The way he'd crack a joke mid-swing so you'd stop being scared.", 3200],
-  ["Hana K.", "He'd give up his own good day to save yours. Every single time.", 890],
-  ["Sam W.", "MJ — he chose you before he chose anything else.", 4600],
-  ["Aisha B.", "He'd show up soaked from the rain just to check you got home.", 1900],
-  ["Tomás S.", "He carried the whole city and still asked how your day was.", 760],
-  ["Grace L.", "The kid from Queens who never once thought he was a hero.", 2800],
-  ["Noah A.", "He'd remember the small things nobody else did. Your coffee order.", 1100],
-  ["Mia R.", "He'd smile like the mask was never even there.", 980],
-  ["Kai T.", "He believed anyone could wear it. He just believed in her most.", 3700],
-  ["Sofia G.", "Peter never wanted to be remembered. Which is why he should be.", 5100],
-  ["Ravi P.", "He'd swing across the whole borough for a friend. No questions.", 640],
-  ["Elena V.", "The bravest thing about him was how gentle he stayed.", 2300],
-  ["Jordan H.", "He laughed the loudest at his own bad puns.", 1600],
-  ["Amara O.", "He made a scary world feel a little more like home.", 2000],
-  ["Ben C.", "He'd always find you in a crowd. Always.", 1200],
-  ["Lin W.", "The one who caught you before you knew you were falling.", 3000],
-  ["Yusuf D.", "He never once asked for thanks. Remind her anyway.", 870],
-  ["Chloe M.", "Peter's whole heart was in every save. She was most of it.", 4200],
-  ["Isha R.", "He'd rather be late than leave someone behind.", 1300],
+  ["Priya N.", "He always looked out for the little guy — even when nobody was watching."],
+  ["Leo M.", "Peter never let go of a promise. Remind her of that."],
+  ["Diego A.", "The way he'd crack a joke mid-swing so you'd stop being scared."],
+  ["Hana K.", "He'd give up his own good day to save yours. Every single time."],
+  ["Sam W.", "MJ — he chose you before he chose anything else."],
+  ["Aisha B.", "He'd show up soaked from the rain just to check you got home."],
+  ["Tomás S.", "He carried the whole city and still asked how your day was."],
+  ["Grace L.", "The kid from Queens who never once thought he was a hero."],
+  ["Noah A.", "He'd remember the small things nobody else did. Your coffee order."],
+  ["Mia R.", "He'd smile like the mask was never even there."],
+  ["Kai T.", "He believed anyone could wear it. He just believed in her most."],
+  ["Sofia G.", "Peter never wanted to be remembered. Which is why he should be."],
+  ["Ravi P.", "He'd swing across the whole borough for a friend. No questions."],
+  ["Elena V.", "The bravest thing about him was how gentle he stayed."],
+  ["Jordan H.", "He laughed the loudest at his own bad puns."],
+  ["Amara O.", "He made a scary world feel a little more like home."],
+  ["Ben C.", "He'd always find you in a crowd. Always."],
+  ["Lin W.", "The one who caught you before you knew you were falling."],
+  ["Yusuf D.", "He never once asked for thanks. Remind her anyway."],
+  ["Chloe M.", "Peter's whole heart was in every save. She was most of it."],
+  ["Isha R.", "He'd rather be late than leave someone behind."],
 ];
-const SEEDS = SEED_RAW.map(([name, text, num], i) => ({ id: `s${i}`, name, initial: name[0], text, num, ...PALS[i % PALS.length] }));
-
-const fmtK = (n) => (n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : "" + n);
+const SEEDS = SEED_RAW.map(([name, text], i) => ({ id: `s${i}`, name, initial: name[0], text, ...PALS[i % PALS.length] }));
 
 export default function MjWallPage() {
   const { user, openAuth } = useSession();
   const [messages, setMessages] = useState(SEEDS); // seeded copy stays as the fallback
   const [extra, setExtra] = useState([]);          // the visitor's fresh cards (float in first)
-  const [liked, setLiked] = useState({});
   const [selected, setSelected] = useState(null);
   const [draft, setDraft] = useState("");
   const [justSent, setJustSent] = useState(false);
@@ -72,7 +69,7 @@ export default function MjWallPage() {
       if (pending) {
         localStorage.removeItem("mj_pending_message");
         const nm = user ? "u/" + user.username : "You";
-        setExtra((x) => [{ id: "u" + uidRef.current++, name: nm, initial: nm.replace(/^u\//, "")[0].toUpperCase(), text: pending, num: 0, ...MINE_PAL }, ...x]);
+        setExtra((x) => [{ id: "u" + uidRef.current++, name: nm, initial: nm.replace(/^u\//, "")[0].toUpperCase(), text: pending, ...MINE_PAL }, ...x]);
         setJustSent(true);
       }
     } catch (e) {}
@@ -85,7 +82,6 @@ export default function MjWallPage() {
           name: "u/" + m.author.username,
           initial: m.author.username[0].toUpperCase(),
           text: m.body,
-          num: 0, // hearts live client-side only (no like API)
           ...PALS[i % PALS.length],
         })));
       })
@@ -130,7 +126,7 @@ export default function MjWallPage() {
     try {
       await portalApi("/mj-wall/messages", { method: "POST", body: { body: t } });
       const nm = "u/" + user.username;
-      setExtra((x) => [{ id: "u" + uidRef.current++, name: nm, initial: nm.replace(/^u\//, "")[0].toUpperCase(), text: t, num: 0, ...MINE_PAL }, ...x]);
+      setExtra((x) => [{ id: "u" + uidRef.current++, name: nm, initial: nm.replace(/^u\//, "")[0].toUpperCase(), text: t, ...MINE_PAL }, ...x]);
       setDraft("");
       setJustSent(true);
     } catch (err) {
@@ -156,26 +152,13 @@ export default function MjWallPage() {
   const durs = ["46s", "54s", "50s", "60s"];
   const columns = cols.map((c, i) => ({ cards: [...c, ...c], anim: anims[i % 4], dur: durs[i % 4] }));
 
-  const countText = (all.length + 2456).toLocaleString("en-US");
-  const likesOf = (m) => fmtK((m.num || 0) + (liked[m.id] ? 1 : 0));
-
   const cardBody = (m) => (
     <div style={{ background: m.bg, clipPath: "polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px)", padding: "15px 16px" }}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill={m.accent} style={{ opacity: 0.5, marginBottom: "7px" }}><path d="M10 7L8 11h3v6H5v-6l2-4h3zm9 0l-2 4h3v6h-6v-6l2-4h3z" /></svg>
       <p style={s("margin: 0 0 12px; font-size: 14px; line-height: 1.5; color: rgba(240,240,250,0.92); text-wrap: pretty;")}>{m.text}</p>
-      <div style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px;")}>
-        <div style={s("display: flex; align-items: center; gap: 8px; min-width: 0;")}>
-          <span style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: m.accent, color: "#0a0713", fontFamily: "'Oswald', sans-serif", fontSize: "11px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600 }}>{m.initial}</span>
-          <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.04em; color: rgba(255,255,255,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;")}>{m.name}</span>
-        </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); setLiked((lk) => ({ ...lk, [m.id]: !lk[m.id] })); }}
-          data-web-hover="true"
-          style={{ flexShrink: 0, border: 0, background: "transparent", padding: "3px 4px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "11px", fontFamily: "inherit", color: liked[m.id] ? "#ff2f40" : "rgba(255,90,106,0.85)", transition: "transform .18s ease" }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill={liked[m.id] ? "#ff2f40" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M12 20.7l-1.45-1.32C5.4 14.74 2 11.66 2 7.9 2 4.85 4.42 2.5 7.5 2.5c1.74 0 3.41.83 4.5 2.13C13.09 3.33 14.76 2.5 16.5 2.5 19.58 2.5 22 4.85 22 7.9c0 3.76-3.4 6.84-8.55 11.5L12 20.7z" /></svg>
-          {likesOf(m)}
-        </button>
+      <div style={s("display: flex; align-items: center; gap: 8px; min-width: 0;")}>
+        <span style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: m.accent, color: "#0a0713", fontFamily: "'Oswald', sans-serif", fontSize: "11px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600 }}>{m.initial}</span>
+        <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.04em; color: rgba(255,255,255,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;")}>{m.name}</span>
       </div>
     </div>
   );
@@ -228,7 +211,7 @@ export default function MjWallPage() {
           <span style={s("width: 40px; height: 2px; background: linear-gradient(90deg, #ff2f40, transparent);")}></span>
         </div>
         <h1 style={s("font-family: 'Oswald', sans-serif; font-size: clamp(28px, 4.6vw, 56px); line-height: 1; font-weight: 500; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,0.5); animation: mjw-title-in 1s cubic-bezier(.16,.84,.3,1) both;")}>Help MJ <span style={{ color: "#ff2f40" }}>remember.</span></h1>
-        <p style={s("margin: 12px auto 0; max-width: 540px; font-size: clamp(13px, 1.4vw, 15px); line-height: 1.55; color: rgba(226,226,240,0.66); animation: mjw-rise 1s ease .3s both;")}>{countText} memories of Peter, flowing in from every corner of the Web.</p>
+        <p style={s("margin: 12px auto 0; max-width: 540px; font-size: clamp(13px, 1.4vw, 15px); line-height: 1.55; color: rgba(226,226,240,0.66); animation: mjw-rise 1s ease .3s both;")}>Memories of Peter, flowing in from every corner of the Web.</p>
       </div>
 
       {/* FLOWING WALL */}
@@ -255,18 +238,12 @@ export default function MjWallPage() {
             <div style={{ position: "relative", background: selected.bg, clipPath: "polygon(25px 0, 100% 0, 100% calc(100% - 25px), calc(100% - 25px) 100%, 0 100%, 0 25px)", padding: "clamp(32px, 5vw, 52px)" }}>
               <svg width="46" height="46" viewBox="0 0 24 24" fill={selected.accent} style={{ opacity: 0.5, marginBottom: "18px" }}><path d="M10 7L8 11h3v6H5v-6l2-4h3zm9 0l-2 4h3v6h-6v-6l2-4h3z" /></svg>
               <p style={s("margin: 0 0 26px; font-family: 'Oswald', sans-serif; font-weight: 400; text-transform: none; font-size: clamp(20px, 2.8vw, 30px); line-height: 1.35; color: #fff; text-wrap: pretty;")}>{selected.text}</p>
-              <div style={s("display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);")}>
-                <div style={s("display: flex; align-items: center; gap: 12px;")}>
-                  <span style={{ flexShrink: 0, width: "40px", height: "40px", borderRadius: "50%", background: selected.accent, color: "#0a0713", fontFamily: "'Oswald', sans-serif", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600 }}>{selected.initial}</span>
-                  <div>
-                    <div style={s("font-family: 'Oswald', sans-serif; font-size: 16px; letter-spacing: 0.04em; color: #fff;")}>{selected.name}</div>
-                    <div style={s("font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.4);")}>Left this for MJ</div>
-                  </div>
+              <div style={s("display: flex; align-items: center; gap: 12px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);")}>
+                <span style={{ flexShrink: 0, width: "40px", height: "40px", borderRadius: "50%", background: selected.accent, color: "#0a0713", fontFamily: "'Oswald', sans-serif", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600 }}>{selected.initial}</span>
+                <div>
+                  <div style={s("font-family: 'Oswald', sans-serif; font-size: 16px; letter-spacing: 0.04em; color: #fff;")}>{selected.name}</div>
+                  <div style={s("font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.4);")}>Left this for MJ</div>
                 </div>
-                <span style={s("display: inline-flex; align-items: center; gap: 8px; font-size: 15px; color: #ff2f40;")}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="#ff2f40"><path d="M12 20.7l-1.45-1.32C5.4 14.74 2 11.66 2 7.9 2 4.85 4.42 2.5 7.5 2.5c1.74 0 3.41.83 4.5 2.13C13.09 3.33 14.76 2.5 16.5 2.5 19.58 2.5 22 4.85 22 7.9c0 3.76-3.4 6.84-8.55 11.5L12 20.7z" /></svg>
-                  {likesOf(selected)}
-                </span>
               </div>
             </div>
             <button onClick={() => setSelected(null)} aria-label="Close" data-web-hover="true" style={s("position: absolute; top: 14px; right: 14px; z-index: 3; width: 38px; height: 38px; border-radius: 50%; border: 0; background: linear-gradient(180deg, #ff3a4a, #c00014); color: #fff; font-size: 20px; cursor: pointer; box-shadow: 0 8px 22px rgba(0,0,0,0.5), 0 0 0 3px rgba(255,255,255,0.08); font-family: inherit; line-height: 1; display: flex; align-items: center; justify-content: center;")}>×</button>
