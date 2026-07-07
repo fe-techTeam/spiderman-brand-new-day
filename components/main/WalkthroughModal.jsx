@@ -11,7 +11,7 @@ export default function WalkthroughModal({ walk, items, onClose, onJoin, onHover
       <div style={s(`position: relative; width: min(1000px, 100%); max-height: 94vh; transform-style: preserve-3d; opacity: ${walk.opacity}; transform: ${walk.transform}; filter: ${walk.filter}; transition: opacity 900ms ease, transform 1400ms cubic-bezier(.16,.9,.28,1), filter 1100ms ease;`)}>
         {/* HUD PANEL */}
         <div style={s("position: relative; padding: 1px; background: linear-gradient(135deg, rgba(120,150,220,0.35) 0%, rgba(255,40,60,0.5) 50%, rgba(120,150,220,0.2) 100%); clip-path: polygon(28px 0, 100% 0, 100% calc(100% - 28px), calc(100% - 28px) 100%, 0 100%, 0 28px); box-shadow: 0 40px 110px rgba(0,0,0,0.7), 0 0 70px rgba(30,50,110,0.3);")}>
-          <div style={s("position: relative; background: linear-gradient(160deg, rgba(11,17,34,0.97) 0%, rgba(6,9,20,0.98) 55%, rgba(9,17,36,0.97) 100%); clip-path: polygon(27px 0, 100% 0, 100% calc(100% - 27px), calc(100% - 27px) 100%, 0 100%, 0 27px); overflow: hidden;")}>
+          <div className="walk-panel" style={s("position: relative; background: linear-gradient(160deg, rgba(11,17,34,0.97) 0%, rgba(6,9,20,0.98) 55%, rgba(9,17,36,0.97) 100%); clip-path: polygon(27px 0, 100% 0, 100% calc(100% - 27px), calc(100% - 27px) 100%, 0 100%, 0 27px); overflow: hidden;")}>
             {/* web texture */}
             <img src="/assets/web.png" alt="" style={s("position: absolute; bottom: -60px; right: -50px; width: 320px; opacity: 0.06; mix-blend-mode: screen; pointer-events: none;")} />
 
@@ -27,7 +27,7 @@ export default function WalkthroughModal({ walk, items, onClose, onJoin, onHover
 
             {/* BODY */}
             <div style={s("position: relative; padding: clamp(20px, 3vh, 30px) clamp(24px, 3vw, 40px) clamp(34px, 5vh, 52px);")}>
-              <div style={s("display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(9px, 1.1vw, 14px);")}>
+              <div className="walk-grid" style={s("display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(9px, 1.1vw, 14px);")}>
                 {items.map((w, i) => (
                   <div
                     key={i}

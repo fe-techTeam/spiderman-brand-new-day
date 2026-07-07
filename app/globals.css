@@ -301,6 +301,18 @@ html, body, a, button, [data-web-hover] {
   .footer-cols { grid-template-columns: 1fr !important; }
 }
 
+/* ===== Nav account popup items ===== */
+.bnd-pop-item:hover { background: rgba(255,40,60,0.12) !important; }
+
+/* ===== Walkthrough modal: responsive card grid + scroll on phones ===== */
+@media (max-width: 760px) {
+  .walk-panel { max-height: min(88dvh, 88vh); overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
+  .walk-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 540px) {
+  .walk-grid { grid-template-columns: 1fr !important; }
+}
+
 /* ===== Web rail: right-side section nav ===== */
 .bnd-rail-dot { transition: background .25s ease, transform .25s ease, box-shadow .25s ease; }
 .bnd-rail-item:hover .bnd-rail-dot { background: rgba(255,255,255,0.65) !important; transform: scale(1.4); }

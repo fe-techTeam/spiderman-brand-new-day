@@ -81,6 +81,10 @@ export default function Home() {
   const [activeSection, setActiveSection] = useState("hero");
   const [stats, setStats] = useState(null);
 
+  // Logged-in members already picked their identity during onboarding — the
+  // "Who Are You Under the Mask?" section only shows for guests / quiz-pending.
+  const hideIdentity = !!user && !user.needsQuiz;
+
   // DOM refs
   const stageRef = useRef(null);
   const bgRef = useRef(null);
@@ -99,6 +103,8 @@ export default function Home() {
 
   // imperative bridges + state mirrors (read from event handlers / RAF)
   const goToPageRef = useRef(() => {});
+  const revealObsRef = useRef(null);
+  const sectionObsRef = useRef(null);
   const sfxRef = useRef(null);
   const isDesktopRef = useRef(true);
   const walkOpenRef = useRef(false);
@@ -255,6 +261,7 @@ export default function Home() {
       }, { threshold: [0, 0.4, 1] });
       groups.forEach((g) => revealObs.observe(g));
     }
+    revealObsRef.current = revealObs;
 
     /* ---- active-section scroll-spy (drives the nav highlight) ---- */
     let sectionObs = null;
@@ -262,12 +269,16 @@ export default function Home() {
       const ratios = new Map();
       sectionObs = new IntersectionObserver((entries) => {
         entries.forEach((en) => ratios.set(en.target.getAttribute("data-page"), en.intersectionRatio));
+        // a section can leave the DOM entirely (identity hides on login) — its
+        // stale ratio must not keep winning the vote
+        ratios.forEach((_, k) => { if (!document.querySelector(`[data-page="${k}"]`)) ratios.delete(k); });
         let best = null, bestR = 0;
         ratios.forEach((r, k) => { if (r > bestR) { bestR = r; best = k; } });
         if (best && bestR > 0.4) setActiveSection((prev) => (prev === best ? prev : best));
       }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
       document.querySelectorAll("[data-page]").forEach((el) => sectionObs.observe(el));
     }
+    sectionObsRef.current = sectionObs;
 
     /* ---- spidey swing-in + landing thump when the tracker section enters view ---- */
     let spideyObs = null;
@@ -540,6 +551,20 @@ export default function Home() {
     else sfxRef.current.stopHum();
   }, [walkOpen]);
 
+  /* the identity section mounts/unmounts with the session — observe any fresh
+     [data-reveal]/[data-page] nodes (observe() is a no-op on ones already
+     tracked) and re-measure the cached section offsets */
+  useEffect(() => {
+    document.querySelectorAll("[data-reveal]").forEach((el) => revealObsRef.current && revealObsRef.current.observe(el));
+    document.querySelectorAll("[data-page]").forEach((el) => sectionObsRef.current && sectionObsRef.current.observe(el));
+    window.dispatchEvent(new Event("resize"));
+  }, [hideIdentity]);
+
+  /* the Living Web keeps its revealed (twin) state once the user opens it */
+  useEffect(() => {
+    try { if (localStorage.getItem("bnd_twins_revealed") === "1") setTwinMode(true); } catch {}
+  }, []);
+
   /* lock the page scroll while any popup is up — otherwise the page drifts
      to a halfway point behind the popup and the pager blinks oddly after it
      closes (popups keep their own internal scrolling) */
@@ -566,10 +591,17 @@ export default function Home() {
     }
     openAuth("register"); // register/login popup
   };
+  // Section indices shift when the identity section is hidden — always resolve
+  // a section by its data-page key, never a hardcoded index.
+  const goToSection = (key) => {
+    const list = Array.from(document.querySelectorAll("[data-page]"));
+    const idx = list.findIndex((el) => el.getAttribute("data-page") === key);
+    if (idx >= 0) goToPageRef.current(idx);
+  };
   const doNav = (action) => {
     if (action === "trailer") setTrailerOpen(true);
     else if (action === "mjwall") router.push("/mj-wall"); // MJ Wall detail page
-    else if (action === "tracker") goToPageRef.current(5); // Spidey Tracker section
+    else if (action === "tracker") goToSection("tracker"); // Spidey Tracker section
     else router.push("/forum");
   };
 
@@ -640,7 +672,8 @@ export default function Home() {
 
   const spideyWidth = isDesktop ? "clamp(300px, 32vw, 560px)" : "62vw";
   const logoWidth = isDesktop ? "min(720px, 42vw)" : "82vw";
-  const railIdx = Math.max(0, RAIL_SECTIONS.findIndex((sec) => sec.key === activeSection));
+  const railSections = hideIdentity ? RAIL_SECTIONS.filter((sec) => sec.key !== "identity") : RAIL_SECTIONS;
+  const railIdx = Math.max(0, railSections.findIndex((sec) => sec.key === activeSection));
 
   const onWalkHover = () => sfxRef.current && sfxRef.current.play("hover");
 
@@ -680,6 +713,7 @@ export default function Home() {
       </div>
 
       {/* ================= FIND YOUR IDENTITY ================= */}
+      {!hideIdentity && (
       <section data-page="identity" data-screen-label="Find Your Identity" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background-color: #0a0512; background-image: url('/assets/identity-bg.jpg'); background-size: auto 100%; background-position: center; background-repeat: no-repeat; display: flex; align-items: center; justify-content: center;")}>
         <div style={s("position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,4,14,0.55) 0%, rgba(8,4,14,0.12) 30%, rgba(6,4,12,0.35) 62%, rgba(4,3,8,0.88) 100%); pointer-events: none;")}></div>
         <div style={s("position: absolute; top: 0; left: 0; right: 0; height: 46px; background: linear-gradient(180deg, #000 0%, transparent 100%); opacity: 0.85; pointer-events: none; z-index: 4;")}></div>
@@ -720,6 +754,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ================= THE LIVING WEB ================= */}
       <section data-page="livingweb" data-screen-label="The Living Web" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background: radial-gradient(120% 100% at 50% 26%, #0b1226 0%, #070711 55%, #040409 100%);")}>
@@ -751,7 +786,7 @@ export default function Home() {
             <div data-page-content data-reveal className="bnd-reveal" style={s("position: absolute; left: 0; right: 0; bottom: clamp(52px, 9vh, 96px); z-index: 6; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 24px;")}>
               <h2 className="bnd-head" style={s("animation-delay: 120ms; margin: 0; font-family: 'Oswald', sans-serif; font-style: italic; font-size: clamp(22px, 3.4vw, 46px); line-height: 1; font-weight: 600; letter-spacing: 0.01em; text-transform: uppercase; color: #fff; text-shadow: 0 6px 34px rgba(0,0,0,0.6); white-space: nowrap;")}>The Web grows a little <span style={{ color: "#ff2f40" }}>every second.</span></h2>
               <p className="bnd-line" style={s("animation-delay: 310ms; margin: 12px 0 0; font-size: clamp(11px, 1.3vw, 15px); line-height: 1.5; color: rgba(226,226,240,0.72); white-space: nowrap;")}>While you were finding your identity, thousands of others were finding theirs too.</p>
-              <button className="bnd-line bnd-cta" onClick={() => { sfxRef.current && sfxRef.current.play("click"); setTwinMode(true); }} onMouseEnter={onWalkHover} data-web-hover="true" style={s("animation-delay: 460ms; margin-top: clamp(16px, 2.4vh, 24px); border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
+              <button className="bnd-line bnd-cta" onClick={() => { sfxRef.current && sfxRef.current.play("click"); setTwinMode(true); try { localStorage.setItem("bnd_twins_revealed", "1"); } catch {} }} onMouseEnter={onWalkHover} data-web-hover="true" style={s("animation-delay: 460ms; margin-top: clamp(16px, 2.4vh, 24px); border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
                 <span style={s("display: block; padding: 2px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);")}>
                   <span className="bnd-cta-inner" style={s("display: inline-flex; align-items: center; gap: 10px; padding: 13px 30px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: clamp(12px, 1.3vw, 14px); letter-spacing: 0.18em; text-transform: uppercase;")}><span className="bnd-cta-sheen"></span>Find your Web Twins <span style={{ fontSize: "15px" }}>→</span></span>
                 </span>
@@ -1021,14 +1056,15 @@ export default function Home() {
           <div style={s("position: relative; display: flex; flex-direction: column; align-items: center;")}>
             {/* web strand */}
             <span aria-hidden="true" style={s("position: absolute; top: 6px; bottom: 6px; left: 50%; width: 1px; margin-left: -0.5px; background: linear-gradient(180deg, transparent, rgba(255,255,255,0.16) 12%, rgba(255,255,255,0.16) 88%, transparent); pointer-events: none;")}></span>
-            {/* the little spider rides the strand to the active section */}
-            <span aria-hidden="true" style={{ position: "absolute", left: "50%", top: `${railIdx * 34 + 4}px`, transform: "translateX(-50%)", transition: "top 600ms cubic-bezier(.22,1,.36,1)", pointerEvents: "none", zIndex: 2, filter: "drop-shadow(0 0 6px rgba(255,47,64,0.6))" }}>
-              <svg width="26" height="26" viewBox="0 0 100 100" fill="none" stroke="#ff3a4a" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="50" cy="44" rx="9" ry="12" /><path d="M50 32V16M42 36 22 26M58 36l20-10M43 52 27 66M57 52l16 14M50 56v20" /></svg>
+            {/* the little spider rides the strand to the active section —
+                same spidey silhouette as the site cursor, just smaller */}
+            <span aria-hidden="true" style={{ position: "absolute", left: "50%", top: `${railIdx * 34 + 8}px`, transform: "translateX(-50%)", transition: "top 600ms cubic-bezier(.22,1,.36,1)", pointerEvents: "none", zIndex: 2, filter: "drop-shadow(0 0 6px rgba(255,255,255,0.45))" }}>
+              <img src="/assets/cursor-spider.svg" alt="" width="18" height="18" style={{ display: "block" }} />
             </span>
-            {RAIL_SECTIONS.map((sec, i) => (
+            {railSections.map((sec, i) => (
               <button
                 key={sec.key}
-                onClick={() => { sfxRef.current && sfxRef.current.play("click"); goToPageRef.current(i); }}
+                onClick={() => { sfxRef.current && sfxRef.current.play("click"); goToSection(sec.key); }}
                 data-web-hover="true"
                 className="bnd-rail-item"
                 aria-label={sec.label}
