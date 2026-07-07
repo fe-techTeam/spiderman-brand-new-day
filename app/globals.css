@@ -215,6 +215,22 @@ body { width: 100%; }
 @keyframes bnd-radar-ring { 0% { transform: scale(0.2); opacity: 0.9; } 100% { transform: scale(1); opacity: 0; } }
 @keyframes bnd-blip { 0%, 100% { opacity: 0.25; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.25); } }
 
+/* ===== Spider-Verse Feed ambient FX ===== */
+@keyframes bnd-forum-glow { 0%, 100% { opacity: 0.22; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.12); } }
+@keyframes bnd-mote { 0% { transform: translateY(30px) scale(0.5); opacity: 0; } 14% { opacity: 0.9; } 80% { opacity: 0.6; } 100% { transform: translateY(-140px) scale(1); opacity: 0; } }
+@keyframes bnd-forum-scan { 0% { transform: translateY(-30%); opacity: 0; } 8% { opacity: 0.5; } 50% { opacity: 0.5; } 92% { opacity: 0; } 100% { transform: translateY(130%); opacity: 0; } }
+
+/* ===== Tracker: swinging spidey sprite ===== */
+@keyframes bnd-spidey-frames { from { background-position-x: 0; } to { background-position-x: -6160px; } }
+@keyframes bnd-swing-in { 0% { transform: translate(-70px, -82vh) rotate(-16deg); opacity: 0; } 18% { opacity: 1; } 55% { transform: translate(40px, -30vh) rotate(12deg); } 78% { transform: translate(-14px, 14px) rotate(-6deg); } 90% { transform: translate(6px, -4px) rotate(3deg); } 100% { transform: translate(0, 0) rotate(0); } }
+@keyframes bnd-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes bnd-dust { 0% { opacity: 0; transform: translate(0,0) scale(1); } 12% { opacity: 0.9; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.3); } }
+/* spidey swings in only when the tracker section is in view (.play is toggled by an observer) */
+.tracker-spidey .spidey-inner { animation: bnd-sway 3.4s ease-in-out infinite; }
+.tracker-spidey .spidey-dust span { opacity: 0; }
+.tracker-spidey.play .spidey-inner { animation: bnd-swing-in 2400ms cubic-bezier(.22,.68,.28,1) both, bnd-sway 3.4s ease-in-out 2400ms infinite; }
+.tracker-spidey.play .spidey-dust span { animation: bnd-dust 1s ease-out forwards; }
+
 #mj-textarea::placeholder { color: rgba(255,255,255,0.85); text-shadow: 0 0 8px rgba(255,255,255,0.7), 0 0 18px rgba(255,255,255,0.4); opacity: 1; }
 
 /* ===== MJ Wall mobile ===== */
@@ -231,6 +247,26 @@ body { width: 100%; }
 html, body, a, button, [data-web-hover] {
   cursor: url('/assets/cursor-spider.svg') 36 36, auto;
 }
+
+/* ============================================================
+   MJ WALL page styles (MJ Wall.dc.html <style> block)
+   ============================================================ */
+#mjw-composer::placeholder { color: rgba(255,255,255,0.55); }
+@keyframes mjw-flow-up { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+@keyframes mjw-flow-down { from { transform: translateY(-50%); } to { transform: translateY(0); } }
+@keyframes mjw-rise { from { opacity: 0; transform: translateY(24px) scale(1.03); filter: blur(6px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes mjw-title-in { 0% { opacity: 0; transform: translateY(20px) scale(1.08); filter: blur(12px); letter-spacing: 0.2em; } 100% { opacity: 1; transform: none; filter: blur(0); letter-spacing: normal; } }
+.mjw-flowwrap:hover .mjw-col { animation-play-state: paused; }
+.mjw-card { transition: transform .3s ease, box-shadow .3s ease; }
+.mjw-card:hover { transform: scale(1.03); box-shadow: 0 14px 34px rgba(0,0,0,0.5), 0 0 24px rgba(255,40,60,0.3); z-index: 5; }
+.mjw-sheen { position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.18), transparent); transform: skewX(-18deg); pointer-events: none; }
+.mjw-cta:hover .mjw-sheen { animation: mjw-sheen-go .8s ease; }
+@keyframes mjw-sheen-go { from { left: -60%; } to { left: 140%; } }
+@keyframes mjw-float { 0%, 100% { opacity: 0; transform: translateY(20px); } 15% { opacity: .8; } 85% { opacity: .5; } 100% { transform: translateY(-120px); } }
+@keyframes mjw-ray { 0%, 100% { opacity: .1; transform: translateX(-8%); } 50% { opacity: .26; transform: translateX(8%); } }
+@keyframes mjw-flicker { 0%, 100% { opacity: .05; } 50% { opacity: .11; } }
+@keyframes mjw-heartbeat { 0%, 100% { opacity: .18; transform: translate(-50%, -50%) scale(1); } 50% { opacity: .4; transform: translate(-50%, -50%) scale(1.14); } }
+@keyframes mjw-mj-pulse { 0%, 100% { opacity: .11; filter: grayscale(0.28) contrast(1.05); } 50% { opacity: .2; filter: grayscale(0.15) contrast(1.08); } }
 
 /* ============================================================
    FORUM page styles (Spider-Verse Forum.dc.html <style> block)
@@ -261,11 +297,14 @@ html, body, a, button, [data-web-hover] {
   background: linear-gradient(150deg, rgba(150,180,255,0.55), rgba(255,60,80,0.75));
   box-shadow: 0 20px 44px rgba(0,0,0,0.5), 0 0 30px rgba(255,40,60,0.4);
 }
-.feed-thread:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 16px 36px rgba(0,0,0,0.5), 0 0 22px rgba(255,40,60,0.26);
+/* footer (promoted from the mockup's style-hover) */
+.trailer-card:hover { transform: translateY(-4px); box-shadow: 0 26px 60px rgba(0,0,0,0.55), 0 0 36px rgba(255,40,60,0.32); }
+.footer-social:hover { background: rgba(255,40,60,0.16); border-color: rgba(255,60,74,0.5); color: #fff; }
+.footer-link:hover { color: #ff5a6a; }
+/* footer columns stack on phones (source grid is desktop-only) */
+@media (max-width: 700px) {
+  .footer-cols { grid-template-columns: 1fr !important; }
 }
-.feed-pill:hover { border-color: rgba(255,60,74,0.6); background: rgba(255,40,60,0.12); }
 
 /* ---- Forum responsive (source layout is desktop-only; add mobile) ---- */
 @media (max-width: 900px) {

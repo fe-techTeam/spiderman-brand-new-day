@@ -10,7 +10,7 @@ import { createSfx } from "@/lib/sfx";
 import { initGlobe } from "@/lib/globe";
 import { initParticles } from "@/lib/particles";
 import { portalApi } from "@/lib/portal/api";
-import { relTime, fmtCount } from "@/lib/time";
+import { fmtCount } from "@/lib/time";
 import { Flag } from "@/components/Flags";
 import { useSession } from "@/components/auth/SessionProvider";
 import Nav from "@/components/main/Nav";
@@ -52,21 +52,6 @@ const MAP_CHIPS = [
   city, country, labeled: !!labeled, flagCode: fk, x: projX(lon), y: projY(lat),
 }));
 
-const FORUM_COMMUNITIES = [
-  { handle: "w/Dreamers", color: "#ff5a6a", members: "48.2k" },
-  { handle: "w/Protectors", color: "#ffd23f", members: "61.7k" },
-  { handle: "w/Rebels", color: "#4d8bff", members: "33.9k" },
-  { handle: "w/Prodigies", color: "#7ee787", members: "27.4k" },
-  { handle: "w/SpideySpotted", color: "#ff9f43", members: "72.1k" },
-];
-
-const FORUM_THREADS = [
-  { votes: "4.2k", community: "w/Protectors", author: "u/mayaokafor", time: "3h", title: "Great power, great responsibility — my abuela said it before the movies did.", snippet: "She's been saying it my whole life. Watching the new film, it finally clicked why she never let me forget it.", comments: "312", tag: "Trending", color: "#ffd23f", delay: "160ms" },
-  { votes: "2.4k", community: "w/Dreamers", author: "u/leomartins", time: "5h", title: "First time seeing someone like me on the poster. Suited up and didn't take it off all day.", snippet: "Anyone can wear the mask. I never believed that until this week. Now I can't unsee it.", comments: "182", tag: "Hot", color: "#ff5a6a", delay: "240ms" },
-  { votes: "2.1k", community: "w/Rebels", author: "u/graceliu", time: "8h", title: "Everyone kept telling me who Spider-Man should be. So I drew who he is to ME.", snippet: "Dropped the full sketchbook in the comments. Not everyone swings the same way — and that's the point.", comments: "168", tag: "Art", color: "#4d8bff", delay: "320ms" },
-  { votes: "1.9k", community: "w/SpideySpotted", author: "u/diegoalvarez", time: "11h", title: "Spotted a web-tag on 7th street this morning. Anyone else seeing these pop up?", snippet: "Third one this week in my neighbourhood. Someone's leaving marks all over the city. Compiling a map — link inside.", comments: "204", tag: "Sighting", color: "#ff9f43", delay: "400ms" },
-];
-
 /* ---------------------------------------------------------------- component */
 
 export default function Home() {
@@ -84,7 +69,6 @@ export default function Home() {
   const [twinMode, setTwinMode] = useState(false);
   const [activeSection, setActiveSection] = useState("hero");
   const [stats, setStats] = useState(null);
-  const [feedThreads, setFeedThreads] = useState(FORUM_THREADS); // hardcoded until the API answers
 
   // DOM refs
   const stageRef = useRef(null);
@@ -265,6 +249,29 @@ export default function Home() {
       document.querySelectorAll("[data-page]").forEach((el) => sectionObs.observe(el));
     }
 
+    /* ---- spidey swing-in + landing thump when the tracker section enters view ---- */
+    let spideyObs = null;
+    let spideyLandT = null;
+    const spideyInitT = setTimeout(() => {
+      const wrap = document.querySelector(".tracker-spidey");
+      const sec = document.querySelector("section[data-page='tracker']");
+      if (!wrap || !sec || !("IntersectionObserver" in window)) { if (wrap) wrap.classList.add("play"); return; }
+      spideyObs = new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting && e.intersectionRatio > 0.35) {
+            wrap.classList.remove("play");
+            void wrap.offsetWidth; // re-arm the swing-in animation
+            wrap.classList.add("play");
+            if (spideyLandT) clearTimeout(spideyLandT);
+            spideyLandT = setTimeout(() => sfx.play("land"), 1950);
+          } else {
+            wrap.classList.remove("play");
+          }
+        });
+      }, { threshold: [0, 0.35, 1] });
+      spideyObs.observe(sec);
+    }, 140);
+
     /* ---- full-section cinematic pager (desktop only; mobile scrolls natively) ---- */
     let pageIndex = 0, paging = false, gestureLive = false, wheelIdleTimer = null;
     const transStyle = "shutter";
@@ -423,7 +430,7 @@ export default function Home() {
     };
     const onPagerKey = (ev) => {
       if (!isDesktopRef.current || modalOpen() || paging) return;
-      if (["ArrowDown", "PageDown", " ", "Spacebar"].includes(ev.key)) { ev.preventDefault(); goToPage(pageIndex + 1); }
+      if (["ArrowDown", "PageDown"].includes(ev.key)) { ev.preventDefault(); goToPage(pageIndex + 1); }
       else if (["ArrowUp", "PageUp"].includes(ev.key)) { ev.preventDefault(); goToPage(pageIndex - 1); }
     };
     let touchStartY = null;
@@ -484,6 +491,9 @@ export default function Home() {
       clearTimeout(twTimer);
       if (revealObs) revealObs.disconnect();
       if (sectionObs) sectionObs.disconnect();
+      if (spideyObs) spideyObs.disconnect();
+      clearTimeout(spideyInitT);
+      if (spideyLandT) clearTimeout(spideyLandT);
       globeInst.destroy();
       particlesInst.destroy();
       sfx.destroy();
@@ -498,29 +508,11 @@ export default function Home() {
     else sfxRef.current.stopHum();
   }, [walkOpen]);
 
-  /* live data: Living Web stats + trending forum posts (hardcoded copy stays as fallback) */
+  /* live data: Living Web stats */
   useEffect(() => {
     let cancelled = false;
     portalApi("/stats")
       .then((data) => { if (!cancelled) setStats(data); })
-      .catch(() => {});
-    portalApi("/forum/posts?sort=hot&limit=4")
-      .then((data) => {
-        if (cancelled || !Array.isArray(data.posts) || !data.posts.length) return;
-        setFeedThreads(data.posts.map((p, i) => ({
-          id: p.id,
-          votes: fmtCount(p.score),
-          community: p.community?.handle ?? "w/TheWeb",
-          color: p.community?.color ?? "#ff5a6a",
-          author: "u/" + p.author.username,
-          time: relTime(p.createdAt),
-          title: p.title,
-          snippet: p.body,
-          comments: fmtCount(p.commentCount),
-          tag: p.flair ?? "Story",
-          delay: `${160 + i * 80}ms`,
-        })));
-      })
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
@@ -535,7 +527,7 @@ export default function Home() {
   };
   const doNav = (action) => {
     if (action === "trailer") setTrailerOpen(true);
-    else if (action === "mjwall") goToPageRef.current(3); // MJ Wall section
+    else if (action === "mjwall") router.push("/mj-wall"); // MJ Wall detail page
     else if (action === "tracker") goToPageRef.current(5); // Spidey Tracker section
     else router.push("/forum");
   };
@@ -549,6 +541,10 @@ export default function Home() {
     try {
       await portalApi("/mj-wall/messages", { method: "POST", body: { body: mjMessage } });
       setMjSent(true);
+      sfxRef.current && sfxRef.current.play("click");
+      // hand the fresh message to the MJ Wall page so it floats in immediately
+      try { localStorage.setItem("mj_pending_message", mjMessage.trim()); } catch {}
+      setTimeout(() => router.push("/mj-wall"), 1400);
     } catch (err) {
       if (err.code === "quiz_required") { window.location.href = "/quiz"; return; }
       setMjError(err.message || "Couldn't send your message. Try again.");
@@ -573,9 +569,9 @@ export default function Home() {
     webWhere = `${stats.countries ?? 0} countries`;
   }
   // Which section (if any) each nav item corresponds to — drives the active highlight.
-  const navSections = [null, "mjwall", "tracker", null];
-  const navItems = ["TRAILER", "MJ WALL", "SPIDEY TRACKER", "FORUM"].map((label, i) => {
-    const action = ["trailer", "mjwall", "tracker", "forum"][i];
+  const navSections = [null, "mjwall", null, "tracker"];
+  const navItems = ["TRAILER", "MJ WALL", "FORUM", "SPIDEY TRACKER"].map((label, i) => {
+    const action = ["trailer", "mjwall", "forum", "tracker"][i];
     const active = !!navSections[i] && navSections[i] === activeSection;
     return {
       label, locked: false, active,
@@ -795,7 +791,7 @@ export default function Home() {
                     value={mjMessage}
                     onChange={(e) => setMjMessage(e.target.value)}
                     rows={4}
-                    style={s("display: block; width: 100%; box-sizing: border-box; resize: none; padding: 18px 22px; border: 0; outline: 0; background: #000; color: #ffffff; text-shadow: 0 0 8px rgba(255,255,255,0.7), 0 0 18px rgba(255,255,255,0.35); font-family: inherit; font-size: 15px; line-height: 1.5; clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);")}
+                    style={s("display: block; width: 100%; box-sizing: border-box; resize: none; padding: 18px 22px; border: 0; outline: 0; background: #060e2a; color: #ffffff; text-shadow: 0 0 8px rgba(255,255,255,0.7), 0 0 18px rgba(255,255,255,0.35); font-family: inherit; font-size: 15px; line-height: 1.5; clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);")}
                   ></textarea>
                 </div>
                 <div style={s("margin-top: 20px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap;")}>
@@ -814,71 +810,43 @@ export default function Home() {
       </section>
 
       {/* ================= SPIDER-VERSE FEED ================= */}
-      <section data-page="feed" data-screen-label="Spider-Verse Feed" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background: radial-gradient(120% 90% at 78% 6%, #1a0510 0%, #0a0713 52%, #050308 100%); display: flex;")}>
+      <section data-page="feed" data-screen-label="Spider-Verse Feed" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background-color: #050308; background-image: radial-gradient(90% 90% at 50% 52%, rgba(5,3,8,0.35) 0%, rgba(5,3,8,0.7) 55%, rgba(4,2,6,0.9) 100%), url('/assets/forum-bg.jpg'); background-size: cover, cover; background-position: center, center; display: flex;")}>
         <img src="/assets/web.png" alt="" style={s("position: absolute; top: -10%; left: -8%; width: min(680px, 46vw); opacity: 0.06; mix-blend-mode: screen; pointer-events: none;")} />
-        <div data-page-content data-reveal className="bnd-reveal" style={s("position: relative; z-index: 4; width: 100%; max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: clamp(78px, 12vh, 118px) clamp(24px, 5vw, 80px) clamp(28px, 5vh, 52px); display: flex; flex-direction: column; min-height: 0;")}>
-          <div style={s("display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; flex-wrap: wrap; margin-bottom: clamp(16px, 2.4vh, 26px);")}>
-            <div style={s("max-width: 660px;")}>
-              <div className="bnd-line" style={s("animation-delay: 120ms; display: inline-flex; align-items: center; gap: 10px; margin-bottom: 12px;")}>
-                <span style={s("width: 42px; height: 2px; background: linear-gradient(90deg, transparent, #ff2f40);")}></span>
-                <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: #ff5a6a;")}>Spider-Verse Feed</span>
-              </div>
-              <h2 className="bnd-head" style={s("animation-delay: 280ms; margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(26px, 3.8vw, 50px); line-height: 0.98; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,0.6);")}>This is what the Web <span style={{ color: "#ff2f40" }}>actually looks like.</span></h2>
-              <p className="bnd-line" style={s("animation-delay: 560ms; margin: 10px 0 0; font-size: clamp(13px, 1.4vw, 16px); line-height: 1.55; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>Real people, real identities, real stories. Jump into a thread and add your voice.</p>
-            </div>
-            <Link href="/forum" data-web-hover="true" className="bnd-line bnd-cta" style={s("animation-delay: 640ms; text-decoration: none; border: 0; padding: 0; background: transparent; cursor: pointer;")}>
-              <span style={s("display: block; padding: 2px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);")}>
-                <span className="bnd-cta-inner" style={s("display: inline-flex; align-items: center; gap: 10px; padding: 13px 28px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase;")}><span className="bnd-cta-sheen"></span>Enter the Forum <span style={{ fontSize: "15px" }}>→</span></span>
-              </span>
-            </Link>
-          </div>
 
-          {/* community pills */}
-          <div className="bnd-line" style={s("animation-delay: 700ms; display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: clamp(14px, 2vh, 20px);")}>
-            {FORUM_COMMUNITIES.map((c) => (
-              <Link key={c.handle} href="/forum" data-web-hover="true" className="feed-pill" style={s("text-decoration: none; display: inline-flex; align-items: center; gap: 8px; padding: 8px 15px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 999px; transition: border-color 220ms ease, background 220ms ease;")}>
-                <span style={s(`width: 8px; height: 8px; border-radius: 50%; background: ${c.color}; box-shadow: 0 0 8px ${c.color};`)}></span>
-                <span style={s("font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 0.06em; color: #fff;")}>{c.handle}</span>
-                <span style={s("font-size: 10px; letter-spacing: 0.1em; color: rgba(255,255,255,0.45);")}>{c.members}</span>
-              </Link>
-            ))}
-          </div>
+        {/* Marvel-style ambient FX layer */}
+        <div style={s("position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none;")}>
+          {/* pulsing red energy blooms */}
+          <div style={s("position: absolute; top: 22%; right: 14%; width: 40vw; height: 40vw; border-radius: 50%; background: radial-gradient(circle, rgba(214,2,26,0.28) 0%, rgba(214,2,26,0.06) 42%, transparent 70%); filter: blur(10px); animation: bnd-forum-glow 6s ease-in-out infinite;")}></div>
+          <div style={s("position: absolute; bottom: 8%; left: 16%; width: 30vw; height: 30vw; border-radius: 50%; background: radial-gradient(circle, rgba(31,76,214,0.2) 0%, rgba(31,76,214,0.05) 45%, transparent 70%); filter: blur(12px); animation: bnd-forum-glow 7.5s ease-in-out infinite 1.5s;")}></div>
+          {/* drifting energy motes */}
+          <span style={s("position: absolute; left: 18%; bottom: 20%; width: 4px; height: 4px; border-radius: 50%; background: #ff5a6a; box-shadow: 0 0 10px 2px rgba(255,60,74,0.7); animation: bnd-mote 7s ease-in-out infinite;")}></span>
+          <span style={s("position: absolute; left: 34%; bottom: 12%; width: 3px; height: 3px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px 2px rgba(255,255,255,0.6); animation: bnd-mote 9s ease-in-out infinite 1.2s;")}></span>
+          <span style={s("position: absolute; left: 52%; bottom: 26%; width: 5px; height: 5px; border-radius: 50%; background: #ff5a6a; box-shadow: 0 0 12px 3px rgba(255,60,74,0.7); animation: bnd-mote 8s ease-in-out infinite 2.4s;")}></span>
+          <span style={s("position: absolute; left: 68%; bottom: 16%; width: 3px; height: 3px; border-radius: 50%; background: #9db4ff; box-shadow: 0 0 9px 2px rgba(120,150,255,0.7); animation: bnd-mote 10s ease-in-out infinite 0.6s;")}></span>
+          <span style={s("position: absolute; left: 80%; bottom: 30%; width: 4px; height: 4px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px 2px rgba(255,255,255,0.6); animation: bnd-mote 8.5s ease-in-out infinite 3s;")}></span>
+          <span style={s("position: absolute; left: 26%; bottom: 8%; width: 3px; height: 3px; border-radius: 50%; background: #ff5a6a; box-shadow: 0 0 9px 2px rgba(255,60,74,0.6); animation: bnd-mote 11s ease-in-out infinite 4s;")}></span>
+          {/* slow scan sheen */}
+          <div style={s("position: absolute; left: 0; right: 0; top: 0; height: 34%; background: linear-gradient(180deg, transparent, rgba(120,150,255,0.06), transparent); mix-blend-mode: screen; animation: bnd-forum-scan 9s ease-in-out infinite;")}></div>
+        </div>
 
-          {/* trending threads */}
-          <div style={s("flex: 1; min-height: 0; overflow-y: auto; padding-right: 6px; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: clamp(10px, 1.4vh, 14px);")}>
-            {feedThreads.map((t, i) => (
-              <Link key={t.id ?? i} href={t.id ? `/forum/${t.id}` : "/forum"} data-web-hover="true" className="bnd-line bnd-card feed-thread" style={s(`animation-delay: ${t.delay}; text-decoration: none; position: relative; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.24), rgba(255,40,60,0.28)); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); transition: transform 340ms cubic-bezier(.16,.84,.3,1), box-shadow 340ms ease;`)}>
-                <div className="bnd-card-body" style={s("display: flex; align-items: stretch; gap: 0; background: linear-gradient(150deg, rgba(16,18,34,0.96), rgba(9,10,20,0.97)); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);")}>
-                  <div style={s("flex-shrink: 0; width: clamp(56px, 6vw, 72px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: rgba(255,40,60,0.06); border-right: 1px solid rgba(255,255,255,0.06);")}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff5a6a" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5l7 8h-4v6h-6v-6H5z" /></svg>
-                    <span style={s("font-family: 'Oswald', sans-serif; font-size: 16px; font-weight: 600; color: #fff; line-height: 1;")}>{t.votes}</span>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-8h-4V5h-6v6H5z" /></svg>
-                  </div>
-                  <div style={s("flex: 1; min-width: 0; padding: 14px 18px;")}>
-                    <div style={s("display: flex; align-items: center; gap: 8px; margin-bottom: 7px; font-size: 11px; color: rgba(255,255,255,0.5);")}>
-                      <span style={s("display: inline-flex; align-items: center; gap: 5px;")}><span style={s(`width: 6px; height: 6px; border-radius: 50%; background: ${t.color}; box-shadow: 0 0 6px ${t.color};`)}></span><span style={s("font-family: 'Oswald', sans-serif; letter-spacing: 0.04em; color: rgba(255,255,255,0.8);")}>{t.community}</span></span>
-                      <span style={{ opacity: 0.5 }}>·</span><span>{t.author}</span>
-                      <span style={{ opacity: 0.5 }}>·</span><span>{t.time}</span>
-                    </div>
-                    <div style={s("font-family: 'Oswald', sans-serif; font-size: clamp(15px, 1.7vw, 19px); font-weight: 500; color: #fff; line-height: 1.15; margin-bottom: 5px;")}>{t.title}</div>
-                    <p style={s("margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: rgba(226,226,240,0.66); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;")}>{t.snippet}</p>
-                    <div style={s("display: flex; align-items: center; gap: 18px; font-size: 11.5px; letter-spacing: 0.04em; color: rgba(255,255,255,0.5);")}>
-                      <span style={s("display: inline-flex; align-items: center; gap: 6px;")}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.4 8.4 0 01-11.9 7.6L3 21l1.9-6.1A8.4 8.4 0 1121 11.5z" /></svg>{t.comments} comments</span>
-                      <span style={s("display: inline-flex; align-items: center; gap: 6px; color: rgba(255,90,106,0.8);")}><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h6l-1 8 9-12h-6z" /></svg>{t.tag}</span>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-            <div style={s("display: flex; justify-content: center; padding: clamp(8px, 1.4vh, 16px) 0 4px;")}>
-              <Link href="/forum" data-web-hover="true" className="link-hover-red" style={s("text-decoration: none; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255,255,255,0.6); transition: color 200ms ease;")}>See more stories ›</Link>
-            </div>
+        <div data-page-content data-reveal className="bnd-reveal" style={s("position: relative; z-index: 4; width: 100%; max-width: 820px; margin: 0 auto; box-sizing: border-box; padding: clamp(78px, 12vh, 118px) clamp(24px, 5vw, 80px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 0;")}>
+          <div className="bnd-line" style={s("animation-delay: 120ms; display: inline-flex; align-items: center; gap: 10px; margin-bottom: 16px;")}>
+            <span style={s("width: 42px; height: 2px; background: linear-gradient(90deg, transparent, #ff2f40);")}></span>
+            <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: #ff5a6a;")}>Spider-Verse Feed</span>
+            <span style={s("width: 42px; height: 2px; background: linear-gradient(90deg, #ff2f40, transparent);")}></span>
           </div>
+          <h2 className="bnd-head" style={s("animation-delay: 280ms; margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(30px, 5vw, 66px); line-height: 0.98; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,0.6);")}>This is what the Web <span style={{ color: "#ff2f40" }}>actually looks like.</span></h2>
+          <p className="bnd-line" style={s("animation-delay: 560ms; margin: 18px auto 0; max-width: 600px; font-size: clamp(14px, 1.5vw, 17px); line-height: 1.6; color: rgba(226,226,240,0.74); text-wrap: pretty;")}>Real people, real identities, real stories — an entire community living under the mask. Step inside and add your voice.</p>
+          <Link href="/forum" data-web-hover="true" className="bnd-line bnd-cta" style={s("animation-delay: 780ms; margin-top: clamp(28px, 4.5vh, 44px); text-decoration: none; border: 0; padding: 0; background: transparent; cursor: pointer;")}>
+            <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);")}>
+              <span className="bnd-cta-inner" style={s("display: inline-flex; align-items: center; gap: 12px; padding: 16px 44px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 15px; letter-spacing: 0.2em; text-transform: uppercase;")}><span className="bnd-cta-sheen"></span>Enter the Forum <span style={{ fontSize: "17px" }}>→</span></span>
+            </span>
+          </Link>
         </div>
       </section>
 
       {/* ================= SPIDEY TRACKER ================= */}
-      <section data-page="tracker" data-screen-label="Spidey Tracker" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background: radial-gradient(120% 100% at 22% 30%, #0d1420 0%, #080a12 52%, #050608 100%); display: flex; align-items: center;")}>
+      <section data-page="tracker" data-screen-label="Spidey Tracker" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background-color: #0a1330; background-image: radial-gradient(120% 100% at 22% 30%, rgba(6,10,22,0.35) 0%, rgba(5,8,20,0.72) 60%, rgba(4,6,14,0.9) 100%), url('/assets/tracker-map-bg.jpg'); background-size: cover, cover; background-position: center, center; display: flex; align-items: center;")}>
         <img src="/assets/web.png" alt="" style={s("position: absolute; bottom: -14%; right: -8%; width: min(640px, 42vw); opacity: 0.05; mix-blend-mode: screen; pointer-events: none;")} />
         <div data-page-content data-reveal className="bnd-reveal" style={s("position: relative; z-index: 4; width: 100%; max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: clamp(78px, 12vh, 120px) clamp(24px, 5vw, 80px) clamp(40px, 7vh, 70px); display: flex; align-items: center; justify-content: space-between; gap: clamp(30px, 5vw, 70px); flex-wrap: wrap;")}>
           <div style={s("flex: 1; min-width: 300px; max-width: 560px;")}>
@@ -893,23 +861,117 @@ export default function Home() {
           </div>
 
           {/* radar */}
-          <div className="bnd-line" style={s("animation-delay: 500ms; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: clamp(14px, 2vh, 24px);")}>
-            <div style={s("position: relative; width: clamp(250px, 31vw, 400px); aspect-ratio: 1;")}>
-              <img src="/assets/radar.png" alt="" style={s("position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 40px rgba(0,0,0,0.5));")} />
-              <div style={s("position: absolute; inset: 4%; border-radius: 50%; border: 1px solid rgba(53,255,122,0.5); animation: bnd-radar-ring 3.4s ease-out infinite;")}></div>
-              <div style={s("position: absolute; inset: 4%; border-radius: 50%; border: 1px solid rgba(53,255,122,0.4); animation: bnd-radar-ring 3.4s ease-out infinite 1.7s;")}></div>
-              <div style={s("position: absolute; inset: 6%; border-radius: 50%; overflow: hidden; mix-blend-mode: screen;")}>
-                <div style={s("position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, rgba(53,255,122,0.42) 0deg, rgba(53,255,122,0.12) 26deg, transparent 60deg, transparent 360deg); animation: bnd-radar-sweep 4.5s linear infinite;")}></div>
+          <div className="bnd-line" style={s("animation-delay: 500ms; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: clamp(14px, 2vh, 24px); margin-right: clamp(20px, 5vw, 90px);")}>
+            <div style={s("position: relative; width: clamp(280px, 35vw, 460px); aspect-ratio: 1;")}>
+              {/* swinging spidey (77-frame idle on a web line) */}
+              <div className="tracker-spidey" style={s("position: absolute; left: 50%; margin-left: -40px; top: -62px; width: 80px; z-index: 8; display: flex; flex-direction: column; align-items: center; pointer-events: none;")}>
+                <div className="spidey-inner" style={s("transform-origin: top center; display: flex; flex-direction: column; align-items: center;")}>
+                  <div style={s("width: 2px; height: clamp(46px, 7vh, 84px); background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(210,225,255,0.55));")}></div>
+                  <div style={s("width: 80px; height: 124px; background: url('/assets/spidey-strip.png') 0 0 / 6160px 124px no-repeat; animation: bnd-spidey-frames 2.3s steps(77) infinite; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.5));")}></div>
+                </div>
+                {/* drop-in dust burst (fires as spidey lands) */}
+                <div className="spidey-dust" style={s("position: absolute; left: 50%; bottom: 6px; width: 0; height: 0;")}>
+                  <span style={s("--dx: -34px; --dy: 26px; animation-delay: 600ms; position: absolute; width: 4px; height: 4px; border-radius: 50%; background: rgba(220,230,255,0.9); box-shadow: 0 0 6px rgba(200,220,255,0.7);")}></span>
+                  <span style={s("--dx: 30px; --dy: 22px; animation-delay: 650ms; position: absolute; width: 3px; height: 3px; border-radius: 50%; background: rgba(220,230,255,0.85);")}></span>
+                  <span style={s("--dx: -18px; --dy: 34px; animation-delay: 650ms; position: absolute; width: 5px; height: 5px; border-radius: 50%; background: rgba(255,90,106,0.7); box-shadow: 0 0 7px rgba(255,60,74,0.6);")}></span>
+                  <span style={s("--dx: 22px; --dy: 32px; animation-delay: 730ms; position: absolute; width: 3px; height: 3px; border-radius: 50%; background: rgba(220,230,255,0.8);")}></span>
+                  <span style={s("--dx: -40px; --dy: 14px; animation-delay: 570ms; position: absolute; width: 3px; height: 3px; border-radius: 50%; background: rgba(200,215,255,0.75);")}></span>
+                  <span style={s("--dx: 44px; --dy: 12px; animation-delay: 670ms; position: absolute; width: 4px; height: 4px; border-radius: 50%; background: rgba(220,230,255,0.85);")}></span>
+                </div>
               </div>
-              <span style={s("position: absolute; top: 30%; left: 62%; width: 10px; height: 10px; border-radius: 50%; background: #ff2f40; box-shadow: 0 0 12px 3px rgba(255,47,64,0.7); animation: bnd-blip 2s ease-in-out infinite;")}></span>
-              <span style={s("position: absolute; top: 64%; left: 38%; width: 8px; height: 8px; border-radius: 50%; background: #35ff7a; box-shadow: 0 0 10px 2px rgba(53,255,122,0.7); animation: bnd-blip 2.4s ease-in-out infinite 0.6s;")}></span>
-              <span style={s("position: absolute; top: 46%; left: 72%; width: 7px; height: 7px; border-radius: 50%; background: #35ff7a; box-shadow: 0 0 10px 2px rgba(53,255,122,0.7); animation: bnd-blip 2.8s ease-in-out infinite 1.1s;")}></span>
+              <img src="/assets/radar.png" alt="" style={s("position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 40px rgba(0,0,0,0.5));")} />
+              <div style={s("position: absolute; inset: 4%; border-radius: 50%; border: 1px solid rgba(77,139,255,0.5); animation: bnd-radar-ring 3.4s ease-out infinite;")}></div>
+              <div style={s("position: absolute; inset: 4%; border-radius: 50%; border: 1px solid rgba(77,139,255,0.4); animation: bnd-radar-ring 3.4s ease-out infinite 1.7s;")}></div>
+              <div style={s("position: absolute; inset: 6%; border-radius: 50%; overflow: hidden; mix-blend-mode: screen;")}>
+                <div style={s("position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, rgba(90,170,255,0.85) 0deg, rgba(77,139,255,0.4) 22deg, rgba(77,139,255,0.14) 44deg, transparent 66deg, transparent 360deg); filter: drop-shadow(0 0 10px rgba(77,139,255,0.5)); animation: bnd-radar-sweep 4s linear infinite;")}></div>
+              </div>
+              <span style={s("position: absolute; top: 30%; left: 62%; width: 13px; height: 13px; border-radius: 50%; background: #ff2f40; box-shadow: 0 0 15px 4px rgba(255,47,64,0.7); animation: bnd-blip 2s ease-in-out infinite;")}></span>
+              <span style={s("position: absolute; top: 64%; left: 38%; width: 11px; height: 11px; border-radius: 50%; background: #35ff7a; box-shadow: 0 0 13px 3px rgba(53,255,122,0.7); animation: bnd-blip 2.4s ease-in-out infinite 0.6s;")}></span>
+              <span style={s("position: absolute; top: 46%; left: 72%; width: 10px; height: 10px; border-radius: 50%; background: #35ff7a; box-shadow: 0 0 12px 3px rgba(53,255,122,0.7); animation: bnd-blip 2.8s ease-in-out infinite 1.1s;")}></span>
               <span style={s("position: absolute; bottom: -22px; left: 0; font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(53,255,122,0.6);")}>Lat 40.71 · Lon -74.00</span>
               <span style={s("position: absolute; top: -22px; right: 0; font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(53,255,122,0.6);")}>Signal Detected</span>
             </div>
           </div>
         </div>
       </section>
+
+      {/* ================= FOOTER ================= */}
+      <footer data-page="footer" data-screen-label="Footer" style={s("position: relative; z-index: 22; scroll-snap-align: start; scroll-snap-stop: always; min-height: 100vh; display: flex; flex-direction: column; background: linear-gradient(180deg, #0b0510 0%, #07060c 100%); overflow: hidden;")}>
+        <div style={s("position: absolute; top: 0; left: 20%; width: 46vw; height: 220px; background: radial-gradient(circle, rgba(214,2,26,0.14) 0%, transparent 70%); filter: blur(12px); pointer-events: none;")}></div>
+
+        {/* trailer showcase */}
+        <div data-page-content data-reveal className="bnd-reveal" style={s("position: relative; z-index: 2; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; gap: clamp(28px, 5vw, 72px); flex-wrap: wrap; max-width: 1240px; margin: 0 auto; width: 100%; box-sizing: border-box; padding: clamp(96px, 15vh, 160px) clamp(24px, 5vw, 80px) clamp(56px, 9vh, 96px);")}>
+          {/* left copy */}
+          <div style={s("flex: 1 1 380px; min-width: 300px; max-width: 560px;")}>
+            <div className="bnd-line" style={s("animation-delay: 120ms; display: inline-flex; align-items: center; gap: 10px; margin-bottom: 16px;")}>
+              <span style={s("width: 42px; height: 2px; background: linear-gradient(90deg, transparent, #ff2f40);")}></span>
+              <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: #ff5a6a;")}>Official Trailer</span>
+            </div>
+            <h2 className="bnd-head" style={s("animation-delay: 280ms; margin: 0 0 18px; font-family: 'Oswald', sans-serif; font-size: clamp(28px, 4vw, 52px); line-height: 1.02; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,0.6);")}>Every Brand New Day<br /><span style={{ color: "#ff2f40" }}>starts here.</span></h2>
+            <p className="bnd-line" style={s("animation-delay: 520ms; margin: 0 0 clamp(24px, 4vh, 38px); font-size: clamp(14px, 1.5vw, 17px); line-height: 1.6; color: rgba(226,226,240,0.72); max-width: 460px;")}>Watch the official trailer and step into the Spider-Verse. In cinemas July 30.</p>
+          </div>
+
+          {/* right large thumbnail */}
+          <button onClick={() => { sfxRef.current && sfxRef.current.play("click"); setTrailerOpen(true); }} onMouseEnter={onWalkHover} data-web-hover="true" className="bnd-line trailer-card" style={s("animation-delay: 620ms; flex: 0 1 400px; min-width: 260px; max-width: 400px; position: relative; border: 0; padding: 2px; background: linear-gradient(150deg, rgba(255,40,60,0.6), rgba(31,76,214,0.45)); clip-path: polygon(22px 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%, 0 22px); cursor: pointer; transition: transform 340ms cubic-bezier(.16,.84,.3,1), box-shadow 340ms ease;")}>
+            <div style={s("position: relative; aspect-ratio: 16/9; overflow: hidden; clip-path: polygon(21px 0, 100% 0, 100% calc(100% - 21px), calc(100% - 21px) 100%, 0 100%, 0 21px); background: #0a0713;")}>
+              <img src="/assets/trailer-thumb.jpg" alt="Spider-Man: Brand New Day — Official Trailer" style={s("position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;")} />
+              <div style={s("position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(120,20,30,0.25) 0%, rgba(6,4,12,0.55) 100%); pointer-events: none;")}></div>
+              <span style={s("position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: clamp(68px, 8vw, 96px); height: clamp(68px, 8vw, 96px); border-radius: 50%; border: 2px solid rgba(255,60,74,0.9); background: rgba(20,6,10,0.4); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 30px rgba(255,60,74,0.5), inset 0 0 20px rgba(255,60,74,0.2); pointer-events: none;")}>
+                <span style={s("position: absolute; inset: -9px; border-radius: 50%; border: 2px solid rgba(255,60,74,0.4); animation: bnd-radar-ring 2.8s ease-out infinite;")}></span>
+                <svg width="30%" height="30%" viewBox="0 0 24 24" fill="#fff" style={s("margin-left: 8%; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));")}><path d="M5 3l16 9-16 9z" /></svg>
+              </span>
+            </div>
+          </button>
+        </div>
+
+        {/* footer columns */}
+        <div style={s("position: relative; z-index: 2; width: 100%; border-top: 1px solid rgba(255,255,255,0.08);")}>
+          <div style={s("max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: clamp(34px, 5vh, 56px) clamp(24px, 5vw, 80px) clamp(20px, 3vh, 32px); display: grid; grid-template-columns: 1.4fr 1fr; gap: clamp(24px, 6vw, 90px); align-items: start;")} className="footer-cols">
+
+            {/* about + social */}
+            <div>
+              <h4 style={s("margin: 0 0 16px; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; color: #ff5a6a;")}>About the Movie <span style={{ color: "#ff2f40" }}>•</span></h4>
+              <p style={s("margin: 0 0 24px; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.62); max-width: 320px;")}>Anyone can wear the mask. Step into the Spider-Verse and find your place in the Web.</p>
+              <div style={s("display: flex; gap: 10px;")}>
+                {[
+                  ["X", <path key="p" d="M18.9 2H22l-7.3 8.3L23 22h-6.8l-5-6.6L5.5 22H2.4l7.8-8.9L1.5 2h6.9l4.6 6.1L18.9 2zm-2.4 18h1.9L7.6 4H5.6l10.9 16z" />],
+                  ["Instagram", <g key="g"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" strokeWidth="2" /><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="2" /><circle cx="17.5" cy="6.5" r="1.3" /></g>],
+                  ["YouTube", <g key="g"><path d="M22 8.2a3 3 0 00-2.1-2.1C18 5.6 12 5.6 12 5.6s-6 0-7.9.5A3 3 0 002 8.2 31 31 0 001.6 12 31 31 0 002 15.8a3 3 0 002.1 2.1c1.9.5 7.9.5 7.9.5s6 0 7.9-.5a3 3 0 002.1-2.1c.3-1.9.4-3.8.4-3.8s0-1.9-.4-3.8z" /><path d="M10 15l5-3-5-3v6z" fill="#0b0510" /></g>],
+                  ["TikTok", <path key="p" d="M16.5 3c.3 2.1 1.5 3.6 3.5 3.9v2.7c-1.2 0-2.4-.4-3.5-1.1v5.9c0 3.1-2.3 5.6-5.4 5.6S5.7 17.5 5.7 14.4c0-3 2.2-5.4 5.2-5.5v2.8c-1.4.1-2.4 1.2-2.4 2.7 0 1.5 1.1 2.7 2.6 2.7s2.6-1.2 2.6-2.9V3h2.8z" />],
+                  ["Facebook", <path key="p" d="M22 12a10 10 0 10-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.2c-1.2 0-1.6.8-1.6 1.5V12h2.7l-.4 2.9h-2.3v7A10 10 0 0022 12z" />],
+                ].map(([name, icon]) => (
+                  <a key={name} href="#" onClick={(e) => e.preventDefault()} aria-label={name} data-web-hover="true" className="footer-social" style={s("width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); transition: background .2s ease, border-color .2s ease, color .2s ease;")}>
+                    <span style={s("width: 18px; height: 18px; display: block;")}><svg viewBox="0 0 24 24" fill="currentColor" style={{ width: "100%", height: "100%", display: "block" }}>{icon}</svg></span>
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* explore */}
+            <div>
+              <h4 style={s("margin: 0 0 16px; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; color: #ff5a6a;")}>Explore <span style={{ color: "#ff2f40" }}>•</span></h4>
+              <div style={s("display: flex; flex-direction: column; gap: 4px; max-width: 220px;")}>
+                <a href="#" onClick={(e) => { e.preventDefault(); setTrailerOpen(true); }} data-web-hover="true" className="footer-link" style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}><span>Trailer</span><span style={s("color: #ff2f40; font-size: 15px;")}>›</span></a>
+                <Link href="/mj-wall" data-web-hover="true" className="footer-link" style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}><span>MJ Wall</span><span style={s("color: #ff2f40; font-size: 15px;")}>›</span></Link>
+                <a href="#" onClick={(e) => { e.preventDefault(); goToForm(); }} data-web-hover="true" className="footer-link" style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}><span>Fan Hub</span><span style={s("color: #ff2f40; font-size: 15px;")}>›</span></a>
+                <Link href="/forum" data-web-hover="true" className="footer-link" style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}><span>Forum</span><span style={s("color: #ff2f40; font-size: 15px;")}>›</span></Link>
+                <a href="https://spideytracker.net/intl/in/" target="_blank" rel="noopener noreferrer" data-web-hover="true" className="footer-link" style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}><span>Spidey Tracker</span><span style={s("color: #ff2f40; font-size: 15px;")}>›</span></a>
+              </div>
+            </div>
+
+          </div>
+
+          {/* bottom bar */}
+          <div style={s("max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: 18px clamp(24px, 5vw, 80px) clamp(22px, 3vh, 34px); border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;")}>
+            <div style={s("font-size: 11.5px; letter-spacing: 0.05em; color: rgba(255,255,255,0.4);")}>© 2026 Columbia Pictures Industries, Inc. All rights reserved. &nbsp;·&nbsp; This film is not yet rated.</div>
+            <div style={s("display: flex; gap: 24px; flex-wrap: wrap;")}>
+              <a href="#" onClick={(e) => e.preventDefault()} data-web-hover="true" className="footer-link" style={s("text-decoration: none; font-size: 11.5px; letter-spacing: 0.06em; color: rgba(255,255,255,0.5); transition: color .2s ease;")}>Privacy Policy</a>
+              <a href="#" onClick={(e) => e.preventDefault()} data-web-hover="true" className="footer-link" style={s("text-decoration: none; font-size: 11.5px; letter-spacing: 0.06em; color: rgba(255,255,255,0.5); transition: color .2s ease;")}>Terms of Use</a>
+              <a href="#" onClick={(e) => e.preventDefault()} data-web-hover="true" className="footer-link" style={s("text-decoration: none; font-size: 11.5px; letter-spacing: 0.06em; color: rgba(255,255,255,0.5); transition: color .2s ease;")}>Cookie Settings</a>
+            </div>
+          </div>
+        </div>
+      </footer>
 
       {/* CINEMATIC TRANSITION OVERLAY */}
       <div style={s("position: fixed; inset: 0; z-index: 95; pointer-events: none;")}>

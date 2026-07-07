@@ -1,173 +1,312 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-// The MJ Wall — public gallery of approved messages (Phase 2, wired to the
-// real API). Logged-in users also see a slim strip of their own submissions
-// with moderation status. Writing happens on the home page's MJ Wall section.
+// The MJ Wall — "Living Memory Wall" (ported from MJ Wall.dc.html). Four
+// marquee columns of memory cards flow past a heartbeat spider emblem; cards
+// expand into a modal, hearts toggle locally, and a fixed composer posts to
+// the real API. A message just sent from the home section arrives via the
+// localStorage handoff and floats in at the top of the wall.
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { s } from "@/lib/style";
 import { useSession } from "@/components/auth/SessionProvider";
 import { portalApi } from "@/lib/portal/api";
-import { relTime } from "@/lib/time";
 
-const STATUS = {
-  pending: { label: "Pending", color: "#ffd23f", bg: "rgba(255,210,63,0.12)", border: "rgba(255,210,63,0.35)" },
-  approved: { label: "Approved", color: "#7ee787", bg: "rgba(126,231,135,0.12)", border: "rgba(126,231,135,0.35)" },
-  rejected: { label: "Rejected", color: "#ff5a6a", bg: "rgba(255,90,106,0.12)", border: "rgba(255,90,106,0.35)" },
-  hidden: { label: "Hidden", color: "rgba(255,255,255,0.6)", bg: "rgba(255,255,255,0.08)", border: "rgba(255,255,255,0.2)" },
-};
+/* card palettes cycle red / blue / yellow (verbatim from the mockup) */
+const PALS = [
+  { edgeA: "rgba(255,40,60,0.4)", edgeB: "rgba(120,40,50,0.2)", bg: "linear-gradient(150deg, rgba(24,12,16,0.96), rgba(12,9,16,0.97))", accent: "#ff5a6a" },
+  { edgeA: "rgba(120,150,220,0.4)", edgeB: "rgba(40,60,110,0.2)", bg: "linear-gradient(150deg, rgba(14,18,34,0.96), rgba(10,10,20,0.97))", accent: "#7ea6ff" },
+  { edgeA: "rgba(255,210,63,0.4)", edgeB: "rgba(120,90,20,0.2)", bg: "linear-gradient(150deg, rgba(24,20,10,0.96), rgba(14,11,8,0.97))", accent: "#ffd23f" },
+];
+/* the visitor's own cards glow a little hotter */
+const MINE_PAL = { edgeA: "rgba(255,40,60,0.6)", edgeB: "rgba(120,40,50,0.3)", bg: "linear-gradient(150deg, rgba(34,14,20,0.97), rgba(16,10,18,0.98))", accent: "#ff5a6a" };
 
-function StatusChip({ status }) {
-  const def = STATUS[status] || STATUS.hidden;
-  return (
-    <span style={s(`display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: ${def.bg}; border: 1px solid ${def.border}; color: ${def.color}; font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; white-space: nowrap;`)}>
-      {def.label}
-    </span>
-  );
-}
+/* seeded wall (mockup copy) — shown until the API answers / when it's empty */
+const SEED_RAW = [
+  ["Priya N.", "He always looked out for the little guy — even when nobody was watching.", 2100],
+  ["Leo M.", "Peter never let go of a promise. Remind her of that.", 1400],
+  ["Diego A.", "The way he'd crack a joke mid-swing so you'd stop being scared.", 3200],
+  ["Hana K.", "He'd give up his own good day to save yours. Every single time.", 890],
+  ["Sam W.", "MJ — he chose you before he chose anything else.", 4600],
+  ["Aisha B.", "He'd show up soaked from the rain just to check you got home.", 1900],
+  ["Tomás S.", "He carried the whole city and still asked how your day was.", 760],
+  ["Grace L.", "The kid from Queens who never once thought he was a hero.", 2800],
+  ["Noah A.", "He'd remember the small things nobody else did. Your coffee order.", 1100],
+  ["Mia R.", "He'd smile like the mask was never even there.", 980],
+  ["Kai T.", "He believed anyone could wear it. He just believed in her most.", 3700],
+  ["Sofia G.", "Peter never wanted to be remembered. Which is why he should be.", 5100],
+  ["Ravi P.", "He'd swing across the whole borough for a friend. No questions.", 640],
+  ["Elena V.", "The bravest thing about him was how gentle he stayed.", 2300],
+  ["Jordan H.", "He laughed the loudest at his own bad puns.", 1600],
+  ["Amara O.", "He made a scary world feel a little more like home.", 2000],
+  ["Ben C.", "He'd always find you in a crowd. Always.", 1200],
+  ["Lin W.", "The one who caught you before you knew you were falling.", 3000],
+  ["Yusuf D.", "He never once asked for thanks. Remind her anyway.", 870],
+  ["Chloe M.", "Peter's whole heart was in every save. She was most of it.", 4200],
+  ["Isha R.", "He'd rather be late than leave someone behind.", 1300],
+];
+const SEEDS = SEED_RAW.map(([name, text, num], i) => ({ id: `s${i}`, name, initial: name[0], text, num, ...PALS[i % PALS.length] }));
+
+const fmtK = (n) => (n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : "" + n);
 
 export default function MjWallPage() {
-  const { user } = useSession();
-  const [wall, setWall] = useState({ messages: [], nextCursor: null });
-  const [state, setState] = useState("loading"); // loading | ready | error
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [mine, setMine] = useState(null);
+  const { user, openAuth } = useSession();
+  const [messages, setMessages] = useState(SEEDS); // seeded copy stays as the fallback
+  const [extra, setExtra] = useState([]);          // the visitor's fresh cards (float in first)
+  const [liked, setLiked] = useState({});
+  const [selected, setSelected] = useState(null);
+  const [draft, setDraft] = useState("");
+  const [justSent, setJustSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [ncol, setNcol] = useState(4);
+  const inputRef = useRef(null);
+  const spotRef = useRef(null);
+  const uidRef = useRef(0);
 
-  const loadWall = useCallback(async () => {
-    setState("loading");
+  /* localStorage handoff from the home section + live messages */
+  useEffect(() => {
     try {
-      const data = await portalApi("/mj-wall/messages?limit=12");
-      setWall({ messages: data.messages, nextCursor: data.nextCursor });
-      setState("ready");
-    } catch {
-      setState("error");
-    }
+      const pending = localStorage.getItem("mj_pending_message");
+      if (pending) {
+        localStorage.removeItem("mj_pending_message");
+        const nm = user ? "u/" + user.username : "You";
+        setExtra((x) => [{ id: "u" + uidRef.current++, name: nm, initial: nm.replace(/^u\//, "")[0].toUpperCase(), text: pending, num: 0, ...MINE_PAL }, ...x]);
+        setJustSent(true);
+      }
+    } catch (e) {}
+    let on = true;
+    portalApi("/mj-wall/messages?limit=30")
+      .then((data) => {
+        if (!on || !Array.isArray(data.messages) || !data.messages.length) return;
+        setMessages(data.messages.map((m, i) => ({
+          id: m.id,
+          name: "u/" + m.author.username,
+          initial: m.author.username[0].toUpperCase(),
+          text: m.body,
+          num: 0, // hearts live client-side only (no like API)
+          ...PALS[i % PALS.length],
+        })));
+      })
+      .catch(() => {}); // the seeded wall stays up
+    return () => { on = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* cursor spotlight follows the pointer (eased RAF, from the mockup) */
   useEffect(() => {
-    loadWall();
-  }, [loadWall]);
-
-  useEffect(() => {
-    if (!user) {
-      setMine(null);
-      return;
-    }
-    let on = true;
-    portalApi("/me/mj-messages")
-      .then((data) => {
-        if (on) setMine(data.messages);
-      })
-      .catch(() => {});
-    return () => {
-      on = false;
+    let sx = window.innerWidth / 2, sy = window.innerHeight / 2;
+    let tx = sx, ty = sy, raf = null;
+    const tick = () => {
+      sx += (tx - sx) * 0.12;
+      sy += (ty - sy) * 0.12;
+      if (spotRef.current) spotRef.current.style.transform = `translate3d(${sx.toFixed(1)}px,${sy.toFixed(1)}px,0)`;
+      raf = Math.abs(tx - sx) > 0.5 || Math.abs(ty - sy) > 0.5 ? requestAnimationFrame(tick) : null;
     };
-  }, [user]);
+    const onMove = (e) => { tx = e.clientX; ty = e.clientY; if (!raf) raf = requestAnimationFrame(tick); };
+    window.addEventListener("mousemove", onMove, { passive: true });
+    tick();
+    const onResize = () => setNcol(window.innerWidth < 760 ? 2 : 4);
+    onResize();
+    window.addEventListener("resize", onResize, { passive: true });
+    const onKey = (e) => { if (e.key === "Escape") setSelected(null); };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("keydown", onKey);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
 
-  const loadMore = async () => {
-    if (!wall.nextCursor || loadingMore) return;
-    setLoadingMore(true);
+  const post = async () => {
+    const t = draft.trim();
+    if (!t) { inputRef.current && inputRef.current.focus(); return; }
+    if (!user) { openAuth("login"); return; }
+    if (sending) return;
+    setSending(true);
+    setSendError("");
     try {
-      const data = await portalApi(`/mj-wall/messages?limit=12&cursor=${encodeURIComponent(wall.nextCursor)}`);
-      setWall((w) => ({ messages: [...w.messages, ...data.messages], nextCursor: data.nextCursor }));
-    } catch {
-      // keep current page; the button stays available to retry
+      await portalApi("/mj-wall/messages", { method: "POST", body: { body: t } });
+      const nm = "u/" + user.username;
+      setExtra((x) => [{ id: "u" + uidRef.current++, name: nm, initial: nm.replace(/^u\//, "")[0].toUpperCase(), text: t, num: 0, ...MINE_PAL }, ...x]);
+      setDraft("");
+      setJustSent(true);
+    } catch (err) {
+      if (err.code === "quiz_required") { window.location.href = "/quiz"; return; }
+      setSendError(err.message || "Couldn't send your memory. Try again.");
+    } finally {
+      setSending(false);
     }
-    setLoadingMore(false);
   };
 
+  /* deal the cards into flowing columns (doubled for a seamless marquee) */
+  const all = [...extra, ...messages];
+  const cards = [];
+  let round = 0;
+  while (cards.length < Math.max(all.length, ncol * 4) && round < 8) { // repeat a sparse wall so the marquee stays alive
+    all.forEach((m, i) => cards.push({ ...m, key: `${m.id}-${round}-${i}` }));
+    round += 1;
+    if (!all.length) break;
+  }
+  const cols = Array.from({ length: ncol }, () => []);
+  cards.forEach((m, i) => cols[i % ncol].push(m));
+  const anims = ["mjw-flow-up", "mjw-flow-down", "mjw-flow-up", "mjw-flow-down"];
+  const durs = ["46s", "54s", "50s", "60s"];
+  const columns = cols.map((c, i) => ({ cards: [...c, ...c], anim: anims[i % 4], dur: durs[i % 4] }));
+
+  const countText = (all.length + 2456).toLocaleString("en-US");
+  const likesOf = (m) => fmtK((m.num || 0) + (liked[m.id] ? 1 : 0));
+
+  const cardBody = (m) => (
+    <div style={{ background: m.bg, clipPath: "polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px)", padding: "15px 16px" }}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill={m.accent} style={{ opacity: 0.5, marginBottom: "7px" }}><path d="M10 7L8 11h3v6H5v-6l2-4h3zm9 0l-2 4h3v6h-6v-6l2-4h3z" /></svg>
+      <p style={s("margin: 0 0 12px; font-size: 14px; line-height: 1.5; color: rgba(240,240,250,0.92); text-wrap: pretty;")}>{m.text}</p>
+      <div style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px;")}>
+        <div style={s("display: flex; align-items: center; gap: 8px; min-width: 0;")}>
+          <span style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: m.accent, color: "#0a0713", fontFamily: "'Oswald', sans-serif", fontSize: "11px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600 }}>{m.initial}</span>
+          <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.04em; color: rgba(255,255,255,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;")}>{m.name}</span>
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); setLiked((lk) => ({ ...lk, [m.id]: !lk[m.id] })); }}
+          data-web-hover="true"
+          style={{ flexShrink: 0, border: 0, background: "transparent", padding: "3px 4px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "11px", fontFamily: "inherit", color: liked[m.id] ? "#ff2f40" : "rgba(255,90,106,0.85)", transition: "transform .18s ease" }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill={liked[m.id] ? "#ff2f40" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M12 20.7l-1.45-1.32C5.4 14.74 2 11.66 2 7.9 2 4.85 4.42 2.5 7.5 2.5c1.74 0 3.41.83 4.5 2.13C13.09 3.33 14.76 2.5 16.5 2.5 19.58 2.5 22 4.85 22 7.9c0 3.76-3.4 6.84-8.55 11.5L12 20.7z" /></svg>
+          {likesOf(m)}
+        </button>
+      </div>
+    </div>
+  );
+
   return (
-    <div style={s("position: relative; min-height: 100vh; overflow: hidden; background: radial-gradient(130% 90% at 80% -10%, #131a2e 0%, #090d18 45%, #06080f 100%); padding: clamp(24px, 4vh, 44px) clamp(18px, 4vw, 48px) 96px;")}>
-      <img src="/assets/web.png" alt="" style={s("position: absolute; top: -12%; left: -8%; width: min(720px, 60vw); opacity: 0.06; mix-blend-mode: screen; pointer-events: none;")} />
-      <img src="/assets/web.png" alt="" style={s("position: absolute; bottom: -18%; right: -10%; width: min(680px, 56vw); opacity: 0.05; mix-blend-mode: screen; pointer-events: none;")} />
+    <div style={s("position: fixed; inset: 0; display: flex; flex-direction: column; background: radial-gradient(120% 90% at 50% -10%, #2a0510 0%, #0d0713 48%, #08060c 100%);")}>
 
-      <div style={s("position: relative; z-index: 2; max-width: 1080px; margin: 0 auto;")}>
-        {/* back link */}
-        <div style={s("margin-bottom: clamp(28px, 5vh, 44px);")}>
-          <Link href="/" data-web-hover="true" className="bnd-cta" style={s("display: inline-block; text-decoration: none; border: 0; padding: 0; background: transparent; cursor: pointer;")}>
-            <span style={s("display: block; padding: 2px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);")}>
-              <span className="bnd-cta-inner" style={s("display: inline-flex; align-items: center; gap: 10px; padding: 13px 28px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase;")}><span className="bnd-cta-sheen"></span>‹ Back to the Web</span>
-            </span>
-          </Link>
+      {/* ambient motes */}
+      <div style={s("position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden;")}>
+        <span style={s("position: absolute; left: 12%; bottom: 22%; width: 4px; height: 4px; border-radius: 50%; background: #ff5a6a; box-shadow: 0 0 10px 2px rgba(255,60,74,0.7); animation: mjw-float 9s ease-in-out infinite;")}></span>
+        <span style={s("position: absolute; left: 38%; bottom: 12%; width: 3px; height: 3px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px 2px rgba(255,255,255,0.6); animation: mjw-float 12s ease-in-out infinite 2s;")}></span>
+        <span style={s("position: absolute; left: 72%; bottom: 18%; width: 5px; height: 5px; border-radius: 50%; background: #ff5a6a; box-shadow: 0 0 12px 3px rgba(255,60,74,0.6); animation: mjw-float 10s ease-in-out infinite 4s;")}></span>
+        <span style={s("position: absolute; left: 88%; bottom: 26%; width: 3px; height: 3px; border-radius: 50%; background: #9db4ff; box-shadow: 0 0 9px 2px rgba(120,150,255,0.6); animation: mjw-float 11s ease-in-out infinite 1s;")}></span>
+      </div>
+
+      {/* cinematic god-rays */}
+      <div style={s("position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; mix-blend-mode: screen;")}>
+        <div style={s("position: absolute; top: -30%; left: 8%; width: 22vw; height: 160%; background: linear-gradient(180deg, rgba(255,60,74,0.16), transparent 70%); transform: rotate(9deg); filter: blur(24px); animation: mjw-ray 13s ease-in-out infinite;")}></div>
+        <div style={s("position: absolute; top: -30%; right: 12%; width: 18vw; height: 160%; background: linear-gradient(180deg, rgba(120,150,255,0.13), transparent 70%); transform: rotate(-7deg); filter: blur(26px); animation: mjw-ray 17s ease-in-out infinite 2s;")}></div>
+      </div>
+
+      {/* giant heartbeat spider emblem behind the wall */}
+      <div style={s("position: absolute; top: 46%; left: 50%; transform: translate(-50%,-50%); z-index: 0; width: min(72vh, 720px); height: min(72vh, 720px); pointer-events: none; animation: mjw-heartbeat 3.2s ease-in-out infinite;")}>
+        <svg viewBox="0 0 100 100" style={{ width: "100%", height: "100%", opacity: 0.5 }} fill="none" stroke="rgba(255,47,64,0.35)" strokeWidth="0.7" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="50" cy="44" rx="9" ry="12" /><path d="M50 32V16M42 36 22 26M58 36l20-10M43 52 27 66M57 52l16 14M50 56v20" /></svg>
+      </div>
+
+      {/* cursor spotlight */}
+      <div ref={spotRef} style={s("position: absolute; top: 0; left: 0; z-index: 2; width: 640px; height: 640px; margin: -320px 0 0 -320px; border-radius: 50%; background: radial-gradient(circle, rgba(255,90,110,0.12) 0%, rgba(255,60,74,0.05) 35%, transparent 66%); pointer-events: none; will-change: transform; mix-blend-mode: screen; transition: opacity .4s ease;")}></div>
+
+      {/* MJ reflection overlay (faint, does not affect legibility) */}
+      <div style={s("position: absolute; inset: 0; z-index: 12; pointer-events: none; background-image: url('/assets/mj-portrait.jpg'); background-size: cover; background-position: center 28%; mix-blend-mode: screen; animation: mjw-mj-pulse 7s ease-in-out infinite;")}></div>
+
+      {/* vignette + flicker */}
+      <div style={s("position: absolute; inset: 0; z-index: 15; pointer-events: none; background: radial-gradient(120% 90% at 50% 42%, transparent 48%, rgba(4,3,8,0.5) 82%, rgba(3,2,6,0.82) 100%);")}></div>
+      <div style={s("position: absolute; inset: 0; z-index: 15; pointer-events: none; background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 30%); animation: mjw-flicker 4s ease-in-out infinite;")}></div>
+
+      {/* TOP BAR */}
+      <header style={s("position: relative; z-index: 30; flex-shrink: 0; display: flex; align-items: center; gap: clamp(14px, 2vw, 28px); padding: 12px clamp(18px, 3vw, 40px); background: transparent;")}>
+        <Link href="/" style={s("display: flex; align-items: center; gap: 12px; text-decoration: none; flex-shrink: 0;")}>
+          <img src="/assets/nav-logo.png" alt="Brand New Day" style={s("height: 40px; width: auto; display: block;")} />
+        </Link>
+        <Link href="/" data-web-hover="true" className="link-hover-red" style={s("margin-left: auto; text-decoration: none; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.6); transition: color 200ms ease;")}>‹ Back to Home</Link>
+      </header>
+
+      {/* TITLE */}
+      <div style={s("position: relative; z-index: 20; flex-shrink: 0; text-align: center; margin-top: -40px; padding: clamp(20px, 4vh, 40px) 24px clamp(12px, 2vh, 20px);")}>
+        <div style={s("display: inline-flex; align-items: center; gap: 10px; margin-bottom: 12px; animation: mjw-rise .7s ease both;")}>
+          <span style={s("width: 40px; height: 2px; background: linear-gradient(90deg, transparent, #ff2f40);")}></span>
+          <span style={s("font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.34em; text-transform: uppercase; color: #ff5a6a;")}>The Living Memory Wall</span>
+          <span style={s("width: 40px; height: 2px; background: linear-gradient(90deg, #ff2f40, transparent);")}></span>
         </div>
+        <h1 style={s("font-family: 'Oswald', sans-serif; font-size: clamp(28px, 4.6vw, 56px); line-height: 1; font-weight: 500; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,0.5); animation: mjw-title-in 1s cubic-bezier(.16,.84,.3,1) both;")}>Help MJ <span style={{ color: "#ff2f40" }}>remember.</span></h1>
+        <p style={s("margin: 12px auto 0; max-width: 540px; font-size: clamp(13px, 1.4vw, 15px); line-height: 1.55; color: rgba(226,226,240,0.66); animation: mjw-rise 1s ease .3s both;")}>{countText} memories of Peter, flowing in from every corner of the Web.</p>
+      </div>
 
-        {/* header */}
-        <header style={s("margin-bottom: clamp(28px, 5vh, 42px);")}>
-          <div style={s("display: inline-flex; align-items: center; gap: 12px; margin-bottom: 14px;")}>
-            <span style={s("width: 42px; height: 2px; background: linear-gradient(90deg, #ff1f33, transparent);")}></span>
-            <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.36em; text-transform: uppercase; color: #ff5a6a;")}>The Wall</span>
-          </div>
-          <h1 style={s("margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(30px, 5vw, 54px); line-height: 0.98; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 40px rgba(0,0,0,0.7), 0 0 70px rgba(214,2,26,0.22);")}>Messages for MJ</h1>
-          <p style={s("margin: 14px 0 0; max-width: 560px; font-size: clamp(13px, 1.5vw, 16px); line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>Every memory of Peter the Web has left for her — one card at a time.</p>
-        </header>
-
-        {/* your messages strip (logged-in only) */}
-        {user && mine && mine.length > 0 && (
-          <section style={s("margin: 0 0 30px; padding: 16px 20px 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px;")}>
-            <h2 style={s("margin: 0 0 6px; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.6);")}>Your messages</h2>
-            {mine.map((m, i) => (
-              <div key={m.id} style={s(`padding: 10px 0; ${i ? "border-top: 1px solid rgba(255,255,255,0.06);" : ""}`)}>
-                <div style={s("display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;")}>
-                  <p style={s("margin: 0; flex: 1; min-width: 200px; font-size: 14px; line-height: 1.5; color: rgba(236,236,246,0.85); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;")}>{m.body}</p>
-                  <span style={s("display: inline-flex; align-items: center; gap: 10px; flex-shrink: 0;")}>
-                    <StatusChip status={m.status} />
-                    <span style={s("font-size: 12px; color: rgba(255,255,255,0.4);")}>{relTime(m.created_at)}</span>
-                  </span>
-                </div>
-                {m.status === "rejected" && m.rejection_reason && (
-                  <p style={s("margin: 5px 0 0; font-size: 12px; line-height: 1.5; color: rgba(255,255,255,0.45);")}>{m.rejection_reason}</p>
-                )}
+      {/* FLOWING WALL */}
+      <div className="mjw-flowwrap" style={{ position: "relative", zIndex: 10, flex: 1, minHeight: 0, overflow: "hidden", WebkitMaskImage: "linear-gradient(180deg, transparent 0%, #000 12%, #000 82%, transparent 100%)", maskImage: "linear-gradient(180deg, transparent 0%, #000 12%, #000 82%, transparent 100%)" }}>
+        <div style={s("display: flex; gap: clamp(12px, 1.4vw, 20px); justify-content: center; height: 100%; padding: 0 clamp(14px, 3vw, 40px); align-items: flex-start;")}>
+          {columns.map((col, ci) => (
+            <div key={ci} style={s("flex: 1 1 0; min-width: 0; max-width: 320px; height: 100%; overflow: hidden;")}>
+              <div className="mjw-col" style={s(`display: flex; flex-direction: column; gap: clamp(12px, 1.4vw, 18px); animation: ${col.anim} ${col.dur} linear infinite; will-change: transform;`)}>
+                {col.cards.map((m, i) => (
+                  <div key={`${m.key}-${i}`} className="mjw-card" onClick={() => setSelected(m)} data-web-hover="true" style={{ breakInside: "avoid", position: "relative", padding: "1px", background: `linear-gradient(150deg, ${m.edgeA}, ${m.edgeB})`, clipPath: "polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px)", cursor: "pointer" }}>
+                    {cardBody(m)}
+                  </div>
+                ))}
               </div>
-            ))}
-          </section>
-        )}
-
-        {/* grid header */}
-        <div style={s("display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-bottom: 18px;")}>
-          <p style={s("margin: 0; font-size: 13px; color: rgba(226,226,240,0.55);")}>Memories from across the Spider-Verse.</p>
-          <Link href="/#mjwall" data-web-hover="true" className="link-hover-red" style={s("display: inline-flex; align-items: center; gap: 8px; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(255,255,255,0.85); text-decoration: none; transition: color 200ms ease;")}>Write a message <span style={{ fontSize: "15px" }}>›</span></Link>
-        </div>
-
-        {state === "loading" && (
-          <p style={s("margin: 0; padding: 48px 0; text-align: center; font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(255,255,255,0.45);")}>Threading the web…</p>
-        )}
-
-        {state === "error" && (
-          <div style={s("padding: 48px 24px; text-align: center; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px;")}>
-            <p style={s("margin: 0 0 14px; font-size: 15px; color: rgba(226,226,240,0.7);")}>The wall slipped out of reach. Give it another shot.</p>
-            <button onClick={loadWall} data-web-hover="true" style={s("border: 0; background: transparent; cursor: pointer; color: #ff5a6a; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; padding: 4px 0;")}>Retry ›</button>
-          </div>
-        )}
-
-        {state === "ready" && wall.messages.length === 0 && (
-          <div style={s("padding: 60px 24px; text-align: center; background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.14); border-radius: 14px;")}>
-            <p style={s("margin: 0 0 16px; font-size: 15px; color: rgba(226,226,240,0.7);")}>The wall is waiting for its first memory.</p>
-            <Link href="/#mjwall" data-web-hover="true" className="link-hover-red" style={s("display: inline-flex; align-items: center; gap: 8px; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; color: #ff5a6a; text-decoration: none; transition: color 200ms ease;")}>Write yours ›</Link>
-          </div>
-        )}
-
-        {state === "ready" && wall.messages.length > 0 && (
-          <>
-            <div style={s("display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; align-items: start;")}>
-              {wall.messages.map((m) => (
-                <article key={m.id} style={s("background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px;")}>
-                  <p style={s("margin: 0; font-size: 15px; line-height: 1.6; color: rgba(236,236,246,0.92); text-wrap: pretty; white-space: pre-wrap; overflow-wrap: anywhere;")}>{m.body}</p>
-                  <div style={s("font-size: 12px; color: rgba(255,255,255,0.45);")}>— u/{m.author.username} <span style={{ opacity: 0.6 }}>·</span> {relTime(m.createdAt)}</div>
-                </article>
-              ))}
             </div>
+          ))}
+        </div>
+      </div>
 
-            {wall.nextCursor && (
-              <div style={s("display: flex; justify-content: center; padding: 28px 0 0;")}>
-                <button onClick={loadMore} disabled={loadingMore} data-web-hover="true" style={s(`border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.85); border-radius: 999px; padding: 12px 30px; cursor: pointer; font-family: 'Oswald', sans-serif; font-size: 12.5px; letter-spacing: 0.2em; text-transform: uppercase; opacity: ${loadingMore ? "0.6" : "1"}; transition: opacity .2s ease;`)}>
-                  {loadingMore ? "Loading…" : "Load more ›"}
-                </button>
+      {/* EXPANDED CARD MODAL */}
+      {selected && (
+        <div onClick={() => setSelected(null)} style={s("position: fixed; inset: 0; z-index: 60; background: rgba(4,3,8,0.82); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; padding: 24px; animation: mjw-rise .32s ease both;")}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", width: "min(600px, 100%)", padding: "2px", background: `linear-gradient(150deg, ${selected.edgeA}, ${selected.edgeB})`, clipPath: "polygon(26px 0, 100% 0, 100% calc(100% - 26px), calc(100% - 26px) 100%, 0 100%, 0 26px)", boxShadow: "0 40px 100px rgba(0,0,0,0.6), 0 0 50px rgba(255,40,60,0.25)" }}>
+            <div style={{ position: "relative", background: selected.bg, clipPath: "polygon(25px 0, 100% 0, 100% calc(100% - 25px), calc(100% - 25px) 100%, 0 100%, 0 25px)", padding: "clamp(32px, 5vw, 52px)" }}>
+              <svg width="46" height="46" viewBox="0 0 24 24" fill={selected.accent} style={{ opacity: 0.5, marginBottom: "18px" }}><path d="M10 7L8 11h3v6H5v-6l2-4h3zm9 0l-2 4h3v6h-6v-6l2-4h3z" /></svg>
+              <p style={s("margin: 0 0 26px; font-family: 'Oswald', sans-serif; font-weight: 400; text-transform: none; font-size: clamp(20px, 2.8vw, 30px); line-height: 1.35; color: #fff; text-wrap: pretty;")}>{selected.text}</p>
+              <div style={s("display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);")}>
+                <div style={s("display: flex; align-items: center; gap: 12px;")}>
+                  <span style={{ flexShrink: 0, width: "40px", height: "40px", borderRadius: "50%", background: selected.accent, color: "#0a0713", fontFamily: "'Oswald', sans-serif", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600 }}>{selected.initial}</span>
+                  <div>
+                    <div style={s("font-family: 'Oswald', sans-serif; font-size: 16px; letter-spacing: 0.04em; color: #fff;")}>{selected.name}</div>
+                    <div style={s("font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.4);")}>Left this for MJ</div>
+                  </div>
+                </div>
+                <span style={s("display: inline-flex; align-items: center; gap: 8px; font-size: 15px; color: #ff2f40;")}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="#ff2f40"><path d="M12 20.7l-1.45-1.32C5.4 14.74 2 11.66 2 7.9 2 4.85 4.42 2.5 7.5 2.5c1.74 0 3.41.83 4.5 2.13C13.09 3.33 14.76 2.5 16.5 2.5 19.58 2.5 22 4.85 22 7.9c0 3.76-3.4 6.84-8.55 11.5L12 20.7z" /></svg>
+                  {likesOf(selected)}
+                </span>
               </div>
-            )}
-          </>
-        )}
+            </div>
+            <button onClick={() => setSelected(null)} aria-label="Close" data-web-hover="true" style={s("position: absolute; top: 14px; right: 14px; z-index: 3; width: 38px; height: 38px; border-radius: 50%; border: 0; background: linear-gradient(180deg, #ff3a4a, #c00014); color: #fff; font-size: 20px; cursor: pointer; box-shadow: 0 8px 22px rgba(0,0,0,0.5), 0 0 0 3px rgba(255,255,255,0.08); font-family: inherit; line-height: 1; display: flex; align-items: center; justify-content: center;")}>×</button>
+          </div>
+        </div>
+      )}
+
+      {/* COMPOSER (fixed bottom) */}
+      <div style={s("position: relative; z-index: 30; flex-shrink: 0; padding: clamp(12px, 2vh, 20px) clamp(16px, 4vw, 60px) clamp(16px, 2.5vh, 26px); background: linear-gradient(0deg, #08060c 60%, rgba(8,6,12,0) 100%);")}>
+        <div style={s("max-width: 900px; margin: 0 auto;")}>
+          {justSent ? (
+            <div style={s("display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px; animation: mjw-rise .5s ease both; flex-wrap: wrap;")}>
+              <span style={s("width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: linear-gradient(180deg, #ffd23f, #f7a91d); color: #6b2a00; display: flex; align-items: center; justify-content: center; font-size: 17px;")}>✓</span>
+              <span style={s("font-size: 14px; color: rgba(255,255,255,0.85);")}>Your memory joined the wall.</span>
+              <a href="#" onClick={(e) => { e.preventDefault(); setJustSent(false); setTimeout(() => inputRef.current && inputRef.current.focus(), 50); }} data-web-hover="true" style={s("color: #ff5a6a; text-decoration: none; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;")}>Write another ›</a>
+            </div>
+          ) : (
+            <>
+              <div style={s("position: relative; padding: 2px; background: linear-gradient(180deg, #ff3a4a, #8b000d); clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);")}>
+                <div style={s("background: #060e2a; clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); padding: 12px 14px 12px 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;")}>
+                  <input
+                    id="mjw-composer"
+                    ref={inputRef}
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); post(); } }}
+                    placeholder="Remind MJ of one thing about Peter…"
+                    style={s("flex: 1; min-width: 180px; border: 0; outline: 0; background: transparent; color: #fff; text-shadow: 0 0 8px rgba(255,255,255,0.3); font-family: inherit; font-size: 15px;")}
+                  />
+                  <button onClick={post} disabled={sending} data-web-hover="true" className="mjw-cta" style={s(`flex-shrink: 0; position: relative; border: 0; padding: 0; background: transparent; cursor: ${sending ? "default" : "pointer"}; opacity: ${sending ? "0.7" : "1"}; font-family: inherit;`)}>
+                    <span style={s("display: block; padding: 2px; background: linear-gradient(180deg, #1f4cd6, #0b2a8a); clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px);")}>
+                      <span style={s("position: relative; overflow: hidden; display: inline-flex; padding: 12px 24px; background: linear-gradient(180deg, #ffd23f, #f7a91d); clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px); color: #6b2a00; font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase;")}><span className="mjw-sheen"></span>Send to MJ</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+              {sendError && <p style={s("margin: 8px 4px 0; font-size: 12px; color: #ff6b79;")}>{sendError}</p>}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
