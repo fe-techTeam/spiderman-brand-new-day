@@ -247,16 +247,18 @@ html, body, a, button, [data-web-hover] {
 /* Hovering anything clickable: the same spidey silhouette in the theme red,
    10% smaller. !important beats the inline `cursor: pointer` styles ported
    from the mockup. This image swap is the no-JS fallback — with JS, CursorFx
-   fades a red overlay in/out instead so the transition is smooth. */
-a:hover, button:not(:disabled):hover, select:hover, summary:hover,
-[role="button"]:hover, [data-web-hover]:hover {
+   fades a red overlay in/out instead so the transition is smooth.
+   The admin panel opts out entirely (:not(:has(.admin-root))). */
+html:not(:has(.admin-root)) a:hover, html:not(:has(.admin-root)) button:not(:disabled):hover,
+html:not(:has(.admin-root)) select:hover, html:not(:has(.admin-root)) summary:hover,
+html:not(:has(.admin-root)) [role="button"]:hover, html:not(:has(.admin-root)) [data-web-hover]:hover {
   cursor: url('/assets/cursor-spider-red.svg') 32 32, pointer !important;
 }
 /* CursorFx active: hide the native cursor only while its red overlay is shown
    (the overlay fades/scales, which a native cursor swap can't do) */
-html.bnd-fx-cursor a:hover, html.bnd-fx-cursor button:not(:disabled):hover,
-html.bnd-fx-cursor select:hover, html.bnd-fx-cursor summary:hover,
-html.bnd-fx-cursor [role="button"]:hover, html.bnd-fx-cursor [data-web-hover]:hover {
+html.bnd-fx-cursor:not(:has(.admin-root)) a:hover, html.bnd-fx-cursor:not(:has(.admin-root)) button:not(:disabled):hover,
+html.bnd-fx-cursor:not(:has(.admin-root)) select:hover, html.bnd-fx-cursor:not(:has(.admin-root)) summary:hover,
+html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cursor:not(:has(.admin-root)) [data-web-hover]:hover {
   cursor: none !important;
 }
 .bnd-cursor-fx {

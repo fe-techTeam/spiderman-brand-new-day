@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { adminApi } from "@/lib/admin/api";
 import { downloadXlsx, fetchAllPages, fmtDate } from "@/lib/admin/export";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -73,7 +72,6 @@ export default function AdminMjWallPage() {
           Message: m.body,
           Author: "u/" + m.username,
           Status: m.status,
-          Featured: m.is_featured ? "Yes" : "No",
           "Rejection Reason": m.rejection_reason || "",
           Submitted: fmtDate(m.created_at),
           Reviewed: fmtDate(m.reviewed_at),
@@ -148,11 +146,6 @@ export default function AdminMjWallPage() {
                     {m.status === "rejected" && m.rejection_reason && (
                       <p className="mt-1 text-xs text-destructive">Reason: {m.rejection_reason}</p>
                     )}
-                    {!!m.is_featured && (
-                      <Badge className="mt-1" variant="outline">
-                        Featured
-                      </Badge>
-                    )}
                   </TableCell>
                   <TableCell>u/{m.username}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">
@@ -177,18 +170,9 @@ export default function AdminMjWallPage() {
                       </>
                     )}
                     {m.status === "approved" && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => act(m.id, m.is_featured ? "unfeature" : "feature")}
-                        >
-                          {m.is_featured ? "Unfeature" : "Feature"}
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => act(m.id, "hide")}>
-                          Hide
-                        </Button>
-                      </>
+                      <Button size="sm" variant="destructive" onClick={() => act(m.id, "hide")}>
+                        Hide
+                      </Button>
                     )}
                     {m.status === "hidden" && (
                       <Button size="sm" variant="outline" onClick={() => act(m.id, "unhide")}>

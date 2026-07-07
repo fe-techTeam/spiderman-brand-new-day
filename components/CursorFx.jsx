@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 const CLICKABLE = "a, button:not(:disabled), select, summary, [role=\"button\"], [data-web-hover]";
 
@@ -10,8 +11,12 @@ const CLICKABLE = "a, button:not(:disabled), select, summary, [role=\"button\"],
 //    — a native cursor image swap can't animate, this can.
 // 2. Every press pops a red ping ring (.bnd-click-ping) at the pointer.
 // All DOM-managed directly — no React re-renders on pointer move.
+// The admin panel keeps standard cursors — no overlay, no ping.
 export default function CursorFx() {
+  const pathname = usePathname();
+  const isAdmin = pathname ? pathname.startsWith("/admin") : false;
   useEffect(() => {
+    if (isAdmin) return;
     if (!window.matchMedia || !window.matchMedia("(pointer: fine)").matches) return;
 
     const wrap = document.createElement("div");
@@ -59,6 +64,6 @@ export default function CursorFx() {
       document.documentElement.classList.remove("bnd-fx-cursor");
       wrap.remove();
     };
-  }, []);
+  }, [isAdmin]);
   return null;
 }
