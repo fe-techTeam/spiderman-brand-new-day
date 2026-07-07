@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { s } from "@/lib/style";
 import SpiderAvatar from "@/components/SpiderAvatar";
 import ShareButton from "@/components/forum/ShareButton";
+import ForumGate from "@/components/forum/ForumGate";
 import { useSession } from "@/components/auth/SessionProvider";
 import { portalApi } from "@/lib/portal/api";
 import { relTime, fmtCount } from "@/lib/time";
@@ -49,7 +50,7 @@ function Votes({ score, myVote, onVote, wide }) {
 function PostVoteRail({ score, myVote, onVote }) {
   const v = myVote;
   return (
-    <div style={s("flex-shrink: 0; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 18px 0; background: rgba(255,40,60,0.05); border-right: 1px solid rgba(255,255,255,0.06);")}>
+    <div className="fm-vote" style={s("flex-shrink: 0; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 18px 0; background: rgba(255,40,60,0.05); border-right: 1px solid rgba(255,255,255,0.06);")}>
       <button onClick={() => onVote("up")} data-web-hover="true" style={s("border: 0; background: transparent; cursor: pointer; padding: 2px; line-height: 0;")}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill={v === "up" ? "#ff5a6a" : "none"} stroke={v === "up" ? "#ff5a6a" : "rgba(255,255,255,0.45)"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5l7 8h-4v6h-6v-6H5z" /></svg>
       </button>
@@ -73,7 +74,7 @@ function CommentAvatar({ small }) {
 export default function ForumPost() {
   const { id } = useParams();
   const router = useRouter();
-  const { user, openAuth } = useSession();
+  const { user, loading: sessionLoading, openAuth } = useSession();
 
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -95,6 +96,7 @@ export default function ForumPost() {
   const submitting = useRef(false);
 
   useEffect(() => {
+    if (!user) return; // members-only — the gate below handles logged-out visits
     let cancelled = false;
     (async () => {
       const commentsP = portalApi(`/forum/posts/${id}/comments`).catch(() => null);
@@ -117,7 +119,7 @@ export default function ForumPost() {
       }
     })();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, user?.id]);
 
   // Patch one comment (root or reply) in the tree.
   const updateComment = (cid, patch) =>
@@ -289,6 +291,17 @@ export default function ForumPost() {
       </div>
     );
   };
+
+  // members-only: shared post links land on the onboarding gate; after auth
+  // the same URL loads in place
+  if (!sessionLoading && !user) {
+    return (
+      <div style={s("position: relative; min-height: 100vh; background: radial-gradient(130% 80% at 82% -6%, #1c0512 0%, #0b0713 46%, #07060c 100%);")}>
+        <img src="/assets/web.png" alt="" style={s("position: fixed; top: -14%; right: -10%; width: min(760px, 52vw); opacity: 0.05; mix-blend-mode: screen; pointer-events: none; z-index: 0;")} />
+        <ForumGate onJoin={() => openAuth("register")} onLogin={() => openAuth("login")} />
+      </div>
+    );
+  }
 
   return (
     <div style={s("position: relative; min-height: 100vh; background: radial-gradient(130% 80% at 82% -6%, #1c0512 0%, #0b0713 46%, #07060c 100%);")}>

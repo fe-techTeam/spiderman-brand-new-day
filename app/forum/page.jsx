@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { s } from "@/lib/style";
+import ForumGate from "@/components/forum/ForumGate";
 import SpiderAvatar from "@/components/SpiderAvatar";
 import ShareButton from "@/components/forum/ShareButton";
 import EmptyState from "@/components/forum/EmptyState";
@@ -28,7 +29,7 @@ const snippet = (text, max = 220) => {
 
 export default function Forum() {
   const router = useRouter();
-  const { user, openAuth } = useSession();
+  const { user, loading: sessionLoading, openAuth } = useSession();
 
   const [sort, setSort] = useState("top");
   const [posts, setPosts] = useState([]);
@@ -59,8 +60,11 @@ export default function Forum() {
   const [submitting, setSubmitting] = useState(false);
   const [createError, setCreateError] = useState("");
 
-  // Initial load + reload on sort change (reset list).
+  // Initial load + reload on sort change (reset list). The forum is
+  // members-only: nothing is fetched until the session has a user, and a
+  // login mid-visit (via the gate) fetches fresh with the member's votes.
   useEffect(() => {
+    if (!user) return;
     let cancelled = false;
     setLoadingInitial(true);
     setPosts([]);
@@ -76,7 +80,7 @@ export default function Forum() {
       .catch((err) => { if (!cancelled) console.error(err); })
       .finally(() => { if (!cancelled) setLoadingInitial(false); });
     return () => { cancelled = true; };
-  }, [sort]);
+  }, [sort, user?.id]);
 
   const loadMore = async () => {
     if (loadingMore || !nextCursor) return;
@@ -178,6 +182,16 @@ export default function Forum() {
     }
   };
 
+  // members-only: shared links land on the onboarding gate until logged in
+  if (!sessionLoading && !user) {
+    return (
+      <div style={s("position: relative; min-height: 100vh; background: radial-gradient(130% 80% at 82% -6%, #1c0512 0%, #0b0713 46%, #07060c 100%);")}>
+        <img src="/assets/web.png" alt="" style={s("position: fixed; top: -14%; right: -10%; width: min(760px, 52vw); opacity: 0.05; mix-blend-mode: screen; pointer-events: none; z-index: 0;")} />
+        <ForumGate onJoin={() => openAuth("register")} onLogin={() => openAuth("login")} />
+      </div>
+    );
+  }
+
   return (
     <div style={s("position: relative; min-height: 100vh; background: radial-gradient(130% 80% at 82% -6%, #1c0512 0%, #0b0713 46%, #07060c 100%);")}>
       <img src="/assets/web.png" alt="" style={s("position: fixed; top: -14%; right: -10%; width: min(760px, 52vw); opacity: 0.05; mix-blend-mode: screen; pointer-events: none; z-index: 0;")} />
@@ -188,7 +202,7 @@ export default function Forum() {
         {/* CENTER: feed */}
         <main style={s("display: flex; flex-direction: column; gap: 14px; min-width: 0;")}>
           {/* sort tabs — two plain tabs + the permanent global spoiler toggle */}
-          <div style={s("display: flex; align-items: center; gap: 8px;")}>
+          <div className="fm-sortbar" style={s("display: flex; align-items: center; gap: 8px;")}>
             {SORT_DEFS.map((sd) => (
               <button key={sd.key} onClick={() => setSort(sd.key)} data-web-hover="true" style={s(`display: inline-flex; align-items: center; gap: 7px; border: 0; cursor: pointer; padding: 10px 20px; border-radius: 9px; background: ${sort === sd.key ? "linear-gradient(180deg, #ff3a4a, #c00014)" : "rgba(255,255,255,0.05)"}; color: ${sort === sd.key ? "#fff" : "rgba(255,255,255,0.6)"}; font-family: 'Oswald', sans-serif; font-size: 12.5px; letter-spacing: 0.12em; text-transform: uppercase; transition: background .2s ease, color .2s ease;`)}>{sd.label}</button>
             ))}
@@ -198,7 +212,7 @@ export default function Forum() {
               ) : (
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 3l18 18M10.6 10.6a2.5 2.5 0 003.5 3.5M9.9 4.5A9.9 9.9 0 0112 4.3c5 0 9 3.9 10 7.7-.4 1.4-1.2 2.8-2.3 3.9M6.3 6.4C4.2 7.8 2.7 9.8 2 12c1 3.8 5 7.7 10 7.7 1.4 0 2.8-.3 4-.8" /></svg>
               )}
-              Spoilers {showSpoilers ? "shown" : "hidden"}
+              <span className="fm-spoiler-label">Spoilers {showSpoilers ? "shown" : "hidden"}</span>
               <span aria-hidden="true" style={s(`width: 26px; height: 15px; border-radius: 999px; flex-shrink: 0; background: ${showSpoilers ? "linear-gradient(180deg, #ff3a4a, #c00014)" : "rgba(255,255,255,0.14)"}; position: relative; transition: background .2s ease;`)}>
                 <span style={s(`position: absolute; top: 2px; left: ${showSpoilers ? "13px" : "2px"}; width: 11px; height: 11px; border-radius: 50%; background: #fff; transition: left .2s ease;`)}></span>
               </span>
@@ -230,7 +244,7 @@ export default function Forum() {
               <article key={t.id} onClick={() => router.push(`/forum/${t.id}`)} data-web-hover="true" className="fm-card" style={s(`cursor: pointer; position: relative; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.2), rgba(255,40,60,0.26)); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); animation: fm-rise .6s cubic-bezier(.16,.84,.3,1) both; animation-delay: ${Math.min(i, 8) * 60}ms;`)}>
                 <div style={s("display: flex; align-items: stretch; background: linear-gradient(150deg, rgba(16,18,34,0.97), rgba(9,10,20,0.98)); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);")}>
                   {/* vote rail */}
-                  <div style={s("flex-shrink: 0; width: 62px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px; padding: 16px 0; background: rgba(255,40,60,0.05); border-right: 1px solid rgba(255,255,255,0.06);")}>
+                  <div className="fm-vote" style={s("flex-shrink: 0; width: 62px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px; padding: 16px 0; background: rgba(255,40,60,0.05); border-right: 1px solid rgba(255,255,255,0.06);")}>
                     <button onClick={(e) => { e.stopPropagation(); vote(t, "up"); }} data-web-hover="true" style={s("border: 0; background: transparent; cursor: pointer; padding: 2px; line-height: 0;")}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill={v === "up" ? "#ff5a6a" : "none"} stroke={v === "up" ? "#ff5a6a" : "rgba(255,255,255,0.45)"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5l7 8h-4v6h-6v-6H5z" /></svg>
                     </button>
@@ -240,7 +254,7 @@ export default function Forum() {
                     </button>
                   </div>
                   {/* body */}
-                  <div style={s("flex: 1; min-width: 0; padding: 16px 20px;")}>
+                  <div className="fm-post-body" style={s("flex: 1; min-width: 0; padding: 16px 20px;")}>
                     <div style={s("display: flex; align-items: center; gap: 8px; margin-bottom: 9px; font-size: 11.5px; color: rgba(255,255,255,0.5); flex-wrap: wrap;")}>
                       <span>Posted by u/{t.author?.username}</span>
                       <span style={{ opacity: 0.5 }}>·</span><span>{relTime(t.createdAt)}</span>
