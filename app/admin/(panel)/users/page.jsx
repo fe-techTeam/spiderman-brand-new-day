@@ -337,12 +337,11 @@ export default function AdminUsersPage() {
                 <Field label="Last login IP" value={detail.user.last_login_ip} />
               </div>
 
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   ["Posts", detail.activity.posts],
                   ["Comments", detail.activity.comments],
                   ["MJ messages", detail.activity.mjMessages],
-                  ["Fan art", detail.activity.fanArt],
                 ].map(([label, count]) => (
                   <div key={label} className="rounded-md bg-muted p-3 text-center">
                     <p className="text-lg font-bold">{count}</p>

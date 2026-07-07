@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { adminApi } from "@/lib/admin/api";
+import { ImageOff, Upload, X } from "lucide-react";
+import { adminApi, adminUpload } from "@/lib/admin/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,8 @@ export default function AdminAvatarsPage() {
   const [editing, setEditing] = useState(null); // avatar being edited
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
 
   const load = useCallback(async () => {
     try {
@@ -111,6 +114,24 @@ export default function AdminAvatarsPage() {
     }
   }
 
+  async function onCardFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // same file can be re-picked after an error
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const { url } = await adminUpload("/avatars/card-asset", fd);
+      setForm((f) => ({ ...f, cardImage: url }));
+      toast.success("Card asset uploaded — save to apply");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function toggleActive(avatar, checked) {
     try {
       await adminApi(`/avatars/${avatar.id}`, {
@@ -147,7 +168,8 @@ export default function AdminAvatarsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[25%]">Identity</TableHead>
-                <TableHead className="w-[25%]">Tagline</TableHead>
+                <TableHead className="w-[22%]">Tagline</TableHead>
+                <TableHead>Card</TableHead>
                 <TableHead>Color</TableHead>
                 <TableHead>Sort</TableHead>
                 <TableHead>Users</TableHead>
@@ -169,6 +191,18 @@ export default function AdminAvatarsPage() {
                   </TableCell>
                   <TableCell className="max-w-0">
                     <p className="truncate text-sm text-muted-foreground">{a.tagline}</p>
+                  </TableCell>
+                  <TableCell>
+                    {a.badge_asset ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={a.badge_asset}
+                        alt={`${a.name} card`}
+                        className="h-12 w-9 rounded-sm border object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -198,7 +232,7 @@ export default function AdminAvatarsPage() {
               ))}
               {data.avatars.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
                     No avatars yet.
                   </TableCell>
                 </TableRow>
@@ -264,16 +298,57 @@ export default function AdminAvatarsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="avatar-card">Card image</Label>
-              <Input
-                id="avatar-card"
-                value={form.cardImage}
-                onChange={set("cardImage")}
-                placeholder="/assets/card-protector.png"
+              <Label>Final card asset</Label>
+              <div className="flex items-start gap-4">
+                <div className="flex h-28 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+                  {form.cardImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={form.cardImage}
+                      alt="Card asset preview"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <ImageOff className="size-5 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={uploading}
+                      onClick={() => fileRef.current?.click()}
+                    >
+                      <Upload className="size-4" />
+                      {uploading ? "Uploading…" : form.cardImage ? "Replace" : "Upload image"}
+                    </Button>
+                    {form.cardImage && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={uploading}
+                        onClick={() => setForm((f) => ({ ...f, cardImage: "" }))}
+                      >
+                        <X className="size-4" /> Remove
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    The collectible card revealed on the quiz final screen. Leave empty for the
+                    emblem fallback. JPEG/PNG/WebP, max 5&nbsp;MB.
+                  </p>
+                </div>
+              </div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={onCardFile}
               />
-              <p className="text-xs text-muted-foreground">
-                Collectible card artwork shown on the identity reveal. Leave empty for the emblem fallback.
-              </p>
             </div>
             <div className="flex gap-4">
               <div className="space-y-2">

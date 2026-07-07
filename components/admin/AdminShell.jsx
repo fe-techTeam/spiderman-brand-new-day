@@ -16,6 +16,7 @@ import {
   LogOut,
   Menu,
   X,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -136,6 +137,12 @@ export default function AdminShell({ admin, children }) {
         </nav>
         <Separator className="bg-sidebar-border" />
         <div className="p-4">
+          {/* jump back to the public site (new tab — keeps the console open) */}
+          <Button asChild size="sm" className="mb-3 w-full">
+            <a href="/" target="_blank" rel="noopener noreferrer">
+              <Globe className="size-4" /> View main website
+            </a>
+          </Button>
           <div className="mb-2 min-w-0">
             <div className="truncate text-sm font-medium text-sidebar-foreground">{admin.name}</div>
             <div className="truncate text-xs text-muted-foreground">

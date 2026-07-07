@@ -29,12 +29,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+// fan_art is deliberately absent — the feature is parked and hidden admin-wide
 const ENTITIES = [
   "user",
   "post",
   "comment",
   "mj_message",
-  "fan_art",
   "quiz_question",
   "quiz_option",
   "avatar",
