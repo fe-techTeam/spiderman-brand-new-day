@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { adminApi } from "@/lib/admin/api";
+import { downloadXlsx, fetchAllPages, fmtDate } from "@/lib/admin/export";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,6 +34,7 @@ export default function AdminMjWallPage() {
   const [data, setData] = useState(null);
   const [rejecting, setRejecting] = useState(null); // message being rejected
   const [reason, setReason] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -56,6 +58,36 @@ export default function AdminMjWallPage() {
     }
   }
 
+  async function exportExcel() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const rows = await fetchAllPages((p) =>
+        adminApi(`/mj-messages?status=${status}&page=${p}&limit=50`)
+      );
+      downloadXlsx(
+        `mj-wall-${status}-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        "MJ Wall",
+        rows.map((m) => ({
+          ID: m.id,
+          Message: m.body,
+          Author: "u/" + m.username,
+          Status: m.status,
+          Featured: m.is_featured ? "Yes" : "No",
+          "Rejection Reason": m.rejection_reason || "",
+          Submitted: fmtDate(m.created_at),
+          Reviewed: fmtDate(m.reviewed_at),
+          "Reviewed By": m.reviewed_by_name || "",
+        }))
+      );
+      toast.success(`Exported ${rows.length} message${rows.length === 1 ? "" : "s"}`);
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
 
   return (
@@ -67,21 +99,33 @@ export default function AdminMjWallPage() {
         </p>
       </div>
 
-      <Tabs
-        value={status}
-        onValueChange={(v) => {
-          setStatus(v);
-          setPage(1);
-        }}
-      >
-        <TabsList>
-          {STATUSES.map((s) => (
-            <TabsTrigger key={s} value={s} className="capitalize">
-              {s}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <div className="flex flex-wrap items-center gap-3">
+        <Tabs
+          value={status}
+          onValueChange={(v) => {
+            setStatus(v);
+            setPage(1);
+          }}
+        >
+          <TabsList>
+            {STATUSES.map((s) => (
+              <TabsTrigger key={s} value={s} className="capitalize">
+                {s}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto"
+          disabled={exporting}
+          onClick={exportExcel}
+        >
+          {exporting ? "Exporting…" : "Export Excel"}
+        </Button>
+      </div>
 
       {!data ? (
         <Skeleton className="h-64" />
