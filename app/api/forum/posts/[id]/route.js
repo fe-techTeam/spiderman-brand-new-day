@@ -1,6 +1,6 @@
 import { query } from "@/lib/server/db";
 import { requireUser, verifyUserSession } from "@/lib/server/auth";
-import { postDTO } from "@/lib/server/forum";
+import { mediaForPosts, postDTO } from "@/lib/server/forum";
 import { vId } from "@/lib/server/validate";
 
 const SELECT = `
@@ -22,7 +22,8 @@ export async function GET(request, { params }) {
 
   const [row] = await query(SELECT, [viewer?.id ?? 0, id]);
   if (!row) return Response.json({ error: "Not found" }, { status: 404 });
-  return Response.json({ post: postDTO(row) });
+  const mediaMap = await mediaForPosts(query, [row.id]);
+  return Response.json({ post: postDTO(row, mediaMap.get(row.id)) });
 }
 
 export async function DELETE(request, { params }) {

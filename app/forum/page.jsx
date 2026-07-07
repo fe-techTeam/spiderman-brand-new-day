@@ -4,7 +4,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { s } from "@/lib/style";
-import ImageSlot from "@/components/ImageSlot";
 import SpiderAvatar from "@/components/SpiderAvatar";
 import ShareButton from "@/components/forum/ShareButton";
 import EmptyState from "@/components/forum/EmptyState";
@@ -42,6 +41,7 @@ export default function Forum() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [spoiler, setSpoiler] = useState(false);
+  const [mediaFiles, setMediaFiles] = useState([]);
   const [title, setTitle] = useState("");
   const [bodyText, setBodyText] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -113,7 +113,27 @@ export default function Forum() {
     setCreateOpen(true);
   };
   const closeCreate = () => {
-    setCreateOpen(false); setSpoiler(false); setTitle(""); setBodyText(""); setCreateError("");
+    setCreateOpen(false); setSpoiler(false); setTitle(""); setBodyText(""); setCreateError(""); setMediaFiles([]);
+  };
+
+  // Client-side mirror of the server caps (5 MB images / 50 MB videos, max 4).
+  const addMediaFiles = (fileList) => {
+    const incoming = Array.from(fileList || []);
+    setCreateError("");
+    setMediaFiles((prev) => {
+      const next = [...prev];
+      for (const f of incoming) {
+        if (next.length >= 4) { setCreateError("At most 4 attachments per post"); break; }
+        const isVideo = f.type.startsWith("video/");
+        const capMb = isVideo ? 50 : 5;
+        if (f.size > capMb * 1024 * 1024) {
+          setCreateError(`${f.name} is too large (max ${capMb} MB for ${isVideo ? "videos" : "images"})`);
+          continue;
+        }
+        next.push(f);
+      }
+      return next;
+    });
   };
 
   const submitCreate = async () => {
@@ -122,10 +142,20 @@ export default function Forum() {
     setSubmitting(true);
     setCreateError("");
     try {
-      const data = await portalApi("/forum/posts", {
-        method: "POST",
-        body: { title, body: bodyText, isSpoiler: spoiler },
-      });
+      let data;
+      if (mediaFiles.length) {
+        const fd = new FormData();
+        fd.append("title", title);
+        fd.append("body", bodyText);
+        fd.append("isSpoiler", spoiler ? "true" : "false");
+        for (const f of mediaFiles) fd.append("media", f);
+        data = await portalApi("/forum/posts", { method: "POST", formData: fd });
+      } else {
+        data = await portalApi("/forum/posts", {
+          method: "POST",
+          body: { title, body: bodyText, isSpoiler: spoiler },
+        });
+      }
       setPosts((list) => [data.post, ...list]);
       closeCreate();
     } catch (err) {
@@ -218,8 +248,17 @@ export default function Forum() {
                     ) : (
                       <p style={s("margin: 0 0 14px; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>{snippet(t.body)}</p>
                     )}
-                    {t.hasImage && (
-                      <ImageSlot placeholder="Fan creation" style="display: block; width: 100%; max-width: 460px; height: 240px; border-radius: 11px; overflow: hidden; background: #141018; margin-bottom: 14px; border: 1px solid rgba(255,255,255,0.08);" />
+                    {t.media?.length > 0 && (
+                      <div style={s(`position: relative; margin: 0 0 14px; max-width: 460px; border-radius: 11px; overflow: hidden; background: #141018; border: 1px solid rgba(255,255,255,0.08); ${blurred ? "filter: blur(14px);" : ""}`)}>
+                        {t.media[0].kind === "video" ? (
+                          <video src={t.media[0].url} controls preload="metadata" onClick={(e) => e.stopPropagation()} style={s("display: block; width: 100%; max-height: 300px; background: #000;")} />
+                        ) : (
+                          <img src={t.media[0].url} alt="" loading="lazy" style={s("display: block; width: 100%; max-height: 300px; object-fit: cover;")} />
+                        )}
+                        {t.media.length > 1 && (
+                          <span style={s("position: absolute; top: 8px; right: 8px; padding: 3px 9px; border-radius: 999px; background: rgba(9,10,20,0.8); color: rgba(255,255,255,0.85); font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.08em;")}>+{t.media.length - 1} more</span>
+                        )}
+                      </div>
                     )}
                     <div style={s("display: flex; align-items: center; gap: 10px; flex-wrap: wrap;")}>
                       <span style={s("display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px; background: rgba(255,255,255,0.05); font-size: 12px; color: rgba(255,255,255,0.7);")}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.4 8.4 0 01-11.9 7.6L3 21l1.9-6.1A8.4 8.4 0 1121 11.5z" /></svg>{fmtCount(t.commentCount)} Comments</span>
@@ -277,7 +316,34 @@ export default function Forum() {
               <h3 style={s("font-size: 22px; color: #fff; margin-bottom: 6px;")}>Share your story</h3>
               <p style={s("margin: 0 0 20px; font-size: 13px; color: rgba(226,226,240,0.6);")}>Post to the Web and let the Verse hear you.</p>
               <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="An interesting title…" style={s("width: 100%; box-sizing: border-box; border: 0; outline: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 13px 15px; color: #fff; font-family: inherit; font-size: 15px; margin-bottom: 12px;")} />
-              <textarea value={bodyText} onChange={(e) => setBodyText(e.target.value)} rows={4} placeholder="Tell the Web what happened…" style={s("width: 100%; box-sizing: border-box; resize: none; border: 0; outline: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 13px 15px; color: #fff; font-family: inherit; font-size: 14px; line-height: 1.5; margin-bottom: 18px;")}></textarea>
+              <textarea value={bodyText} onChange={(e) => setBodyText(e.target.value)} rows={4} placeholder="Tell the Web what happened…" style={s("width: 100%; box-sizing: border-box; resize: none; border: 0; outline: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 13px 15px; color: #fff; font-family: inherit; font-size: 14px; line-height: 1.5; margin-bottom: 12px;")}></textarea>
+
+              {/* photo / video attachments (max 4 · images ≤5MB · videos ≤50MB) */}
+              <div style={s("margin-bottom: 14px;")}>
+                <label data-web-hover="true" style={s("display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border: 1px dashed rgba(255,255,255,0.25); border-radius: 9px; cursor: pointer; color: rgba(255,255,255,0.7); font-family: 'Oswald', sans-serif; font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase;")}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
+                  Add photo / video
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+                    multiple
+                    onChange={(e) => { addMediaFiles(e.target.files); e.target.value = ""; }}
+                    style={s("display: none;")}
+                  />
+                </label>
+                {mediaFiles.length > 0 && (
+                  <div style={s("display: flex; flex-direction: column; gap: 6px; margin-top: 10px;")}>
+                    {mediaFiles.map((f, i) => (
+                      <div key={`${f.name}-${i}`} style={s("display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); font-size: 12.5px; color: rgba(226,226,240,0.8);")}>
+                        <span style={s("color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; flex-shrink: 0;")}>{f.type.startsWith("video/") ? "video" : "image"}</span>
+                        <span style={s("min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;")}>{f.name}</span>
+                        <span style={s("flex-shrink: 0; color: rgba(255,255,255,0.45);")}>{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                        <button type="button" onClick={() => setMediaFiles((prev) => prev.filter((_, j) => j !== i))} data-web-hover="true" aria-label="Remove attachment" style={s("margin-left: auto; flex-shrink: 0; border: 0; background: transparent; color: rgba(255,255,255,0.55); font-size: 15px; cursor: pointer; line-height: 1; padding: 2px 4px;")}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               {createError && (
                 <p style={s("margin: -8px 0 14px; font-size: 12.5px; line-height: 1.4; color: #ff5a6a;")}>{createError}</p>
               )}

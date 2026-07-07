@@ -67,8 +67,8 @@ export async function POST(request) {
 
   const fanArtId = await withTransaction(async (conn) => {
     const [media] = await conn.execute(
-      "INSERT INTO media (user_id, kind, file_path, mime_type, size_bytes) VALUES (?, 'image', ?, ?, ?)",
-      [user.id, saved.filePath, saved.mime, saved.size]
+      "INSERT INTO media (user_id, kind, storage, file_path, mime_type, size_bytes) VALUES (?, 'image', ?, ?, ?, ?)",
+      [user.id, saved.storage, saved.filePath, saved.mime, saved.size]
     );
     const [art] = await conn.execute(
       "INSERT INTO fan_art (user_id, media_id, title, description) VALUES (?, ?, ?, ?)",

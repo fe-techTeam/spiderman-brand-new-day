@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,7 +47,7 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-6">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <div className="mb-1 text-xs font-semibold uppercase tracking-[0.3em] text-primary">
@@ -85,6 +87,11 @@ export default function AdminLoginPage() {
           </form>
         </CardContent>
       </Card>
+      <Button variant="ghost" size="sm" asChild className="text-muted-foreground">
+        <Link href="/">
+          <ArrowLeft className="size-4" /> Back to the main site
+        </Link>
+      </Button>
     </div>
   );
 }

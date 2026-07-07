@@ -1,8 +1,11 @@
 import { query, withTransaction } from "@/lib/server/db";
 import { verifyUserSession, requireUser } from "@/lib/server/auth";
-import { decodeCursor, encodeCursor, hotScore, postDTO } from "@/lib/server/forum";
+import { decodeCursor, encodeCursor, hotScore, mediaForPosts, postDTO } from "@/lib/server/forum";
+import { saveUpload } from "@/lib/server/uploads";
 import { vEnum, vId, vString } from "@/lib/server/validate";
 import { rateLimit } from "@/lib/server/rate-limit";
+
+const MAX_POST_MEDIA = 4;
 
 const SELECT = `
   SELECT p.id, p.title, p.body, p.is_spoiler, p.score, p.comment_count, p.hot_score, p.created_at,
@@ -60,7 +63,12 @@ export async function GET(request) {
       )
     : null;
 
-  return Response.json({ posts: page.map(postDTO), nextCursor, hasMore });
+  const mediaMap = await mediaForPosts(query, page.map((p) => p.id));
+  return Response.json({
+    posts: page.map((p) => postDTO(p, mediaMap.get(p.id))),
+    nextCursor,
+    hasMore,
+  });
 }
 
 export async function POST(request) {
@@ -77,15 +85,38 @@ export async function POST(request) {
     return Response.json({ error: "You're posting too fast — take a breath." }, { status: 429 });
   }
 
-  const body = await request.json().catch(() => ({}));
-  const title = vString(body.title, { min: 3, max: 300 });
-  const text = vString(body.body, { min: 1, max: 10000 });
+  // JSON (text-only) or multipart (with photos/videos) — both supported.
+  let title, text, isSpoiler, communityId, flairId;
+  let files = [];
+  const contentType = request.headers.get("content-type") || "";
+  if (contentType.includes("multipart/form-data")) {
+    let form;
+    try {
+      form = await request.formData();
+    } catch {
+      return Response.json({ error: "Bad form data" }, { status: 400 });
+    }
+    title = vString(form.get("title"), { min: 3, max: 300 });
+    text = vString(form.get("body"), { min: 1, max: 10000 });
+    isSpoiler = form.get("isSpoiler") === "true" || form.get("isSpoiler") === "1";
+    communityId = form.get("communityId") ? vId(form.get("communityId")) : null;
+    flairId = form.get("flairId") ? vId(form.get("flairId")) : null;
+    files = form.getAll("media").filter((f) => f && typeof f.arrayBuffer === "function" && f.size > 0);
+    if (files.length > MAX_POST_MEDIA) {
+      return Response.json({ error: `At most ${MAX_POST_MEDIA} attachments per post` }, { status: 400 });
+    }
+  } else {
+    const body = await request.json().catch(() => ({}));
+    title = vString(body.title, { min: 3, max: 300 });
+    text = vString(body.body, { min: 1, max: 10000 });
+    isSpoiler = body.isSpoiler === true;
+    communityId = body.communityId ? vId(body.communityId) : null;
+    flairId = body.flairId ? vId(body.flairId) : null;
+  }
+
   if (!title || !text) {
     return Response.json({ error: "Title (3+ chars) and body are required" }, { status: 400 });
   }
-  const isSpoiler = body.isSpoiler === true;
-  const communityId = body.communityId ? vId(body.communityId) : null;
-  const flairId = body.flairId ? vId(body.flairId) : null;
   if (communityId) {
     const [c] = await query("SELECT id FROM communities WHERE id = ? AND is_active = 1", [communityId]);
     if (!c) return Response.json({ error: "Unknown community" }, { status: 400 });
@@ -93,6 +124,16 @@ export async function POST(request) {
   if (flairId) {
     const [f] = await query("SELECT id FROM flairs WHERE id = ? AND is_active = 1", [flairId]);
     if (!f) return Response.json({ error: "Unknown flair" }, { status: 400 });
+  }
+
+  // Validate + compress + store attachments BEFORE the DB transaction.
+  const saved = [];
+  for (const file of files) {
+    try {
+      saved.push(await saveUpload(file, "posts", { allowVideo: true }));
+    } catch (err) {
+      return Response.json({ error: err.message }, { status: 400 });
+    }
   }
 
   const postId = await withTransaction(async (conn) => {
@@ -107,9 +148,22 @@ export async function POST(request) {
       "INSERT INTO post_votes (post_id, user_id, value) VALUES (?, ?, 1)",
       [res.insertId, user.id]
     );
+    for (let i = 0; i < saved.length; i++) {
+      const m = saved[i];
+      const [mediaRes] = await conn.execute(
+        `INSERT INTO media (user_id, kind, storage, file_path, mime_type, size_bytes, width, height)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [user.id, m.kind, m.storage, m.key, m.mime, m.size, m.width, m.height]
+      );
+      await conn.execute(
+        "INSERT INTO post_media (post_id, media_id, position) VALUES (?, ?, ?)",
+        [res.insertId, mediaRes.insertId, i]
+      );
+    }
     return res.insertId;
   });
 
   const [row] = await query(`${SELECT} WHERE p.id = ?`, [user.id, postId]);
-  return Response.json({ post: postDTO(row) }, { status: 201 });
+  const mediaMap = await mediaForPosts(query, [postId]);
+  return Response.json({ post: postDTO(row, mediaMap.get(postId)) }, { status: 201 });
 }

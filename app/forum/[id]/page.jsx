@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -278,6 +279,17 @@ export default function ForumPost() {
                       )}
                       <p style={s("margin: 0 0 16px; font-size: 15px; line-height: 1.65; color: rgba(226,226,240,0.82); text-wrap: pretty;")}>{post.body}</p>
                     </>
+                  )}
+                  {post.media?.length > 0 && (
+                    <div style={s(`display: flex; flex-direction: column; gap: 12px; margin: 0 0 16px; ${post.isSpoiler && !revealed ? "filter: blur(16px); pointer-events: none;" : ""}`)}>
+                      {post.media.map((m) =>
+                        m.kind === "video" ? (
+                          <video key={m.id} src={m.url} controls preload="metadata" style={s("display: block; width: 100%; max-width: 560px; max-height: 380px; border-radius: 11px; background: #000; border: 1px solid rgba(255,255,255,0.08);")} />
+                        ) : (
+                          <img key={m.id} src={m.url} alt="" loading="lazy" style={s("display: block; width: 100%; max-width: 560px; border-radius: 11px; border: 1px solid rgba(255,255,255,0.08);")} />
+                        )
+                      )}
+                    </div>
                   )}
                   <div style={s("display: flex; align-items: center; gap: 10px; flex-wrap: wrap;")}>
                     <span style={s("display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px; background: rgba(255,255,255,0.05); font-size: 12px; color: rgba(255,255,255,0.7);")}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.4 8.4 0 01-11.9 7.6L3 21l1.9-6.1A8.4 8.4 0 1121 11.5z" /></svg>{fmtCount(total)} Comments</span>

@@ -342,17 +342,24 @@ Indexes: `(status, id DESC)` — the review queue *and* the public gallery are b
 ### 3.5 Fan art
 
 #### `media`
-Generic upload registry (used by fan art now, post images next).
+Generic upload registry (fan art + forum post attachments).
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | PK | |
 | `user_id` | FK → users | uploader |
-| `kind` | ENUM('image') | video later |
-| `file_path` | VARCHAR(255) | stored under `uploads/` (outside `public/` so pending art isn't guessable); served via `/api/media/[id]` which checks approval status |
+| `kind` | ENUM('image','video') | videos allowed on forum posts (MP4/WebM) |
+| `storage` | VARCHAR(10) | which driver holds the file: `local` or `s3` (per-row, so switching drivers never breaks old files) |
+| `file_path` | VARCHAR(255) | storage key — local disk under `UPLOAD_DIR` or S3 object key; always served via `/api/media/[id]` which checks approval/attachment status (S3 bucket stays private) |
 | `mime_type` | VARCHAR(100) | validated by magic bytes, not extension |
-| `size_bytes` | INT UNSIGNED | cap 5 MB |
+| `size_bytes` | INT UNSIGNED | caps: images `MAX_IMAGE_UPLOAD_MB` (5), videos `MAX_VIDEO_UPLOAD_MB` (50) |
 | `width` / `height` | INT NULL | |
+
+Storage is abstracted in `lib/server/storage.js` (`putObject`/`getObjectStream`): switching from
+local disk to S3 (or R2/MinIO via `S3_ENDPOINT`) is a `.env` change (`STORAGE_DRIVER=s3` + `S3_*`),
+no code change. Images are lightly compressed on upload via sharp (long edge capped at 1920 px,
+~q82 re-encode, EXIF orientation honored, GIFs passed through); videos are type/size-validated
+only (no transcoding).
 
 #### `fan_art`
 | Column | Type | Notes |
@@ -883,7 +890,18 @@ ADMIN_SEED_PASSWORD=   # required, no default — choose a strong one
 
 # ── App ───────────────────────────────────────────
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# ── Uploads & storage ─────────────────────────────
+MAX_IMAGE_UPLOAD_MB=5
+MAX_VIDEO_UPLOAD_MB=50
+STORAGE_DRIVER=local   # switch to "s3" + fill S3_* → S3 storage, no code change
 UPLOAD_DIR=uploads
+S3_BUCKET=
+S3_REGION=
+S3_ACCESS_KEY_ID=
+S3_SECRET_ACCESS_KEY=
+S3_ENDPOINT=           # only for R2 / MinIO / Spaces
+S3_FORCE_PATH_STYLE=false
 ```
 
 Next 16 env rules honored: non-prefixed vars are server-only; `scripts/*.js` load env via
