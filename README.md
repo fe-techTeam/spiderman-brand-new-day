@@ -1,5 +1,19 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Backend & admin panel
+
+The full backend design (MySQL schema, APIs, auth, moderation, build phases) lives in
+[BACKEND.md](BACKEND.md). One-time setup:
+
+```bash
+cp .env.example .env.local   # fill in DB creds, JWT secrets (openssl rand -base64 48), admin seed
+npm run db:setup             # creates the database, applies migrations/, seeds the super admin
+```
+
+The admin console is at `/admin` (login with the `ADMIN_SEED_*` credentials). Admin auth is
+fully separate from portal-user auth — different table, cookie, and JWT secret — with role-based
+access (super_admin / moderator / content_manager) enforced per API route.
+
 ## Getting Started
 
 First, run the development server:
