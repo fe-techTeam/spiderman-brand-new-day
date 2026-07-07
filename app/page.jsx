@@ -1061,7 +1061,9 @@ export default function Home() {
               <div style={s("position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(120,20,30,0.25) 0%, rgba(6,4,12,0.55) 100%); pointer-events: none;")}></div>
               <span style={s("position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: clamp(68px, 8vw, 96px); height: clamp(68px, 8vw, 96px); border-radius: 50%; border: 2px solid rgba(255,60,74,0.9); background: rgba(20,6,10,0.4); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 30px rgba(255,60,74,0.5), inset 0 0 20px rgba(255,60,74,0.2); pointer-events: none;")}>
                 <span style={s("position: absolute; inset: -9px; border-radius: 50%; border: 2px solid rgba(255,60,74,0.4); animation: bnd-radar-ring 2.8s ease-out infinite;")}></span>
-                <svg width="30%" height="30%" viewBox="0 0 24 24" fill="#fff" style={s("margin-left: 8%; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));")}><path d="M5 3l16 9-16 9z" /></svg>
+                {/* the glyph's bbox (x 5–21) already sits +1 right of the viewBox
+                    center — that IS the optical nudge; extra margin skewed it */}
+                <svg width="30%" height="30%" viewBox="0 0 24 24" fill="#fff" style={s("filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));")}><path d="M5 3l16 9-16 9z" /></svg>
               </span>
             </div>
           </button>

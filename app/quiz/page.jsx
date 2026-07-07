@@ -202,6 +202,8 @@ export default function QuizPage() {
   };
 
   const startRetake = () => {
+    // a new identity means the Web Twins reveal must be re-opened afresh
+    try { localStorage.removeItem("bnd_twins_revealed"); } catch {}
     setRetake(true);
     setResult(null);
     setQuestions(null);
@@ -210,6 +212,14 @@ export default function QuizPage() {
     setIdx(0);
     setSubmitErr("");
   };
+
+  // /quiz?retake=1 (navbar profile popup) starts straight in retake mode
+  useEffect(() => {
+    try {
+      if (new URLSearchParams(window.location.search).get("retake") === "1") startRetake();
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Location is no longer asked here — country is derived from the signup IP.
   async function enterForum() {
@@ -267,7 +277,9 @@ export default function QuizPage() {
       </div>
       <div style={s("position: fixed; inset: 0; z-index: 12; pointer-events: none; background: radial-gradient(120% 90% at 50% 42%, transparent 52%, rgba(4,3,8,0.5) 84%, rgba(3,2,6,0.85) 100%);")}></div>
       {nav}
-      <main className="ri-stage" style={s("position: relative; z-index: 20; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(92px, 14vh, 140px) clamp(20px, 6vw, 90px) clamp(28px, 6vh, 72px); text-align: center;")}>
+      {/* top padding = just enough to clear the fixed navbar; near-symmetric
+          bottom keeps the content optically centered like the design */}
+      <main className="ri-stage" style={s("position: relative; z-index: 20; min-height: 100dvh; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(72px, 10vh, 96px) clamp(20px, 6vw, 90px) clamp(24px, 5vh, 56px); text-align: center;")}>
         {children}
       </main>
     </div>

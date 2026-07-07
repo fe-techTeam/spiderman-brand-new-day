@@ -94,6 +94,12 @@ export default function Nav({
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>
                         {user.needsQuiz ? "Finish Onboarding" : "My Space"}
                       </button>
+                      {!user.needsQuiz && (
+                        <button onClick={() => { setMenuOpen(false); router.push("/quiz?retake=1"); }} data-web-hover="true" style={s("width: 100%; display: flex; align-items: center; gap: 9px; border: 0; background: transparent; cursor: pointer; padding: 10px; border-radius: 8px; color: rgba(255,255,255,0.85); font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; text-align: left; transition: background .2s ease;")} className="bnd-pop-item">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 11-2.6-6.4" /><path d="M21 3v6h-6" /></svg>
+                          Retake Identity Quiz
+                        </button>
+                      )}
                       <button onClick={() => { setMenuOpen(false); logout(); }} data-web-hover="true" style={s("width: 100%; display: flex; align-items: center; gap: 9px; border: 0; background: transparent; cursor: pointer; padding: 10px; border-radius: 8px; color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; text-align: left; transition: background .2s ease;")} className="bnd-pop-item">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
                         Sign Out
@@ -143,6 +149,9 @@ export default function Nav({
           {user ? (
             <>
               <button onClick={goAccount} style={s("width: 100%; margin-top: 14px; border: 0; padding: 16px; background: linear-gradient(180deg, #ff1f33 0%, #c00014 100%); color: #fff; font-weight: 700; font-size: 15px; letter-spacing: 0.24em; text-transform: none; border-radius: 10px; cursor: pointer; font-family: inherit;")}>{"u/" + user.username}</button>
+              {!user.needsQuiz && (
+                <button onClick={() => router.push("/quiz?retake=1")} style={s("width: 100%; margin-top: 10px; border: 1px solid rgba(255,255,255,0.16); padding: 12px; background: transparent; color: rgba(255,255,255,0.8); font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; border-radius: 10px; cursor: pointer; font-family: inherit;")}>Retake Identity Quiz</button>
+              )}
               <button onClick={logout} style={s("width: 100%; margin-top: 10px; border: 0; padding: 12px; background: transparent; color: rgba(255,255,255,0.65); font-size: 13px; letter-spacing: 0.22em; text-transform: uppercase; border-radius: 10px; cursor: pointer; font-family: inherit;")}>Sign out</button>
             </>
           ) : (
