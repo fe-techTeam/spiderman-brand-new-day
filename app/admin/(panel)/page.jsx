@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowRight, MessageSquareHeart } from "lucide-react";
+import { ArrowRight, MessageSquareHeart, Flag } from "lucide-react";
 import { adminApi } from "@/lib/admin/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -75,6 +75,42 @@ export default function AdminDashboardPage() {
                 </>
               ) : (
                 "Queue clear — nothing waiting"
+              )}
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Reported content queue — louder when something needs attention */}
+        <Link href="/admin/reports" className="block">
+          <Card
+            className={
+              "relative h-full overflow-hidden transition-colors " +
+              (counts.openReports > 0
+                ? "border-destructive/50 bg-gradient-to-br from-destructive/20 via-destructive/5 to-card hover:border-destructive"
+                : "hover:border-primary/50")
+            }
+          >
+            {counts.openReports > 0 && (
+              <div className="pointer-events-none absolute -right-8 -top-8 size-28 rounded-full bg-destructive/20 blur-2xl" />
+            )}
+            <CardHeader className="pb-2">
+              <CardDescription
+                className={
+                  "flex items-center gap-2 font-semibold uppercase tracking-[0.14em] " +
+                  (counts.openReports > 0 ? "text-destructive" : "")
+                }
+              >
+                <Flag className="size-4" /> Reports open
+              </CardDescription>
+              <CardTitle className="text-3xl">{counts.openReports}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              {counts.openReports > 0 ? (
+                <>
+                  Review reported content <ArrowRight className="size-3.5" />
+                </>
+              ) : (
+                "Nothing reported — all clear"
               )}
             </CardContent>
           </Card>

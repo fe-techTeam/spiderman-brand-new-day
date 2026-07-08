@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/server/auth";
 import { decodeCursor, encodeCursor } from "@/lib/server/forum";
 import { vString } from "@/lib/server/validate";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { postingBlockedResponse } from "@/lib/server/moderation";
 
 // Public gallery — approved messages only, newest first, keyset paginated.
 export async function GET(request) {
@@ -43,6 +44,8 @@ export async function GET(request) {
 export async function POST(request) {
   const gate = await requireUser();
   if (gate.error) return gate.error;
+  const banned = postingBlockedResponse(gate.user);
+  if (banned) return banned;
   if (!(await rateLimit(`mj:${gate.user.id}`, 5, 60 * 60))) {
     return Response.json({ error: "You've sent a lot of messages — try again later." }, { status: 429 });
   }

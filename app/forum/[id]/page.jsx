@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { s } from "@/lib/style";
 import SpiderAvatar from "@/components/SpiderAvatar";
 import ShareButton from "@/components/forum/ShareButton";
+import ReportControl from "@/components/forum/ReportControl";
 import ForumGate from "@/components/forum/ForumGate";
 import { useSession } from "@/components/auth/SessionProvider";
 import { portalApi } from "@/lib/portal/api";
@@ -295,6 +296,7 @@ export default function ForumPost() {
             <button onClick={() => openReply(c)} data-web-hover="true" style={s("display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; cursor: pointer; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.55); padding: 0;")}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 17l-5-5 5-5" /><path d="M20 18v-2a4 4 0 00-4-4H4" /></svg>Reply
             </button>
+            {!isMe && <ReportControl entityType="comment" entityId={c.id} variant="inline" />}
           </div>
           {openReplyId === c.id && renderReplyBox(rootId)}
         </div>
@@ -408,6 +410,7 @@ export default function ForumPost() {
                   <div style={s("display: flex; align-items: center; gap: 10px; flex-wrap: wrap;")}>
                     <span style={s("display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px; background: rgba(255,255,255,0.05); font-size: 12px; color: rgba(255,255,255,0.7);")}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.4 8.4 0 01-11.9 7.6L3 21l1.9-6.1A8.4 8.4 0 1121 11.5z" /></svg>{fmtCount(total)} Comments</span>
                     <ShareButton thread={post} />
+                    {!isMine && <ReportControl entityType="post" entityId={post.id} variant="pill" />}
                   </div>
                 </div>
               </div>

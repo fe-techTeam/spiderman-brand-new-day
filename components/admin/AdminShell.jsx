@@ -9,6 +9,7 @@ import {
   MessageSquareHeart,
   Users,
   MessagesSquare,
+  Flag,
   ListChecks,
   Sparkles,
   ShieldCheck,
@@ -34,6 +35,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/admin/mj-wall", label: "MJ Wall", icon: MessageSquareHeart, perm: "mj.review" },
       { href: "/admin/forum", label: "Forum", icon: MessagesSquare, perm: "forum.moderate" },
+      { href: "/admin/reports", label: "Reports", icon: Flag, perm: "forum.moderate" },
     ],
   },
   {

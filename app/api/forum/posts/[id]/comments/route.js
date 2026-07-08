@@ -4,6 +4,7 @@ import { commentDTO, parseMentions } from "@/lib/server/forum";
 import { createNotification, notifyMentions } from "@/lib/server/notify";
 import { vId, vString } from "@/lib/server/validate";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { postingBlockedResponse } from "@/lib/server/moderation";
 
 const SELECT = `
   SELECT c.id, c.body, c.score, c.created_at, c.parent_comment_id, c.root_comment_id,
@@ -48,6 +49,8 @@ export async function POST(request, { params }) {
   const gate = await requireUser();
   if (gate.error) return gate.error;
   const user = gate.user;
+  const banned = postingBlockedResponse(user);
+  if (banned) return banned;
   const { id: rawId } = await params;
   const postId = vId(rawId);
   if (!postId) return Response.json({ error: "Not found" }, { status: 404 });

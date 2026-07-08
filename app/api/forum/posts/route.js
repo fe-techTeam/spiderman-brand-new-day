@@ -4,6 +4,7 @@ import { decodeCursor, encodeCursor, hotScore, mediaForPosts, postDTO } from "@/
 import { saveUpload } from "@/lib/server/uploads";
 import { vEnum, vId, vString } from "@/lib/server/validate";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { postingBlockedResponse } from "@/lib/server/moderation";
 
 const MAX_POST_MEDIA = 4;
 
@@ -77,6 +78,8 @@ export async function POST(request) {
   const gate = await requireUser();
   if (gate.error) return gate.error;
   const user = gate.user;
+  const banned = postingBlockedResponse(user);
+  if (banned) return banned;
   if (!user.quiz_completed_at) {
     return Response.json(
       { error: "Discover your Spider identity before posting", code: "quiz_required" },
