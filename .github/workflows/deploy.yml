@@ -1,0 +1,94 @@
+name: Deploy to Amazon ECS
+
+# Builds the Docker image, pushes it to ECR, and rolls it out to the ECS
+# service. AWS auth is via GitHub OIDC — no long-lived AWS keys are stored.
+# Values below were provided by DevOps; AWS_ROLE_ARN lives in repo secrets.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# OIDC needs id-token:write to mint the token AWS trusts; checkout needs read.
+permissions:
+  id-token: write
+  contents: read
+
+# Never let two deploys race the same service.
+concurrency:
+  group: deploy-ecs-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: spidermania/spiderman-brand-new-day
+  ECS_CLUSTER: spider-mania-cluster
+  ECS_SERVICE: spider-mania-td-service-iw4ommcr
+  ECS_TASK_DEFINITION: spider-mania-td
+  CONTAINER_NAME: spider-mania-app
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: gha-deploy-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to ECR
+        id: build
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          # DEPLOYMENT_ID is baked into asset URLs (?dpl=) for version-skew
+          # protection behind CloudFront — mirror the Dockerfile's short-SHA.
+          docker build \
+            --build-arg DEPLOYMENT_ID="${GITHUB_SHA::7}" \
+            -t "$IMAGE" \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:latest" \
+            .
+          docker push "$IMAGE"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch current task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_TASK_DEFINITION" \
+            --query 'taskDefinition' \
+            --output json > task-definition.json
+          # Drop fields register-task-definition rejects on re-register.
+          jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
+            task-definition.json > task-definition.clean.json
+          mv task-definition.clean.json task-definition.json
+
+      - name: Render new image into task definition
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build.outputs.image }}
+
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render.outputs.task-definition }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          service: ${{ env.ECS_SERVICE }}
+          wait-for-service-stability: true
