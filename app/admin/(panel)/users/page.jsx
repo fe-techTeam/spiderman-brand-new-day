@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { adminApi } from "@/lib/admin/api";
+import { downloadXlsx, fetchAllPages, fmtDate } from "@/lib/admin/export";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +55,7 @@ export default function AdminUsersPage() {
   const [data, setData] = useState(null);
   const [viewing, setViewing] = useState(null); // user whose detail dialog is open
   const [detail, setDetail] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -77,6 +79,43 @@ export default function AdminUsersPage() {
       load();
     } catch (e) {
       toast.error(e.message);
+    }
+  }
+
+  async function exportExcel() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const rows = await fetchAllPages((p) => {
+        const params = new URLSearchParams({ page: String(p), limit: "50" });
+        if (q) params.set("q", q);
+        if (status !== "all") params.set("status", status);
+        return adminApi(`/users?${params}`);
+      });
+      downloadXlsx(
+        `users-${status}-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        "Users",
+        rows.map((u) => ({
+          ID: u.id,
+          Username: u.username,
+          Email: u.email,
+          Mobile: u.mobile || "",
+          Status: u.status,
+          Identity: u.quiz_completed_at ? u.avatar_name || "" : "Quiz pending",
+          "Spidey Code": u.spidey_code || "",
+          State: u.state || "",
+          Country: u.country || "",
+          "Signup IP": u.signup_ip || "",
+          "Last Login IP": u.last_login_ip || "",
+          Joined: fmtDate(u.created_at),
+          "Last Login": fmtDate(u.last_login_at),
+        }))
+      );
+      toast.success(`Exported ${rows.length} user${rows.length === 1 ? "" : "s"}`);
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -137,6 +176,16 @@ export default function AdminUsersPage() {
             ))}
           </TabsList>
         </Tabs>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto"
+          disabled={exporting}
+          onClick={exportExcel}
+        >
+          {exporting ? "Exporting…" : "Export Excel"}
+        </Button>
       </div>
 
       {!data ? (
@@ -284,14 +333,15 @@ export default function AdminUsersPage() {
                       : null
                   }
                 />
+                <Field label="Signup IP" value={detail.user.signup_ip} />
+                <Field label="Last login IP" value={detail.user.last_login_ip} />
               </div>
 
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   ["Posts", detail.activity.posts],
                   ["Comments", detail.activity.comments],
                   ["MJ messages", detail.activity.mjMessages],
-                  ["Fan art", detail.activity.fanArt],
                 ].map(([label, count]) => (
                   <div key={label} className="rounded-md bg-muted p-3 text-center">
                     <p className="text-lg font-bold">{count}</p>

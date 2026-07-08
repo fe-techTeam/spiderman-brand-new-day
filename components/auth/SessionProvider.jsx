@@ -4,9 +4,11 @@
 // openAuth() to prompt login/register; after auth, users who haven't taken the
 // avatar quiz are routed to /quiz.
 //
-// useSession() → { user, loading, refresh, openAuth(mode?), logout }
+// useSession() → { user, loading, refresh, openAuth(mode?), logout, authOpen }
 //   user: null when logged out, else the /api/me DTO
 //   openAuth("register" | "login")
+//   authOpen: whether the auth modal is showing — pages that hijack scrolling
+//   (the landing pager) pause while any popup is up
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -18,6 +20,7 @@ const SessionContext = createContext({
   refresh: () => {},
   openAuth: () => {},
   logout: () => {},
+  authOpen: false,
 });
 
 export function useSession() {
@@ -75,7 +78,7 @@ export default function SessionProvider({ children }) {
   );
 
   return (
-    <SessionContext.Provider value={{ user, loading, refresh, openAuth, logout }}>
+    <SessionContext.Provider value={{ user, loading, refresh, openAuth, logout, authOpen }}>
       {children}
       {authOpen && (
         <AuthModal

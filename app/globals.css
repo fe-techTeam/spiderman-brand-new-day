@@ -34,8 +34,10 @@ html, body {
      would break sticky. Vertical scroll stays on the document/window. */
   overflow-x: clip !important;
 }
+/* Snap stays on for mobile too: sections align themselves with native scroll
+   physics (areas taller than the viewport still scroll freely inside), and the
+   landing page blinks the film shutter when a swipe lands on a new section. */
 html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
-@media (max-width: 760px) { html { scroll-snap-type: none; } }
 body { width: 100%; }
 
 ::selection { background: #d6021a; color: #fff; }
@@ -89,9 +91,10 @@ body { width: 100%; }
   0%, 100% { transform: translateY(0) rotate(-0.4deg); }
   50%      { transform: translateY(3px) rotate(0.4deg); }
 }
+/* transform + opacity only — no letter-spacing (re-wraps) or blur (repaints) */
 @keyframes bnd-word-rise {
-  from { opacity: 0; transform: translate3d(0, 0.6em, 0); filter: blur(6px); letter-spacing: 0.14em; }
-  to   { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0);   letter-spacing: 0.02em; }
+  from { opacity: 0; transform: translate3d(0, 0.6em, 0) scale(1.04, 1); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 .bnd-word { display: inline-block; opacity: 0; animation: bnd-word-rise 720ms cubic-bezier(.2,.7,.2,1) forwards; will-change: transform, opacity, filter; }
 @keyframes bnd-menu-drop {
@@ -116,7 +119,7 @@ body { width: 100%; }
   20%  { opacity: 1; }
   100% { left: 130%; opacity: 0; }
 }
-.bnd-card:hover .bnd-card-emoji { transform: scale(1.28) rotate(-6deg); }
+.bnd-card:hover .bnd-card-emoji { transform: scale(1.28) rotate(-6deg); filter: brightness(0) invert(1) drop-shadow(0 0 6px rgba(255,255,255,0.4)); }
 /* twin card hover reveal */
 .tw-reveal { max-height: 0; opacity: 0; overflow: hidden; transform: translateY(4px); transition: max-height .4s ease, opacity .35s ease, transform .35s ease; }
 .bnd-card:hover .tw-reveal { max-height: 24px; opacity: 1; transform: translateY(0); }
@@ -128,30 +131,38 @@ body { width: 100%; }
 .bnd-cta .bnd-cta-inner { position: relative; overflow: hidden; }
 .bnd-cta .bnd-cta-sheen { position: absolute; top: -40%; left: -70%; width: 45%; height: 180%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.45), transparent); transform: skewX(-18deg); pointer-events: none; }
 .bnd-cta:hover .bnd-cta-sheen { animation: bnd-sheen 720ms cubic-bezier(.2,.7,.2,1) forwards; }
-/* Marvel-style cinematic reveal: emerge from dark (blur + scale-down + rise) */
-.bnd-reveal .bnd-line, .bnd-reveal .bnd-head { opacity: 0; }
+/* Marvel-style cinematic reveal: emerge from dark (blur + scale-down + rise).
+   will-change keeps these on their own compositor layers so the blur/transform
+   tracks never touch the main thread mid-animation. */
+.bnd-reveal .bnd-line, .bnd-reveal .bnd-head { opacity: 0; will-change: opacity, transform; }
 .bnd-reveal.in .bnd-line {
-  animation: bnd-marvel-in 1000ms cubic-bezier(.16,.84,.3,1) both;
+  animation: bnd-marvel-in 550ms cubic-bezier(.22,1,.36,1) both;
 }
+/* transform + opacity ONLY — the two compositor-guaranteed properties.
+   Never animate letter-spacing (re-wraps lines mid-flight), blur (rasterizes
+   big text every frame), or text-shadow (main-thread repaint every frame).
+   The horizontal scale bias fakes the letters tracking in. */
 .bnd-reveal.in .bnd-head {
-  animation: bnd-marvel-head 1300ms cubic-bezier(.16,.84,.3,1) both;
+  animation: bnd-marvel-head 650ms cubic-bezier(.22,1,.36,1) both;
 }
 @keyframes bnd-marvel-in {
-  0%   { opacity: 0; transform: translateY(26px) scale(1.06); filter: blur(9px); }
-  60%  { opacity: 1; }
-  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  0%   { opacity: 0; transform: translateY(18px) scale(1.02); }
+  55%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes bnd-marvel-head {
-  0%   { opacity: 0; transform: translateY(40px) scale(1.14); filter: blur(16px); letter-spacing: 0.24em; }
-  45%  { opacity: 1; text-shadow: 0 6px 40px rgba(0,0,0,0.7), 0 0 120px rgba(255,47,64,0.7); }
-  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); letter-spacing: 0.005em; text-shadow: 0 6px 40px rgba(0,0,0,0.7), 0 0 70px rgba(214,2,26,0.22); }
+  0%   { opacity: 0; transform: translateY(24px) scale(1.1, 1.05); }
+  50%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
+/* runs on a full-height track div; translateY(100%) of the track == the old
+   `top: 100%` of the 2px line, but composited instead of re-layout per frame */
 @keyframes bnd-id-scan {
-  0%   { top: 0%; opacity: 0; }
+  0%   { transform: translateY(0); opacity: 0; }
   12%  { opacity: 1; }
-  50%  { top: 100%; opacity: 1; }
+  50%  { transform: translateY(100%); opacity: 1; }
   62%  { opacity: 0; }
-  100% { top: 0%; opacity: 0; }
+  100% { transform: translateY(0); opacity: 0; }
 }
 @keyframes bnd-id-glitch {
   0%   { transform: translateX(0); filter: none; }
@@ -197,26 +208,190 @@ body { width: 100%; }
   0%, 100% { opacity: 0.35; }
   50%      { opacity: 0.65; }
 }
+/* ===== Music player: spinning cover disc + spectrum (design port v2) ===== */
+@keyframes bnd-disc-spin { to { transform: rotate(360deg); } }
+@keyframes bnd-eq { 0% { transform: scaleY(0.22); } 100% { transform: scaleY(1); } }
+.bnd-eq-bar { transform-origin: bottom; transform: scaleY(0.22); border-radius: 1px; background: linear-gradient(180deg, #ffd23f 0%, #ff5a6a 55%, #c00014 100%); box-shadow: 0 0 5px rgba(255,60,74,0.5); animation-name: bnd-eq; animation-iteration-count: infinite; animation-direction: alternate; animation-timing-function: cubic-bezier(.4,0,.6,1); animation-play-state: paused; }
+/* collapsible body: hover-expand on desktop, click-expand (.open) on touch */
+.bnd-music-body { display: flex; align-items: center; gap: 10px; max-width: 0; opacity: 0; overflow: hidden; transition: max-width .42s cubic-bezier(.16,.84,.3,1), opacity .3s ease, margin-left .3s ease; }
+.bnd-music.open .bnd-music-body { max-width: 420px; opacity: 1; margin-left: 4px; }
+@media (hover: hover) { .bnd-music:hover .bnd-music-body { max-width: 420px; opacity: 1; margin-left: 4px; } }
+
 @keyframes bnd-radar-sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes bnd-radar-ring { 0% { transform: scale(0.2); opacity: 0.9; } 100% { transform: scale(1); opacity: 0; } }
 @keyframes bnd-blip { 0%, 100% { opacity: 0.25; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.25); } }
+
+/* ===== Spider-Verse Feed ambient FX ===== */
+@keyframes bnd-forum-glow { 0%, 100% { opacity: 0.22; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.12); } }
+@keyframes bnd-mote { 0% { transform: translateY(30px) scale(0.5); opacity: 0; } 14% { opacity: 0.9; } 80% { opacity: 0.6; } 100% { transform: translateY(-140px) scale(1); opacity: 0; } }
+@keyframes bnd-forum-scan { 0% { transform: translateY(-30%); opacity: 0; } 8% { opacity: 0.5; } 50% { opacity: 0.5; } 92% { opacity: 0; } 100% { transform: translateY(130%); opacity: 0; } }
+
+/* ===== Tracker: swinging spidey sprite ===== */
+@keyframes bnd-spidey-frames { from { background-position-x: 0; } to { background-position-x: -6160px; } }
+@keyframes bnd-swing-in { 0% { transform: translate(-70px, -82vh) rotate(-16deg); opacity: 0; } 18% { opacity: 1; } 55% { transform: translate(40px, -30vh) rotate(12deg); } 78% { transform: translate(-14px, 14px) rotate(-6deg); } 90% { transform: translate(6px, -4px) rotate(3deg); } 100% { transform: translate(0, 0) rotate(0); } }
+@keyframes bnd-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes bnd-dust { 0% { opacity: 0; transform: translate(0,0) scale(1); } 12% { opacity: 0.9; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.3); } }
+/* spidey swings in only when the tracker section is in view (.play is toggled by an observer) */
+.tracker-spidey .spidey-inner { animation: bnd-sway 3.4s ease-in-out infinite; }
+.tracker-spidey .spidey-dust span { opacity: 0; }
+.tracker-spidey.play .spidey-inner { animation: bnd-swing-in 2400ms cubic-bezier(.22,.68,.28,1) both, bnd-sway 3.4s ease-in-out 2400ms infinite; }
+.tracker-spidey.play .spidey-dust span { animation: bnd-dust 1s ease-out forwards; }
 
 #mj-textarea::placeholder { color: rgba(255,255,255,0.85); text-shadow: 0 0 8px rgba(255,255,255,0.7), 0 0 18px rgba(255,255,255,0.4); opacity: 1; }
 
 /* ===== MJ Wall mobile ===== */
 @media (max-width: 760px) {
-  #mj-wall-section { height: auto !important; min-height: 100svh !important; background-position: 30% top !important; align-items: flex-end !important; }
+  /* dedicated portrait art on phones (mask + MJ reflection, vertical crop) */
+  #mj-wall-section { height: auto !important; min-height: 100svh !important; background-image: url('/assets/mj-bg-mobile.jpg') !important; background-position: center top !important; align-items: flex-end !important; }
   #mj-scrim { background: linear-gradient(180deg, rgba(8,10,26,0) 30%, rgba(8,10,26,0.55) 55%, rgba(8,10,26,0.92) 100%) !important; }
-  #mj-inner { justify-content: center !important; padding: 46vh 22px 56px !important; transform: none !important; }
+  /* the whole prompt (label → actions row) must fit one screenful: 30vh of
+     art above, tightened rhythm below (40vh left the actions under the fold) */
+  #mj-inner { justify-content: center !important; padding: 30vh 22px 34px !important; transform: none !important; }
   #mj-prompt { width: 100% !important; text-align: center !important; }
-  #mj-prompt .bnd-line[style*="inline-flex"] { justify-content: center !important; }
-  #mj-prompt textarea { font-size: 16px !important; }
+  #mj-prompt .bnd-line[style*="inline-flex"] { justify-content: center !important; margin-bottom: 12px !important; }
+  #mj-prompt > p { margin-top: 12px !important; }
+  #mj-composer { margin-top: 16px !important; }
+  /* smaller message box (16px font stays — below that iOS zooms on focus) */
+  #mj-prompt textarea { font-size: 16px !important; height: 88px !important; padding: 13px 16px !important; }
+  /* "Add to the wall" + "View all messages" share one row */
+  #mj-actions { margin-top: 14px !important; flex-wrap: nowrap !important; justify-content: center !important; gap: 12px !important; max-width: 100%; }
+  #mj-actions a { font-size: 11px !important; letter-spacing: 0.12em !important; white-space: nowrap; }
+}
+
+/* ===== Landing mobile: safe viewport + calmer CTAs ===== */
+@media (max-width: 760px) {
+  /* the portrait hero banner carries its own flare, so the desktop sun glow
+     hides — but spidey and the web he hangs from stay (user feedback) */
+  .bnd-hero-deco:not(.bnd-hero-spidey):not(.bnd-hero-web) { display: none !important; }
+  /* the desktop 63vw web reads tiny on portrait — scale it past the edges so
+     spidey (centered at -11vw) still hangs from its middle like on desktop */
+  .bnd-hero-web { width: 115vw !important; }
+  /* the hero logo rides ~15% higher so the banner art breathes below it */
+  .bnd-hero-stack { bottom: calc(clamp(40px, 7vh, 96px) + 15svh) !important; }
+  /* keep the navbar (logo + hamburger) inside the notch-safe zone */
+  .bnd-nav { padding-top: calc(34px + env(safe-area-inset-top, 0px)) !important; }
+  /* music player: half size, docked in the navbar beside the hamburger
+     (hamburger: 46px square at right: 24px; player centers against it) */
+  .bnd-music { left: auto !important; bottom: auto !important; right: 80px !important; top: calc(40px + env(safe-area-inset-top, 0px)) !important; }
+  .bnd-music > div { padding: 4px !important; }
+  .bnd-music-disc { width: 24px !important; height: 24px !important; }
+  .bnd-music-disc > span { width: 5px !important; height: 5px !important; margin: -2.5px 0 0 -2.5px !important; }
+  .bnd-music-title { font-size: 9px !important; }
+  .bnd-music-spec { height: 9px !important; gap: 1px !important; }
+  .bnd-music .bnd-eq-bar { width: 2px !important; }
+  .bnd-music-mute { width: 26px !important; height: 26px !important; }
+  .bnd-music-mute svg { width: 12px; height: 12px; }
+  /* 100vh hides the section bottom behind the iOS URL bar — svh is the small
+     viewport, so bottom-anchored content (hero logo, Living Web header,
+     tracker CTA) stays fully on screen. MJ Wall + footer grow with content
+     (their own rules above/below), so they are exempt. */
+  [data-page]:not([data-page="footer"]):not([data-page="mjwall"]) { height: 100svh !important; }
+  footer[data-page="footer"] {
+    height: auto !important;
+    min-height: 100svh !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* the desktop-sized CTAs read huge on phones — one tier down, everywhere */
+  .bnd-cta .bnd-cta-inner { padding: 11px 22px !important; font-size: 12px !important; }
+  /* MJ "Add to the wall" (landing) — compact so it shares a row with the
+     "View all messages" link */
+  #mj-prompt button > span > span { padding: 10px 14px !important; font-size: 11px !important; letter-spacing: 0.14em !important; }
 }
 
 /* Custom spider cursor across the site (inputs keep the text caret for typing) */
 html, body, a, button, [data-web-hover] {
   cursor: url('/assets/cursor-spider.svg') 36 36, auto;
 }
+/* Hovering anything clickable: the same spidey silhouette in the theme red at
+   the SAME size — only the color changes, never the footprint. !important
+   beats the inline `cursor: pointer` styles ported from the mockup. This
+   image swap is the no-JS fallback — with JS, CursorFx fades a red overlay
+   in/out instead so the transition is smooth.
+   The admin panel opts out entirely (:not(:has(.admin-root))). */
+html:not(:has(.admin-root)) a:hover, html:not(:has(.admin-root)) button:not(:disabled):hover,
+html:not(:has(.admin-root)) select:hover, html:not(:has(.admin-root)) summary:hover,
+html:not(:has(.admin-root)) [role="button"]:hover, html:not(:has(.admin-root)) [data-web-hover]:hover {
+  cursor: url('/assets/cursor-spider-red.svg') 36 36, pointer !important;
+}
+/* CursorFx active: hide the native cursor only while its red overlay is shown
+   (the overlay fades/scales, which a native cursor swap can't do) */
+html.bnd-fx-cursor:not(:has(.admin-root)) a:hover, html.bnd-fx-cursor:not(:has(.admin-root)) button:not(:disabled):hover,
+html.bnd-fx-cursor:not(:has(.admin-root)) select:hover, html.bnd-fx-cursor:not(:has(.admin-root)) summary:hover,
+html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cursor:not(:has(.admin-root)) [data-web-hover]:hover {
+  cursor: none !important;
+}
+.bnd-cursor-fx {
+  position: fixed; left: 0; top: 0; z-index: 9998; pointer-events: none;
+  will-change: transform; /* positioned via translate3d — never transitioned */
+}
+/* 72px = the white cursor's exact footprint; the reveal is a fade + settle
+   rotate only — no scale, so the cursor never changes size on hover */
+.bnd-cursor-fx .bnd-cursor-red {
+  width: 72px; height: 72px; margin: -36px 0 0 -36px;
+  background: url('/assets/cursor-spider-red.svg') center / contain no-repeat;
+  opacity: 0; transform: rotate(-8deg);
+  transition: opacity 170ms ease, transform 220ms cubic-bezier(.2,.7,.3,1);
+}
+.bnd-cursor-fx.on .bnd-cursor-red { opacity: 1; transform: rotate(0deg); }
+/* Click feedback: a red ping that pops at the cursor (see CursorFx) */
+.bnd-click-ping {
+  position: fixed; z-index: 9999; pointer-events: none;
+  width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%;
+  border: 2px solid rgba(255,47,64,0.9);
+  background: radial-gradient(circle, rgba(255,47,64,0.35) 0%, rgba(255,47,64,0.08) 55%, transparent 70%);
+  box-shadow: 0 0 14px rgba(255,47,64,0.55), inset 0 0 8px rgba(255,47,64,0.3);
+  animation: bnd-click-ping 420ms cubic-bezier(.2,.7,.3,1) forwards;
+}
+@keyframes bnd-click-ping {
+  0%   { transform: scale(0.3); opacity: 1; }
+  60%  { opacity: 0.75; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* ============================================================
+   MJ WALL page styles (MJ Wall.dc.html <style> block)
+   ============================================================ */
+#mjw-composer::placeholder { color: rgba(255,255,255,0.55); }
+@keyframes mjw-rise { from { opacity: 0; transform: translateY(24px) scale(1.03); } to { opacity: 1; transform: none; } }
+@keyframes mjw-title-in { 0% { opacity: 0; transform: translateY(20px) scale(1.16, 1.08); } 100% { opacity: 1; transform: none; } }
+.mjw-card { transition: transform .3s ease, box-shadow .3s ease; }
+.mjw-card:hover { transform: scale(1.03); box-shadow: 0 14px 34px rgba(0,0,0,0.5), 0 0 24px rgba(255,40,60,0.3); z-index: 5; }
+.mjw-sheen { position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.18), transparent); transform: skewX(-18deg); pointer-events: none; }
+.mjw-cta:hover .mjw-sheen { animation: mjw-sheen-go .8s ease; }
+@keyframes mjw-sheen-go { from { left: -60%; } to { left: 140%; } }
+@keyframes mjw-float { 0%, 100% { opacity: 0; transform: translateY(20px); } 15% { opacity: .8; } 85% { opacity: .5; } 100% { transform: translateY(-120px); } }
+@keyframes mjw-ray { 0%, 100% { opacity: .1; transform: translateX(-8%); } 50% { opacity: .26; transform: translateX(8%); } }
+@keyframes mjw-flicker { 0%, 100% { opacity: .05; } 50% { opacity: .11; } }
+@keyframes mjw-heartbeat { 0%, 100% { opacity: .18; transform: translate(-50%, -50%) scale(1); } 50% { opacity: .4; transform: translate(-50%, -50%) scale(1.14); } }
+@media (max-width: 760px) {
+  .mjw-cta > span > span { padding: 10px 18px !important; font-size: 12px !important; }
+}
+@keyframes mjw-mj-pulse { 0%, 100% { opacity: .11; filter: grayscale(0.28) contrast(1.05); } 50% { opacity: .2; filter: grayscale(0.15) contrast(1.08); } }
+
+/* ---- living wall columns: seamless vertical loops ---- */
+/* the page never scrolls — the columns do (dvh keeps the composer above the
+   iOS toolbar; vh is the fallback) */
+.mjw-page { height: 100vh; height: 100dvh; }
+/* soft fade where cards enter/leave at the top and bottom edges */
+.mjw-viewport {
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 52px, #000 calc(100% - 56px), transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 52px, #000 calc(100% - 56px), transparent 100%);
+}
+/* column content is doubled, so -50% lands exactly one copy down: the wrap is
+   invisible. Down-columns run the same distance in reverse. */
+@keyframes mjw-loop-up { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, -50%, 0); } }
+@keyframes mjw-loop-down { from { transform: translate3d(0, -50%, 0); } to { transform: translate3d(0, 0, 0); } }
+.mjw-col-loop { will-change: transform; }
+.mjw-col:hover .mjw-col-loop, .mjw-hold .mjw-col-loop { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .mjw-col-loop { animation: none !important; } }
+
+/* ============================================================
+   Living Web — twins roster (twin mode of the landing section)
+   ============================================================ */
+.lw-twin-row { animation: fm-rise .45s cubic-bezier(.16,.84,.3,1) both; transition: background .25s ease, border-color .25s ease; }
+.lw-twin-row:hover { background: rgba(255,255,255,0.07) !important; border-color: rgba(255,255,255,0.16) !important; }
+.lw-ghost { transition: border-color .25s ease, color .25s ease, background .25s ease, transform .25s ease; }
+.lw-ghost:hover { border-color: rgba(255,60,74,0.65) !important; color: #fff !important; background: rgba(255,40,60,0.1) !important; transform: translateY(-2px); }
 
 /* ============================================================
    FORUM page styles (Spider-Verse Forum.dc.html <style> block)
@@ -247,22 +422,107 @@ html, body, a, button, [data-web-hover] {
   background: linear-gradient(150deg, rgba(150,180,255,0.55), rgba(255,60,80,0.75));
   box-shadow: 0 20px 44px rgba(0,0,0,0.5), 0 0 30px rgba(255,40,60,0.4);
 }
-.feed-thread:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 16px 36px rgba(0,0,0,0.5), 0 0 22px rgba(255,40,60,0.26);
+/* footer (promoted from the mockup's style-hover) */
+.trailer-card:hover { transform: translateY(-4px); box-shadow: 0 26px 60px rgba(0,0,0,0.55), 0 0 36px rgba(255,40,60,0.32); }
+.footer-social:hover { background: rgba(255,40,60,0.16); border-color: rgba(255,60,74,0.5); color: #fff; }
+.footer-link:hover { color: #ff5a6a; }
+/* footer columns stack on phones (source grid is desktop-only) */
+@media (max-width: 700px) {
+  .footer-cols { grid-template-columns: 1fr !important; }
 }
-.feed-pill:hover { border-color: rgba(255,60,74,0.6); background: rgba(255,40,60,0.12); }
+
+/* ===== Nav account popup items ===== */
+.bnd-pop-item:hover { background: rgba(255,40,60,0.12) !important; }
+
+/* ===== Walkthrough modal: responsive card grid + scroll on phones ===== */
+@media (max-width: 760px) {
+  .walk-panel { max-height: min(88dvh, 88vh); overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
+  .walk-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 540px) {
+  .walk-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+  .walk-panel { max-height: 92dvh; }
+  .walk-head { padding: 24px 18px 0 !important; }
+  .walk-head h2 { font-size: 19px !important; }
+  .walk-head p { font-size: 12px !important; line-height: 1.45 !important; margin-top: 8px !important; }
+  .walk-body { padding: 14px 14px 22px !important; }
+  .walk-body .bnd-card-body { padding: 11px 12px !important; }
+  .walk-body .bnd-card-body > div:first-child { margin-bottom: 6px !important; }
+  .walk-body .bnd-card-body > div:last-child { font-size: 11px !important; }
+}
+
+/* ===== Living Web world map: keep the flat-map aspect on phones (the
+   desktop wrapper is %-of-section and stretches badly when tall+narrow) ===== */
+@media (max-width: 760px) {
+  .lw-map {
+    top: 9% !important; bottom: auto !important; left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 150% !important; height: auto !important; aspect-ratio: 2 / 1;
+  }
+  .lw-twin-grid { grid-template-columns: 1fr !important; gap: 9px !important; max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+}
+
+/* ===== Web rail: right-side section nav ===== */
+.bnd-rail-dot { transition: background .25s ease, transform .25s ease, box-shadow .25s ease; }
+.bnd-rail-item:hover .bnd-rail-dot { background: rgba(255,255,255,0.65) !important; transform: scale(1.4); }
+.bnd-rail-item .bnd-rail-label { opacity: 0; transform: translateY(-50%) translateX(6px); transition: opacity .22s ease, transform .22s ease; }
+.bnd-rail-item:hover .bnd-rail-label, .bnd-rail-item:focus-visible .bnd-rail-label { opacity: 1; transform: translateY(-50%) translateX(0); }
 
 /* ---- Forum responsive (source layout is desktop-only; add mobile) ---- */
+/* the rules icon and floating create button exist only where the sidebar is gone */
+.fm-rules-btn { display: none; }
+.fm-fab {
+  display: none; position: fixed; right: 18px; bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index: 70; width: 56px; height: 56px; border-radius: 50%; border: 0; cursor: pointer;
+  align-items: center; justify-content: center;
+  background: linear-gradient(180deg, #ff3a4a, #c00014);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.55), 0 0 24px rgba(255,40,60,0.4), inset 0 0 0 1px rgba(255,255,255,0.14);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.fm-fab:active { transform: scale(0.92); }
 @media (max-width: 900px) {
-  .fm-layout { grid-template-columns: 1fr !important; }
-  .fm-right { position: static !important; top: auto !important; }
+  .fm-layout { grid-template-columns: 1fr !important; padding: 14px 12px 70px !important; gap: 14px !important; }
+  /* phones run a simplified forum: no sidebar (create → the floating +, rules
+     → the sortbar shield popup) and no "share your story" prompt card */
+  .fm-right { display: none !important; }
+  .fm-prompt { display: none !important; }
+  .fm-fab { display: flex !important; }
+  .fm-rules-btn { display: inline-flex !important; }
+  /* sort tabs + spoiler toggle ride along under the sticky header (reddit-style) */
+  .fm-sortbar {
+    position: sticky; top: 65px; z-index: 30;
+    padding: 10px 4px !important; margin: -6px -4px 0;
+    background: linear-gradient(180deg, rgba(8,7,14,0.94), rgba(8,7,14,0.8));
+    backdrop-filter: blur(10px);
+  }
 }
 @media (max-width: 560px) {
   .fm-header-title { display: none !important; }
-  /* Exit Forum collapses to its icon on small screens */
-  .fm-exit { padding: 9px 11px !important; }
-  .fm-exit-label { display: none; }
+  /* no Home pill on phones — the logo is the way home, and the account
+     popup carries a Back to Home entry too */
+  .fm-exit { display: none !important; }
+  /* sortbar splits into two rows: Top + Hot, then the spoiler toggle (its
+     "Spoilers shown/hidden" text stays visible) with the rules button */
+  .fm-sortbar { flex-wrap: wrap !important; row-gap: 9px !important; }
+  .fm-sortbar::before { content: ""; width: 100%; order: 2; }
+  .fm-sortbar > button[aria-pressed] { order: 3; margin-left: 0 !important; flex: 1 1 auto; justify-content: center !important; }
+  .fm-rules-btn { order: 4; }
+  /* tighter cards: slimmer vote rail, less padding, calmer type — the desktop
+     chrome reads bulky on phones (user feedback), so everything drops a tier
+     while keeping the full feature set */
+  .fm-vote { width: 40px !important; padding: 10px 0 !important; gap: 3px !important; }
+  .fm-vote svg { width: 15px !important; height: 15px !important; }
+  .fm-vote span { font-size: 13px !important; }
+  .fm-post-body { padding: 11px 12px !important; }
+  .fm-post-body h3 { font-size: 15.5px !important; line-height: 1.25 !important; margin-bottom: 5px !important; }
+  .fm-post-body p { font-size: 13px !important; line-height: 1.45 !important; }
+  .fm-post-body > div:first-child { margin-bottom: 6px !important; }
+  /* simple compact card: snippet clamps to two lines, media previews stay short */
+  .fm-snippet { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 9px !important; }
+  .fm-media { margin-bottom: 9px !important; }
+  .fm-media img, .fm-media video { max-height: 160px !important; }
+  /* CTAs one tier down (load more / create post / post to the web) */
+  .fm-cta > span > span { padding: 10px 22px !important; font-size: 12px !important; }
 }
 .fm-exit:hover { border-color: rgba(255,60,74,0.5) !important; color: #ff8a95 !important; }
 
@@ -270,6 +530,41 @@ html, body, a, button, [data-web-hover] {
 @keyframes bnd-notif-pulse {
   0%, 100% { box-shadow: 0 0 0 2px #0c0a12, 0 0 0 0 rgba(255,58,74,0.55); }
   50%      { box-shadow: 0 0 0 2px #0c0a12, 0 0 0 6px rgba(255,58,74,0); }
+}
+
+/* ============================================================
+   REVEAL MY IDENTITY (quiz + reward) — Reveal My Identity.dc.html
+   ============================================================ */
+@keyframes ri-rise { from { opacity: 0; transform: translateY(28px) scale(1.04); filter: blur(8px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes ri-scan { 0% { top: 0; opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+@keyframes ri-emblem { 0%,100% { transform: scale(1); filter: drop-shadow(0 0 20px var(--gl)); } 50% { transform: scale(1.05); filter: drop-shadow(0 0 44px var(--gl)); } }
+@keyframes ri-ring { 0% { transform: scale(0.6); opacity: 0.8; } 100% { transform: scale(1.5); opacity: 0; } }
+@keyframes ri-decode { 0% { opacity: 0; transform: translateY(24px) scale(1.14); filter: blur(14px); letter-spacing: 0.3em; } 50% { opacity: 1; } 100% { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes ri-mote { 0% { transform: translateY(30px); opacity: 0; } 15% { opacity: .8; } 85% { opacity: .5; } 100% { transform: translateY(-140px); opacity: 0; } }
+@keyframes ri-burst { 0% { width: 40px; height: 40px; margin: -20px 0 0 -20px; opacity: 0.9; } 100% { width: 150vmax; height: 150vmax; margin: -75vmax 0 0 -75vmax; opacity: 0; } }
+@keyframes ri-flash { 0% { opacity: 0; } 18% { opacity: 0.85; } 100% { opacity: 0; } }
+@keyframes ri-spark { 0% { transform: translateY(0) scale(1); opacity: 0; } 12% { opacity: 1; } 100% { transform: translateY(-220px) scale(0.2); opacity: 0; } }
+@keyframes ri-bg-breathe { 0%,100% { transform: scale(1.04); } 50% { transform: scale(1.1); } }
+@keyframes ri-ray-drift { 0%,100% { opacity: 0.1; transform: rotate(9deg) translateX(-6%); } 50% { opacity: 0.28; transform: rotate(9deg) translateX(6%); } }
+@keyframes ri-ray-drift2 { 0%,100% { opacity: 0.08; transform: rotate(-7deg) translateX(6%); } 50% { opacity: 0.24; transform: rotate(-7deg) translateX(-6%); } }
+@keyframes ri-pulse-glow { 0%,100% { opacity: 0.25; } 50% { opacity: 0.55; } }
+@keyframes ri-scanline-bg { 0% { transform: translateY(-10%); } 100% { transform: translateY(110%); } }
+@keyframes ri-card-in { 0% { opacity: 0; transform: translateY(40px) scale(0.82) rotateX(18deg); filter: blur(14px); } 60% { opacity: 1; } 100% { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes ri-card-float { 0%,100% { transform: translateY(0) rotate(-0.6deg); } 50% { transform: translateY(-12px) rotate(0.6deg); } }
+@keyframes ri-q-in { 0% { opacity: 0; transform: translateY(22px) scale(1.05); filter: blur(10px); } 100% { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes ri-opt-in { 0% { opacity: 0; transform: translateX(-28px); filter: blur(5px); } 100% { opacity: 1; transform: none; filter: blur(0); } }
+.ri-anim-q { animation: ri-q-in .6s cubic-bezier(.16,.84,.3,1) both; }
+.ri-anim-o { animation: ri-opt-in .55s cubic-bezier(.16,.84,.3,1) both; }
+.ri-opt { transition: transform .3s cubic-bezier(.16,.84,.3,1), background .3s ease, border-color .3s ease, box-shadow .3s ease; }
+.ri-opt:hover { transform: translateX(6px); border-color: rgba(255,60,74,0.6) !important; background: rgba(255,40,60,0.12) !important; box-shadow: 0 10px 30px rgba(0,0,0,0.4), 0 0 22px rgba(255,40,60,0.25); }
+.ri-cta:hover .ri-sheen { animation: ri-sheen-go .8s ease; }
+.ri-sheen { position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.18), transparent); transform: skewX(-18deg); pointer-events: none; }
+@keyframes ri-sheen-go { from { left: -60%; } to { left: 140%; } }
+.ri-ghost:hover { color: #fff !important; border-color: rgba(255,60,74,0.6) !important; }
+@media (max-width: 680px) {
+  .ri-opt:hover { transform: none !important; }
+  .ri-progress-wrap { flex-wrap: wrap; justify-content: center; }
+  .ri-cta span span { padding: 12px 24px !important; font-size: 12.5px !important; }
 }
 
 /* Respect reduced-motion for decorative loops (the JS branches on this too) */

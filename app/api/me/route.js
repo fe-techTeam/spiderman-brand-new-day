@@ -7,7 +7,8 @@ async function meDTO(userId) {
     `SELECT u.id, u.username, u.email, u.spidey_code, u.tagline, u.state, u.country,
             u.quiz_completed_at,
             a.name AS avatar_name, a.emoji AS avatar_emoji, a.tagline AS avatar_tagline,
-            a.description AS avatar_description, a.color AS avatar_color, a.slug AS avatar_slug
+            a.description AS avatar_description, a.color AS avatar_color, a.slug AS avatar_slug,
+            a.badge_asset AS avatar_card, a.profile_asset AS avatar_pic
      FROM users u LEFT JOIN avatars a ON a.id = u.avatar_id
      WHERE u.id = ?`,
     [userId]
@@ -29,6 +30,8 @@ async function meDTO(userId) {
           tagline: row.avatar_tagline,
           description: row.avatar_description,
           color: row.avatar_color,
+          card: row.avatar_card,
+          pic: row.avatar_pic, // identity profile picture (admin-managed)
         }
       : null,
   };

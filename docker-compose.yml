@@ -1,0 +1,67 @@
+# App + MySQL 8. Env comes from ./.env (copy .env.example, fill it in —
+# same keys as .env.local; DB_HOST is overridden to the db service below).
+#
+#   docker compose up -d --build          # db → migrations → app
+#   docker compose run --rm migrate node scripts/seed-admin.js   # once
+#
+# Full workflow + CloudFront/S3 setup: DEPLOYMENT.md.
+
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      MYSQL_DATABASE: ${DB_NAME:-spiderman_bnd}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    restart: unless-stopped
+    # Uncomment to reach MySQL from the host:
+    # ports:
+    #   - "3306:3306"
+
+  # One-shot: applies migrations/*.sql (idempotent). Seeding the super admin is
+  # deliberately NOT run on every start — seed-admin.js bumps token_version and
+  # would log out active admin sessions. Run it once via the command up top.
+  migrate:
+    build: .
+    command: ["node", "scripts/migrate.js"]
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      args:
+        DEPLOYMENT_ID: ${DEPLOYMENT_ID:-}
+    ports:
+      - "3000:3000"
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+    volumes:
+      # Local-driver media (STORAGE_DRIVER=local). Rows written before a switch
+      # to s3 keep reading from here, so keep the volume even after switching.
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # Let Next finish in-flight requests + after() callbacks on shutdown.
+    stop_grace_period: 30s
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  uploads:

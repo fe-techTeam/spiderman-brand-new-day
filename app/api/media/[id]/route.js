@@ -10,10 +10,20 @@ import { verifyAdminSession } from "@/lib/server/admin-auth";
 import { getObjectStream } from "@/lib/server/storage";
 import { vId } from "@/lib/server/validate";
 
+// no-store on misses/denials: the same URL is later requested by the owner
+// with cookies, and CloudFront would otherwise negative-cache the 404 and
+// serve it to them (cookies are deliberately not part of the CDN cache key).
+function notFound() {
+  return Response.json(
+    { error: "Not found" },
+    { status: 404, headers: { "Cache-Control": "private, no-store" } }
+  );
+}
+
 export async function GET(request, { params }) {
   const { id: rawId } = await params;
   const id = vId(rawId);
-  if (!id) return Response.json({ error: "Not found" }, { status: 404 });
+  if (!id) return notFound();
 
   const [media] = await query(
     `SELECT m.id, m.user_id, m.storage, m.file_path, m.mime_type,
@@ -25,7 +35,7 @@ export async function GET(request, { params }) {
      FROM media m WHERE m.id = ?`,
     [id]
   );
-  if (!media) return Response.json({ error: "Not found" }, { status: 404 });
+  if (!media) return notFound();
 
   const isPublic = media.fan_art_status === "approved" || media.on_active_post === 1;
   let allowed = isPublic;
@@ -37,18 +47,24 @@ export async function GET(request, { params }) {
     const admin = await verifyAdminSession();
     allowed = Boolean(admin);
   }
-  if (!allowed) return Response.json({ error: "Not found" }, { status: 404 });
+  if (!allowed) return notFound();
 
   const obj = await getObjectStream(media);
-  if (!obj) return Response.json({ error: "Not found" }, { status: 404 });
+  if (!obj) return notFound();
 
+  // Public media: bytes at a key never change (random hex names), only the
+  // visibility can be revoked — so let CloudFront hold them a day and browsers
+  // an hour. Un-approving/deleting needs a CDN invalidation (DEPLOYMENT.md).
+  // Owner/admin previews of pending media stay uncacheable.
   return new Response(obj.stream, {
     headers: {
       "Content-Type": media.mime_type,
       ...(obj.size != null ? { "Content-Length": String(obj.size) } : {}),
       "Content-Disposition": "inline",
       "X-Content-Type-Options": "nosniff",
-      "Cache-Control": isPublic ? "public, max-age=3600" : "private, no-store",
+      "Cache-Control": isPublic
+        ? "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400"
+        : "private, no-store",
     },
   });
 }

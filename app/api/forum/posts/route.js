@@ -4,15 +4,18 @@ import { decodeCursor, encodeCursor, hotScore, mediaForPosts, postDTO } from "@/
 import { saveUpload } from "@/lib/server/uploads";
 import { vEnum, vId, vString } from "@/lib/server/validate";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { postingBlockedResponse } from "@/lib/server/moderation";
 
 const MAX_POST_MEDIA = 4;
 
 const SELECT = `
-  SELECT p.id, p.title, p.body, p.is_spoiler, p.score, p.comment_count, p.hot_score, p.created_at,
-         u.username, c.handle AS community_handle, c.color AS community_color, f.label AS flair_label,
+  SELECT p.id, p.title, p.body, p.is_spoiler, p.score, p.comment_count, p.hot_score, p.created_at, p.edited_at,
+         u.username, av.profile_asset AS author_avatar_pic,
+         c.handle AS community_handle, c.color AS community_color, f.label AS flair_label,
          pv.value AS my_vote
   FROM posts p
   JOIN users u ON u.id = p.user_id
+  LEFT JOIN avatars av ON av.id = u.avatar_id
   LEFT JOIN communities c ON c.id = p.community_id
   LEFT JOIN flairs f ON f.id = p.flair_id
   LEFT JOIN post_votes pv ON pv.post_id = p.id AND pv.user_id = ?`;
@@ -75,6 +78,8 @@ export async function POST(request) {
   const gate = await requireUser();
   if (gate.error) return gate.error;
   const user = gate.user;
+  const banned = postingBlockedResponse(user);
+  if (banned) return banned;
   if (!user.quiz_completed_at) {
     return Response.json(
       { error: "Discover your Spider identity before posting", code: "quiz_required" },
@@ -85,7 +90,7 @@ export async function POST(request) {
     return Response.json({ error: "You're posting too fast — take a breath." }, { status: 429 });
   }
 
-  // JSON (text-only) or multipart (with photos/videos) — both supported.
+  // JSON (text-only) or multipart (with photos) — both supported.
   let title, text, isSpoiler, communityId, flairId;
   let files = [];
   const contentType = request.headers.get("content-type") || "";
@@ -130,7 +135,7 @@ export async function POST(request) {
   const saved = [];
   for (const file of files) {
     try {
-      saved.push(await saveUpload(file, "posts", { allowVideo: true }));
+      saved.push(await saveUpload(file, "posts", { allowVideo: false }));
     } catch (err) {
       return Response.json({ error: err.message }, { status: 400 });
     }

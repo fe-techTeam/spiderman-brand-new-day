@@ -86,8 +86,14 @@ function UserChip({ user, logout }) {
     <div style={s("position: relative; flex-shrink: 0;")}>
       <button onClick={() => setOpen((v) => !v)} data-web-hover="true" aria-label="Account" style={s("display: flex; align-items: center; gap: 9px; border: 0; padding: 0; background: transparent; cursor: pointer;")}>
         <span className="fm-username" style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.85);")}>u/{user.username}</span>
-        <span className="fm-avatar" style={s("flex-shrink: 0; width: 38px; height: 38px; border-radius: 11px; background: radial-gradient(circle at 40% 32%, #2a1420, #0c0a16); border: 1px solid rgba(255,60,74,0.4); display: flex; align-items: center; justify-content: center;")}>
-          <SpiderAvatar />
+        <span className="fm-avatar" style={s("flex-shrink: 0; width: 38px; height: 38px; border-radius: 11px; background: radial-gradient(circle at 40% 32%, #2a1420, #0c0a16); border: 1px solid rgba(255,60,74,0.4); display: flex; align-items: center; justify-content: center; overflow: hidden;")}>
+          {user.avatar?.pic ? (
+            // identity profile picture (avatars master, admin-managed)
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={user.avatar.pic} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          ) : (
+            <SpiderAvatar />
+          )}
         </span>
       </button>
 
@@ -96,6 +102,10 @@ function UserChip({ user, logout }) {
           <div onClick={() => setOpen(false)} style={s("position: fixed; inset: 0; z-index: 44;")}></div>
           <div style={s("position: absolute; top: calc(100% + 10px); right: 0; z-index: 45; width: 180px; background: linear-gradient(160deg, rgba(18,14,22,0.98), rgba(9,8,14,0.99)); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; box-shadow: 0 26px 60px rgba(0,0,0,0.6); overflow: hidden; animation: bnd-menu-drop 220ms cubic-bezier(.2,.7,.2,1) both;")}>
             <div style={s("padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;")}>u/{user.username}</div>
+            <Link href="/" onClick={() => setOpen(false)} data-web-hover="true" style={s("display: flex; align-items: center; gap: 9px; width: 100%; box-sizing: border-box; text-align: left; text-decoration: none; padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.85);")}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>
+              Back to Home
+            </Link>
             <button onClick={() => { setOpen(false); logout(); }} data-web-hover="true" style={s("display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 13px 16px; font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: #ff6b79; cursor: pointer;")}>Sign out</button>
           </div>
         </>
@@ -118,8 +128,8 @@ export default function ForumHeader() {
       </Link>
       <div style={s("margin-left: auto; display: flex; align-items: center; gap: 12px; flex-shrink: 0;")}>
         <Link href="/" className="fm-exit" data-web-hover="true" style={s("display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border: 1px solid rgba(255,255,255,0.16); border-radius: 999px; background: rgba(255,255,255,0.04); text-decoration: none; color: rgba(255,255,255,0.75); font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; transition: border-color .2s ease, color .2s ease;")}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" /></svg>
-          <span className="fm-exit-label">Exit Forum</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>
+          <span className="fm-exit-label">Home</span>
         </Link>
         {loading ? null : user ? (
           <>

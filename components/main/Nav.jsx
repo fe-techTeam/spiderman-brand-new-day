@@ -1,13 +1,14 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { s } from "@/lib/style";
 import { useSession } from "@/components/auth/SessionProvider";
 
 // Fixed top navigation + mobile dropdown menu. Ported from the hero's <nav>.
-// Logged-in users see "u/username" (→ /quiz or /forum) plus a Sign out link
-// instead of the SWING IN CTA.
+// Logged-in users see a "u/username" chip that opens a small account popup
+// (My Space + Sign out) instead of the SWING IN CTA.
 export default function Nav({
   isDesktop,
   mobileMenuVisible,
@@ -21,9 +22,24 @@ export default function Nav({
   const { user, logout } = useSession();
   const goAccount = () => router.push(user && user.needsQuiz ? "/quiz" : "/forum");
 
+  // account popup anchored to the username chip
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuWrapRef = useRef(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e) => { if (menuWrapRef.current && !menuWrapRef.current.contains(e.target)) setMenuOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setMenuOpen(false); };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
   return (
     <>
-      <nav style={s("position: fixed; top: 0; left: 0; right: 0; z-index: 50; padding: clamp(14px, 2vh, 22px) clamp(24px, 4vw, 60px); display: flex; align-items: center; justify-content: space-between; gap: clamp(12px, 2vw, 24px); opacity: 1; background: linear-gradient(to bottom, rgba(8,8,12,0.55) 0%, rgba(8,8,12,0) 100%);")}>
+      <nav className="bnd-nav" style={s("position: fixed; top: 0; left: 0; right: 0; z-index: 50; padding: clamp(14px, 2vh, 22px) clamp(24px, 4vw, 60px); display: flex; align-items: center; justify-content: space-between; gap: clamp(12px, 2vw, 24px); opacity: 1; background: linear-gradient(to bottom, rgba(8,8,12,0.55) 0%, rgba(8,8,12,0) 100%);")}>
         <a href="#" onClick={(e) => { e.preventDefault(); onGoHome(); }} style={s("display: block; line-height: 0; flex-shrink: 0;")}>
           <img src="/assets/nav-logo.png" alt="Spider-Man: Brand New Day" style={s("height: clamp(44px, 4.4vw, 64px); width: auto; display: block; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6));")} />
         </a>
@@ -56,13 +72,41 @@ export default function Nav({
               ))}
             </ul>
             {user ? (
-              <div style={s("display: flex; align-items: center; gap: 16px;")}>
-                <button onClick={goAccount} style={s("position: relative; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
+              <div ref={menuWrapRef} style={s("position: relative;")}>
+                <button onClick={() => setMenuOpen((v) => !v)} aria-haspopup="true" aria-expanded={menuOpen} style={s("position: relative; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
                   <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #1f4cd6 0%, #0b2a8a 100%); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); box-shadow: 0 6px 22px rgba(31,76,214,0.45), 0 0 0 1px rgba(255,255,255,0.05);")}>
-                    <span style={s("display: block; padding: 14px 28px; background: linear-gradient(180deg, #ff1f33 0%, #c00014 100%); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-weight: 700; font-size: 14px; letter-spacing: 0.22em; text-transform: none; text-shadow: 0 1px 0 rgba(0,0,0,0.35);")}>{"u/" + user.username}</span>
+                    <span style={s("display: inline-flex; align-items: center; gap: 9px; padding: 14px 28px; background: linear-gradient(180deg, #ff1f33 0%, #c00014 100%); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-weight: 700; font-size: 14px; letter-spacing: 0.22em; text-transform: none; text-shadow: 0 1px 0 rgba(0,0,0,0.35);")}>
+                      {"u/" + user.username}
+                      <span aria-hidden="true" style={s(`font-size: 10px; letter-spacing: 0; transform: rotate(${menuOpen ? "180deg" : "0deg"}); transition: transform 200ms ease;`)}>▾</span>
+                    </span>
                   </span>
                 </button>
-                <button onClick={logout} data-web-hover="true" className="link-hover-red" style={s("border: 0; background: transparent; cursor: pointer; padding: 4px 0; color: rgba(255,255,255,0.6); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; font-family: inherit; transition: color 200ms ease;")}>Sign out</button>
+
+                {/* account popup */}
+                {menuOpen && (
+                  <div style={s("position: absolute; top: calc(100% + 10px); right: 0; z-index: 60; min-width: 200px; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.35), rgba(255,40,60,0.4)); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); box-shadow: 0 22px 60px rgba(0,0,0,0.6); animation: bnd-menu-drop 220ms cubic-bezier(.2,.7,.2,1) both;")}>
+                    <div style={s("background: linear-gradient(160deg, rgba(13,18,36,0.98), rgba(8,10,20,0.99)); clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px); padding: 10px;")}>
+                      <div style={s("padding: 8px 10px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 8px;")}>
+                        <div style={s("font-family: 'Oswald', sans-serif; font-size: 13px; color: #fff; letter-spacing: 0.04em;")}>{"u/" + user.username}</div>
+                        <div style={s("margin-top: 2px; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.4);")}>Signed in</div>
+                      </div>
+                      <button onClick={() => { setMenuOpen(false); goAccount(); }} data-web-hover="true" style={s("width: 100%; display: flex; align-items: center; gap: 9px; border: 0; background: transparent; cursor: pointer; padding: 10px; border-radius: 8px; color: rgba(255,255,255,0.85); font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; text-align: left; transition: background .2s ease;")} className="bnd-pop-item">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>
+                        {user.needsQuiz ? "Finish Onboarding" : "My Space"}
+                      </button>
+                      {!user.needsQuiz && (
+                        <button onClick={() => { setMenuOpen(false); router.push("/quiz?retake=1"); }} data-web-hover="true" style={s("width: 100%; display: flex; align-items: center; gap: 9px; border: 0; background: transparent; cursor: pointer; padding: 10px; border-radius: 8px; color: rgba(255,255,255,0.85); font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; text-align: left; transition: background .2s ease;")} className="bnd-pop-item">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 11-2.6-6.4" /><path d="M21 3v6h-6" /></svg>
+                          Retake Identity Quiz
+                        </button>
+                      )}
+                      <button onClick={() => { setMenuOpen(false); logout(); }} data-web-hover="true" style={s("width: 100%; display: flex; align-items: center; gap: 9px; border: 0; background: transparent; cursor: pointer; padding: 10px; border-radius: 8px; color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; text-align: left; transition: background .2s ease;")} className="bnd-pop-item">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <button onClick={onGetStarted} style={s("position: relative; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
@@ -105,6 +149,9 @@ export default function Nav({
           {user ? (
             <>
               <button onClick={goAccount} style={s("width: 100%; margin-top: 14px; border: 0; padding: 16px; background: linear-gradient(180deg, #ff1f33 0%, #c00014 100%); color: #fff; font-weight: 700; font-size: 15px; letter-spacing: 0.24em; text-transform: none; border-radius: 10px; cursor: pointer; font-family: inherit;")}>{"u/" + user.username}</button>
+              {!user.needsQuiz && (
+                <button onClick={() => router.push("/quiz?retake=1")} style={s("width: 100%; margin-top: 10px; border: 1px solid rgba(255,255,255,0.16); padding: 12px; background: transparent; color: rgba(255,255,255,0.8); font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; border-radius: 10px; cursor: pointer; font-family: inherit;")}>Retake Identity Quiz</button>
+              )}
               <button onClick={logout} style={s("width: 100%; margin-top: 10px; border: 0; padding: 12px; background: transparent; color: rgba(255,255,255,0.65); font-size: 13px; letter-spacing: 0.22em; text-transform: uppercase; border-radius: 10px; cursor: pointer; font-family: inherit;")}>Sign out</button>
             </>
           ) : (

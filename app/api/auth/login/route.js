@@ -2,6 +2,7 @@ import { query } from "@/lib/server/db";
 import { createUserSession, verifyUserPassword } from "@/lib/server/auth";
 import { vString } from "@/lib/server/validate";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { logIpEvent } from "@/lib/server/geo-ip";
 
 export async function POST(request) {
   const body = await request.json().catch(() => ({}));
@@ -23,7 +24,8 @@ export async function POST(request) {
   }
 
   await createUserSession(user);
-  await query("UPDATE users SET last_login_at = NOW(3) WHERE id = ?", [user.id]);
+  await query("UPDATE users SET last_login_at = NOW(3), last_login_ip = ? WHERE id = ?", [ip, user.id]);
+  await logIpEvent(user.id, "login", request);
 
   const [me] = await query(
     "SELECT id, username, quiz_completed_at FROM users WHERE id = ?",

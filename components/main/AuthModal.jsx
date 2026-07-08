@@ -4,12 +4,12 @@
 import { useEffect, useState } from "react";
 import { s } from "@/lib/style";
 import { portalApi } from "@/lib/portal/api";
-import { COUNTRIES, DEFAULT_COUNTRY_ISO } from "@/lib/geo";
 
 // Register / Login popup rendered globally by SessionProvider. Calls the real
 // auth APIs; per-field validation errors from err.fields render under the
-// matching inputs. Fields: register = Username, Email, Mobile, Password;
-// login = Email, Password. A minimal "forgot password" body swaps in from login.
+// matching inputs. Fields: register = Username, Email, Password (mobile is
+// backend-only now — country comes from the signup IP); login = Email,
+// Password. A minimal "forgot password" body swaps in from login.
 const FIELD = "width: 100%; box-sizing: border-box; border: 0; outline: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); border-radius: 9px; padding: 13px 15px; color: #fff; font-family: inherit; font-size: 15px;";
 const LABEL = "display: block; margin-bottom: 6px; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.55);";
 const FIELD_ERR = "font-size: 12px; color: #ff6b79; margin-top: 4px;";
@@ -34,8 +34,6 @@ export default function AuthModal({ initialMode = "register", onClose, onAuthed 
     username: "",
     email: "",
     identifier: "", // login accepts email OR username
-    countryIso: DEFAULT_COUNTRY_ISO,
-    mobile: "",
     password: "",
   });
   const [submitting, setSubmitting] = useState(false);
@@ -69,10 +67,6 @@ export default function AuthModal({ initialMode = "register", onClose, onAuthed 
     if (isReg) {
       if (!/^[a-z0-9_]{3,30}$/.test(form.username.trim().toLowerCase())) {
         errs.username = "3–30 characters: letters, numbers, underscores";
-      }
-      const digits = form.mobile.replace(/[\s()-]/g, "");
-      if (!/^\d{6,12}$/.test(digits)) {
-        errs.mobile = "Enter your number without the country code (6–12 digits)";
       }
     }
     if (!isForgot) {
@@ -114,8 +108,6 @@ export default function AuthModal({ initialMode = "register", onClose, onAuthed 
           body: {
             username: form.username,
             email: form.email,
-            countryIso: form.countryIso,
-            mobile: form.mobile.replace(/[\s()-]/g, ""),
             password: form.password,
           },
         });
@@ -178,7 +170,7 @@ export default function AuthModal({ initialMode = "register", onClose, onAuthed 
               <p style={s("margin: 0 0 18px; font-size: 13.5px; line-height: 1.55; color: rgba(226,226,240,0.7);")}>Enter your email and we&apos;ll send you a link to reset your password.</p>
               <div style={s("margin-bottom: 22px;")}>
                 <label style={s(LABEL)}>Email</label>
-                <input value={form.email} onChange={set("email")} type="email" autoComplete="email" placeholder="you@example.com" required style={s(FIELD)} />
+                <input value={form.email} onChange={set("email")} type="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="you@example.com" required style={s(FIELD)} />
                 {fieldError("email")}
               </div>
               {forgotMsg && (
@@ -198,51 +190,21 @@ export default function AuthModal({ initialMode = "register", onClose, onAuthed 
               {isReg && (
                 <div style={s("margin-bottom: 14px;")}>
                   <label style={s(LABEL)}>Username</label>
-                  <input value={form.username} onChange={set("username")} type="text" autoComplete="username" placeholder="your_web_handle" required style={s(FIELD)} />
+                  <input value={form.username} onChange={set("username")} type="text" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="your_web_handle" required style={s(FIELD)} />
                   {fieldError("username")}
                 </div>
               )}
               {isReg ? (
                 <div style={s("margin-bottom: 14px;")}>
                   <label style={s(LABEL)}>Email</label>
-                  <input value={form.email} onChange={set("email")} type="email" autoComplete="email" placeholder="you@example.com" required style={s(FIELD)} />
+                  <input value={form.email} onChange={set("email")} type="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="you@example.com" required style={s(FIELD)} />
                   {fieldError("email")}
                 </div>
               ) : (
                 <div style={s("margin-bottom: 14px;")}>
                   <label style={s(LABEL)}>Email or Username</label>
-                  <input value={form.identifier} onChange={set("identifier")} type="text" autoComplete="username" placeholder="you@example.com or your_web_handle" required style={s(FIELD)} />
+                  <input value={form.identifier} onChange={set("identifier")} type="text" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="you@example.com or your_web_handle" required style={s(FIELD)} />
                   {fieldError("identifier")}
-                </div>
-              )}
-              {isReg && (
-                <div style={s("margin-bottom: 14px;")}>
-                  <label style={s(LABEL)}>Mobile</label>
-                  <div style={s("display: flex; gap: 8px;")}>
-                    <div style={s("position: relative; flex: 0 0 108px;")}>
-                      {/* Closed label shows a compact "🇮🇳 +91"; the select's own
-                          text is transparent and the full country list lives in
-                          the native dropdown. */}
-                      <select
-                        value={form.countryIso}
-                        onChange={set("countryIso")}
-                        aria-label="Country code"
-                        style={s(FIELD + " appearance: none; cursor: pointer; color: transparent; padding-right: 8px;")}
-                      >
-                        {COUNTRIES.map((c) => (
-                          <option key={c.iso} value={c.iso} style={s("background: #0b1122; color: #fff;")}>
-                            {c.flag} {c.name} ({c.dial})
-                          </option>
-                        ))}
-                      </select>
-                      <span style={s("position: absolute; inset: 0; display: flex; align-items: center; padding-left: 15px; pointer-events: none; color: #fff; font-size: 15px;")}>
-                        {(() => { const c = COUNTRIES.find((x) => x.iso === form.countryIso) || COUNTRIES[0]; return `${c.flag} ${c.dial}`; })()}
-                        <span style={s("margin-left: auto; padding-right: 12px; color: rgba(255,255,255,0.45); font-size: 10px;")}>▾</span>
-                      </span>
-                    </div>
-                    <input value={form.mobile} onChange={set("mobile")} type="tel" autoComplete="tel" placeholder="98765 43210" required style={s(FIELD + " flex: 1;")} />
-                  </div>
-                  {fieldError("mobile")}
                 </div>
               )}
               <div style={s("margin-bottom: 22px;")}>

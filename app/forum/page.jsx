@@ -4,8 +4,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { s } from "@/lib/style";
+import ForumGate from "@/components/forum/ForumGate";
 import SpiderAvatar from "@/components/SpiderAvatar";
 import ShareButton from "@/components/forum/ShareButton";
+import ReportControl from "@/components/forum/ReportControl";
 import EmptyState from "@/components/forum/EmptyState";
 import { useSession } from "@/components/auth/SessionProvider";
 import { portalApi } from "@/lib/portal/api";
@@ -14,12 +16,11 @@ import { relTime, fmtCount } from "@/lib/time";
 const RULES = [
   { n: "1", text: "Every identity belongs here. No gatekeeping the mask." },
   { n: "2", text: "Real stories only — this is what the Web actually looks like." },
-  { n: "3", text: "Credit the creators. Reblog with love." },
-  { n: "4", text: "Keep it spoiler-tagged until opening weekend." },
+  { n: "3", text: "Keep it spoiler-tagged until opening weekend." },
 ];
 
 const SORT_DEFS = [
-  { key: "new", label: "✦ New" }, { key: "top", label: "▲ Top" },
+  { key: "top", label: "▲ Top" }, { key: "new", label: "✦ New" },
 ];
 
 const snippet = (text, max = 220) => {
@@ -29,17 +30,32 @@ const snippet = (text, max = 220) => {
 
 export default function Forum() {
   const router = useRouter();
-  const { user, openAuth } = useSession();
+  const { user, loading: sessionLoading, openAuth } = useSession();
 
-  const [sort, setSort] = useState("new");
+  const [sort, setSort] = useState("top");
   const [posts, setPosts] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [revealed, setRevealed] = useState(() => new Set());
+  const [showSpoilers, setShowSpoilers] = useState(false);
+
+  // the global spoiler preference survives navigation (thread pages read it too)
+  useEffect(() => {
+    try { setShowSpoilers(localStorage.getItem("bnd_show_spoilers") === "1"); } catch {}
+  }, []);
+
+  const toggleSpoilers = () =>
+    setShowSpoilers((v) => {
+      const next = !v;
+      try { localStorage.setItem("bnd_show_spoilers", next ? "1" : "0"); } catch {}
+      if (!next) setRevealed(new Set()); // turning it off re-hides one-off reveals too
+      return next;
+    });
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false); // mobile-only rules popup
   const [spoiler, setSpoiler] = useState(false);
   const [mediaFiles, setMediaFiles] = useState([]);
   const [title, setTitle] = useState("");
@@ -47,8 +63,11 @@ export default function Forum() {
   const [submitting, setSubmitting] = useState(false);
   const [createError, setCreateError] = useState("");
 
-  // Initial load + reload on sort change (reset list).
+  // Initial load + reload on sort change (reset list). The forum is
+  // members-only: nothing is fetched until the session has a user, and a
+  // login mid-visit (via the gate) fetches fresh with the member's votes.
   useEffect(() => {
+    if (!user) return;
     let cancelled = false;
     setLoadingInitial(true);
     setPosts([]);
@@ -64,7 +83,7 @@ export default function Forum() {
       .catch((err) => { if (!cancelled) console.error(err); })
       .finally(() => { if (!cancelled) setLoadingInitial(false); });
     return () => { cancelled = true; };
-  }, [sort]);
+  }, [sort, user?.id]);
 
   const loadMore = async () => {
     if (loadingMore || !nextCursor) return;
@@ -116,7 +135,7 @@ export default function Forum() {
     setCreateOpen(false); setSpoiler(false); setTitle(""); setBodyText(""); setCreateError(""); setMediaFiles([]);
   };
 
-  // Client-side mirror of the server caps (5 MB images / 50 MB videos, max 4).
+  // Client-side mirror of the server caps (images only, 5 MB each, max 4).
   const addMediaFiles = (fileList) => {
     const incoming = Array.from(fileList || []);
     setCreateError("");
@@ -124,10 +143,12 @@ export default function Forum() {
       const next = [...prev];
       for (const f of incoming) {
         if (next.length >= 4) { setCreateError("At most 4 attachments per post"); break; }
-        const isVideo = f.type.startsWith("video/");
-        const capMb = isVideo ? 50 : 5;
-        if (f.size > capMb * 1024 * 1024) {
-          setCreateError(`${f.name} is too large (max ${capMb} MB for ${isVideo ? "videos" : "images"})`);
+        if (f.type.startsWith("video/")) {
+          setCreateError("Only images can be attached to posts");
+          continue;
+        }
+        if (f.size > 5 * 1024 * 1024) {
+          setCreateError(`${f.name} is too large (max 5 MB per image)`);
           continue;
         }
         next.push(f);
@@ -166,6 +187,16 @@ export default function Forum() {
     }
   };
 
+  // members-only: shared links land on the onboarding gate until logged in
+  if (!sessionLoading && !user) {
+    return (
+      <div style={s("position: relative; min-height: 100vh; background: radial-gradient(130% 80% at 82% -6%, #1c0512 0%, #0b0713 46%, #07060c 100%);")}>
+        <img src="/assets/web.png" alt="" style={s("position: fixed; top: -14%; right: -10%; width: min(760px, 52vw); opacity: 0.05; mix-blend-mode: screen; pointer-events: none; z-index: 0;")} />
+        <ForumGate onJoin={() => openAuth("register")} onLogin={() => openAuth("login")} />
+      </div>
+    );
+  }
+
   return (
     <div style={s("position: relative; min-height: 100vh; background: radial-gradient(130% 80% at 82% -6%, #1c0512 0%, #0b0713 46%, #07060c 100%);")}>
       <img src="/assets/web.png" alt="" style={s("position: fixed; top: -14%; right: -10%; width: min(760px, 52vw); opacity: 0.05; mix-blend-mode: screen; pointer-events: none; z-index: 0;")} />
@@ -175,21 +206,30 @@ export default function Forum() {
 
         {/* CENTER: feed */}
         <main style={s("display: flex; flex-direction: column; gap: 14px; min-width: 0;")}>
-          {/* sort tabs — two plain tabs, no wrapping card + global spoiler control */}
-          <div style={s("display: flex; align-items: center; gap: 8px;")}>
+          {/* sort tabs — two plain tabs + the permanent global spoiler toggle */}
+          <div className="fm-sortbar" style={s("display: flex; align-items: center; gap: 8px;")}>
             {SORT_DEFS.map((sd) => (
               <button key={sd.key} onClick={() => setSort(sd.key)} data-web-hover="true" style={s(`display: inline-flex; align-items: center; gap: 7px; border: 0; cursor: pointer; padding: 10px 20px; border-radius: 9px; background: ${sort === sd.key ? "linear-gradient(180deg, #ff3a4a, #c00014)" : "rgba(255,255,255,0.05)"}; color: ${sort === sd.key ? "#fff" : "rgba(255,255,255,0.6)"}; font-family: 'Oswald', sans-serif; font-size: 12.5px; letter-spacing: 0.12em; text-transform: uppercase; transition: background .2s ease, color .2s ease;`)}>{sd.label}</button>
             ))}
-            {revealed.size > 0 && (
-              <button onClick={() => setRevealed(new Set())} data-web-hover="true" style={s("margin-left: auto; display: inline-flex; align-items: center; gap: 7px; border: 1px solid rgba(255,60,74,0.4); cursor: pointer; padding: 9px 16px; border-radius: 999px; background: rgba(255,40,60,0.08); color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; transition: background .2s ease;")}>
+            <button onClick={toggleSpoilers} data-web-hover="true" aria-pressed={showSpoilers} title={showSpoilers ? "Hide spoilers" : "Show spoilers"} style={s(`margin-left: auto; display: inline-flex; align-items: center; gap: 9px; border: 1px solid ${showSpoilers ? "rgba(255,60,74,0.5)" : "rgba(255,255,255,0.16)"}; cursor: pointer; padding: 8px 14px; border-radius: 999px; background: ${showSpoilers ? "rgba(255,40,60,0.1)" : "rgba(255,255,255,0.04)"}; color: ${showSpoilers ? "#ff8a95" : "rgba(255,255,255,0.6)"}; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; transition: background .2s ease, border-color .2s ease, color .2s ease;`)}>
+              {showSpoilers ? (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12c1-3.8 5-7.7 10-7.7S21 8.2 22 12c-1 3.8-5 7.7-10 7.7S3 15.8 2 12z" /><circle cx="12" cy="12" r="2.6" /></svg>
+              ) : (
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 3l18 18M10.6 10.6a2.5 2.5 0 003.5 3.5M9.9 4.5A9.9 9.9 0 0112 4.3c5 0 9 3.9 10 7.7-.4 1.4-1.2 2.8-2.3 3.9M6.3 6.4C4.2 7.8 2.7 9.8 2 12c1 3.8 5 7.7 10 7.7 1.4 0 2.8-.3 4-.8" /></svg>
-                Hide all spoilers
-              </button>
-            )}
+              )}
+              <span className="fm-spoiler-label">Spoilers {showSpoilers ? "shown" : "hidden"}</span>
+              <span aria-hidden="true" style={s(`width: 26px; height: 15px; border-radius: 999px; flex-shrink: 0; background: ${showSpoilers ? "linear-gradient(180deg, #ff3a4a, #c00014)" : "rgba(255,255,255,0.14)"}; position: relative; transition: background .2s ease;`)}>
+                <span style={s(`position: absolute; top: 2px; left: ${showSpoilers ? "13px" : "2px"}; width: 11px; height: 11px; border-radius: 50%; background: #fff; transition: left .2s ease;`)}></span>
+              </span>
+            </button>
+            {/* phones: the sidebar is hidden, so the rules live behind this icon */}
+            <button onClick={() => setRulesOpen(true)} data-web-hover="true" aria-label="Web Rules" title="Web Rules" className="fm-rules-btn" style={s("align-items: center; justify-content: center; flex-shrink: 0; width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.7); cursor: pointer; padding: 0;")}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l8 4v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6z" /></svg>
+            </button>
           </div>
 
-          {/* create prompt */}
-          <div className="fm-card" style={s("position: relative; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.24), rgba(255,40,60,0.3)); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);")}>
+          {/* create prompt (desktop only — phones get the floating + button) */}
+          <div className="fm-card fm-prompt" style={s("position: relative; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.24), rgba(255,40,60,0.3)); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);")}>
             <div style={s("display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: linear-gradient(150deg, rgba(16,18,34,0.96), rgba(9,10,20,0.97)); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);")}>
               <div style={s("flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px; background: radial-gradient(circle at 40% 32%, #2a1420, #0c0a16); border: 1px solid rgba(255,60,74,0.4); display: flex; align-items: center; justify-content: center;")}>
                 <SpiderAvatar size="54%" strokeWidth={4} />
@@ -207,13 +247,17 @@ export default function Forum() {
           <>
           {posts.map((t, i) => {
             const v = t.myVote;
-            const isRevealed = revealed.has(t.id);
+            const isRevealed = showSpoilers || revealed.has(t.id);
             const blurred = t.isSpoiler && !isRevealed;
+            // Blurred spoiler: the FIRST tap anywhere on the card reveals it —
+            // a tap target inside the card can't work on phones, where every
+            // tap must otherwise navigate. Once revealed, taps open the post;
+            // the "Hide spoiler" chip in the meta row re-hides.
             return (
-              <article key={t.id} onClick={() => router.push(`/forum/${t.id}`)} data-web-hover="true" className="fm-card" style={s(`cursor: pointer; position: relative; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.2), rgba(255,40,60,0.26)); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); animation: fm-rise .6s cubic-bezier(.16,.84,.3,1) both; animation-delay: ${Math.min(i, 8) * 60}ms;`)}>
+              <article key={t.id} onClick={() => { if (blurred) { toggleReveal(t.id); return; } router.push(`/forum/${t.id}`); }} data-web-hover="true" className="fm-card" style={s(`cursor: pointer; position: relative; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.2), rgba(255,40,60,0.26)); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); animation: fm-rise .6s cubic-bezier(.16,.84,.3,1) both; animation-delay: ${Math.min(i, 8) * 60}ms;`)}>
                 <div style={s("display: flex; align-items: stretch; background: linear-gradient(150deg, rgba(16,18,34,0.97), rgba(9,10,20,0.98)); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);")}>
                   {/* vote rail */}
-                  <div style={s("flex-shrink: 0; width: 62px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px; padding: 16px 0; background: rgba(255,40,60,0.05); border-right: 1px solid rgba(255,255,255,0.06);")}>
+                  <div className="fm-vote" style={s("flex-shrink: 0; width: 62px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px; padding: 16px 0; background: rgba(255,40,60,0.05); border-right: 1px solid rgba(255,255,255,0.06);")}>
                     <button onClick={(e) => { e.stopPropagation(); vote(t, "up"); }} data-web-hover="true" style={s("border: 0; background: transparent; cursor: pointer; padding: 2px; line-height: 0;")}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill={v === "up" ? "#ff5a6a" : "none"} stroke={v === "up" ? "#ff5a6a" : "rgba(255,255,255,0.45)"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5l7 8h-4v6h-6v-6H5z" /></svg>
                     </button>
@@ -223,33 +267,42 @@ export default function Forum() {
                     </button>
                   </div>
                   {/* body */}
-                  <div style={s("flex: 1; min-width: 0; padding: 16px 20px;")}>
+                  <div className="fm-post-body" style={s("flex: 1; min-width: 0; padding: 16px 20px;")}>
                     <div style={s("display: flex; align-items: center; gap: 8px; margin-bottom: 9px; font-size: 11.5px; color: rgba(255,255,255,0.5); flex-wrap: wrap;")}>
+                      {t.author?.avatarPic && (
+                        <img src={t.author.avatarPic} alt="" style={{ width: "20px", height: "20px", borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,60,74,0.45)", flexShrink: 0 }} />
+                      )}
                       <span>Posted by u/{t.author?.username}</span>
                       <span style={{ opacity: 0.5 }}>·</span><span>{relTime(t.createdAt)}</span>
+                      {t.editedAt && (
+                        <>
+                          <span style={{ opacity: 0.5 }}>·</span>
+                          <span style={s("font-style: italic; color: rgba(255,255,255,0.45);")}>edited {relTime(t.editedAt)}</span>
+                        </>
+                      )}
                       {t.flair && (
                         <span style={s("display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: rgba(255,40,60,0.12); border: 1px solid rgba(255,60,74,0.35); color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;")}>{t.flair}</span>
                       )}
-                      {t.isSpoiler && isRevealed && (
+                      {t.isSpoiler && isRevealed && !showSpoilers && (
                         <button onClick={(e) => { e.stopPropagation(); toggleReveal(t.id); }} data-web-hover="true" style={s("display: inline-flex; align-items: center; gap: 5px; border: 1px solid rgba(255,60,74,0.35); cursor: pointer; padding: 3px 10px; border-radius: 999px; background: transparent; color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;")}>
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 3l18 18M10.6 10.6a2.5 2.5 0 003.5 3.5M9.9 4.5A9.9 9.9 0 0112 4.3c5 0 9 3.9 10 7.7-.4 1.4-1.2 2.8-2.3 3.9M6.3 6.4C4.2 7.8 2.7 9.8 2 12c1 3.8 5 7.7 10 7.7 1.4 0 2.8-.3 4-.8" /></svg>
                           Hide spoiler
                         </button>
                       )}
                     </div>
-                    <h3 style={s("font-size: clamp(17px, 1.7vw, 21px); font-weight: 500; color: #fff; line-height: 1.15; margin-bottom: 8px;")}>{t.title}</h3>
+                    <h3 style={s(`font-size: clamp(17px, 1.7vw, 21px); font-weight: 500; color: #fff; line-height: 1.15; margin-bottom: 8px; ${blurred ? "filter: blur(6px); user-select: none;" : ""}`)}>{t.title}</h3>
                     {t.isSpoiler ? (
-                      <div onClick={(e) => { e.stopPropagation(); toggleReveal(t.id); }} style={s("position: relative; margin: 0 0 14px;")}>
-                        <p style={s(`margin: 0; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty; ${blurred ? "filter: blur(6px); user-select: none;" : ""}`)}>{snippet(t.body)}</p>
+                      <div style={s("position: relative; margin: 0 0 14px;")}>
+                        <p className="fm-snippet" style={s(`margin: 0; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty; ${blurred ? "filter: blur(6px); user-select: none;" : ""}`)}>{snippet(t.body)}</p>
                         {blurred && (
                           <span style={s("position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 999px; background: rgba(12,10,22,0.85); border: 1px solid rgba(255,60,74,0.45); color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap;")}>Spoiler — tap to reveal</span>
                         )}
                       </div>
                     ) : (
-                      <p style={s("margin: 0 0 14px; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>{snippet(t.body)}</p>
+                      <p className="fm-snippet" style={s("margin: 0 0 14px; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>{snippet(t.body)}</p>
                     )}
                     {t.media?.length > 0 && (
-                      <div style={s(`position: relative; margin: 0 0 14px; max-width: 460px; border-radius: 11px; overflow: hidden; background: #141018; border: 1px solid rgba(255,255,255,0.08); ${blurred ? "filter: blur(14px);" : ""}`)}>
+                      <div className="fm-media" style={s(`position: relative; margin: 0 0 14px; max-width: 460px; border-radius: 11px; overflow: hidden; background: #141018; border: 1px solid rgba(255,255,255,0.08); ${blurred ? "filter: blur(14px);" : ""}`)}>
                         {t.media[0].kind === "video" ? (
                           <video src={t.media[0].url} controls preload="metadata" onClick={(e) => e.stopPropagation()} style={s("display: block; width: 100%; max-height: 300px; background: #000;")} />
                         ) : (
@@ -263,6 +316,9 @@ export default function Forum() {
                     <div style={s("display: flex; align-items: center; gap: 10px; flex-wrap: wrap;")}>
                       <span style={s("display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px; background: rgba(255,255,255,0.05); font-size: 12px; color: rgba(255,255,255,0.7);")}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.4 8.4 0 01-11.9 7.6L3 21l1.9-6.1A8.4 8.4 0 1121 11.5z" /></svg>{fmtCount(t.commentCount)} Comments</span>
                       <ShareButton thread={t} stop />
+                      {user && t.author?.username !== user.username && (
+                        <ReportControl entityType="post" entityId={t.id} variant="pill" stop />
+                      )}
                     </div>
                   </div>
                 </div>
@@ -318,14 +374,14 @@ export default function Forum() {
               <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="An interesting title…" style={s("width: 100%; box-sizing: border-box; border: 0; outline: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 13px 15px; color: #fff; font-family: inherit; font-size: 15px; margin-bottom: 12px;")} />
               <textarea value={bodyText} onChange={(e) => setBodyText(e.target.value)} rows={4} placeholder="Tell the Web what happened…" style={s("width: 100%; box-sizing: border-box; resize: none; border: 0; outline: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 13px 15px; color: #fff; font-family: inherit; font-size: 14px; line-height: 1.5; margin-bottom: 12px;")}></textarea>
 
-              {/* photo / video attachments (max 4 · images ≤5MB · videos ≤50MB) */}
+              {/* photo attachments (max 4 · images ≤5MB — no videos) */}
               <div style={s("margin-bottom: 14px;")}>
                 <label data-web-hover="true" style={s("display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border: 1px dashed rgba(255,255,255,0.25); border-radius: 9px; cursor: pointer; color: rgba(255,255,255,0.7); font-family: 'Oswald', sans-serif; font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase;")}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
-                  Add photo / video
+                  Add photo
                   <input
                     type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
                     multiple
                     onChange={(e) => { addMediaFiles(e.target.files); e.target.value = ""; }}
                     style={s("display: none;")}
@@ -367,6 +423,29 @@ export default function Forum() {
           </div>
         </div>
       )}
+
+      {/* WEB RULES POPUP (phones — opened from the sortbar shield icon) */}
+      {rulesOpen && (
+        <div onClick={() => setRulesOpen(false)} style={s("position: fixed; inset: 0; z-index: 90; background: rgba(4,4,10,0.82); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 24px; animation: fm-rise .3s ease both;")}>
+          <div onClick={(e) => e.stopPropagation()} style={s("position: relative; width: min(400px, 100%); padding: 2px; background: linear-gradient(150deg, rgba(255,40,60,0.55), rgba(120,150,220,0.4)); clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px); box-shadow: 0 40px 100px rgba(0,0,0,0.6);")}>
+            <div style={s("background: linear-gradient(150deg, rgba(20,10,18,0.97), rgba(9,10,20,0.98)); clip-path: polygon(19px 0, 100% 0, 100% calc(100% - 19px), calc(100% - 19px) 100%, 0 100%, 0 19px); padding: 24px 24px 18px;")}>
+              <h3 style={s("display: flex; align-items: center; gap: 9px; font-size: 14px; letter-spacing: 0.16em; text-transform: uppercase; color: #fff; margin-bottom: 12px;")}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff5a6a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l8 4v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6z" /></svg>
+                Web Rules
+              </h3>
+              {RULES.map((r) => (
+                <div key={r.n} style={s("display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.06); font-size: 13px; line-height: 1.5; color: rgba(226,226,240,0.72);")}><span style={s("font-family: 'Oswald', sans-serif; color: #ff5a6a; flex-shrink: 0;")}>{r.n}</span><span>{r.text}</span></div>
+              ))}
+            </div>
+            <button onClick={() => setRulesOpen(false)} aria-label="Close" data-web-hover="true" style={s("position: absolute; top: 12px; right: 12px; z-index: 3; width: 34px; height: 34px; border-radius: 50%; border: 0; background: linear-gradient(180deg, #ff3a4a, #c00014); color: #fff; font-size: 18px; cursor: pointer; box-shadow: 0 8px 22px rgba(0,0,0,0.5); font-family: inherit; line-height: 1; display: flex; align-items: center; justify-content: center;")}>×</button>
+          </div>
+        </div>
+      )}
+
+      {/* phones: floating create button — the one-tap way to post */}
+      <button onClick={onCreate} aria-label="Create post" data-web-hover="true" className="fm-fab">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+      </button>
     </div>
   );
 }

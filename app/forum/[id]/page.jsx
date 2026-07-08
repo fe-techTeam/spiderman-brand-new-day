@@ -1,12 +1,14 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { s } from "@/lib/style";
 import SpiderAvatar from "@/components/SpiderAvatar";
 import ShareButton from "@/components/forum/ShareButton";
+import ReportControl from "@/components/forum/ReportControl";
+import ForumGate from "@/components/forum/ForumGate";
 import { useSession } from "@/components/auth/SessionProvider";
 import { portalApi } from "@/lib/portal/api";
 import { relTime, fmtCount } from "@/lib/time";
@@ -49,7 +51,7 @@ function Votes({ score, myVote, onVote, wide }) {
 function PostVoteRail({ score, myVote, onVote }) {
   const v = myVote;
   return (
-    <div style={s("flex-shrink: 0; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 18px 0; background: rgba(255,40,60,0.05); border-right: 1px solid rgba(255,255,255,0.06);")}>
+    <div className="fm-vote" style={s("flex-shrink: 0; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 18px 0; background: rgba(255,40,60,0.05); border-right: 1px solid rgba(255,255,255,0.06);")}>
       <button onClick={() => onVote("up")} data-web-hover="true" style={s("border: 0; background: transparent; cursor: pointer; padding: 2px; line-height: 0;")}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill={v === "up" ? "#ff5a6a" : "none"} stroke={v === "up" ? "#ff5a6a" : "rgba(255,255,255,0.45)"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5l7 8h-4v6h-6v-6H5z" /></svg>
       </button>
@@ -61,21 +63,35 @@ function PostVoteRail({ score, myVote, onVote }) {
   );
 }
 
-function CommentAvatar({ small }) {
+function CommentAvatar({ small, pic }) {
   const d = small ? 30 : 34;
   return (
-    <div style={s(`flex-shrink: 0; width: ${d}px; height: ${d}px; border-radius: 9px; background: radial-gradient(circle at 40% 32%, #2a1420, #0c0a16); border: 1px solid rgba(255,60,74,0.4); display: flex; align-items: center; justify-content: center;`)}>
-      <SpiderAvatar size="54%" strokeWidth={4} />
+    <div style={s(`flex-shrink: 0; width: ${d}px; height: ${d}px; border-radius: 9px; background: radial-gradient(circle at 40% 32%, #2a1420, #0c0a16); border: 1px solid rgba(255,60,74,0.4); display: flex; align-items: center; justify-content: center; overflow: hidden;`)}>
+      {pic ? (
+        // identity-wide profile picture from the avatars master (admin-managed)
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={pic} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+      ) : (
+        <SpiderAvatar size="54%" strokeWidth={4} />
+      )}
     </div>
   );
 }
 
 export default function ForumPost() {
   const { id } = useParams();
-  const { user, openAuth } = useSession();
+  const router = useRouter();
+  const { user, loading: sessionLoading, openAuth } = useSession();
 
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
+  // owner (author) actions: inline edit + two-step delete
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [ownerBusy, setOwnerBusy] = useState(false);
+  const [ownerErr, setOwnerErr] = useState("");
+  const [deleteArmed, setDeleteArmed] = useState(false);
   const [roots, setRoots] = useState([]);
   const [total, setTotal] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -87,6 +103,7 @@ export default function ForumPost() {
   const submitting = useRef(false);
 
   useEffect(() => {
+    if (!user) return; // members-only — the gate below handles logged-out visits
     let cancelled = false;
     (async () => {
       const commentsP = portalApi(`/forum/posts/${id}/comments`).catch(() => null);
@@ -94,7 +111,8 @@ export default function ForumPost() {
         const { post: p } = await portalApi(`/forum/posts/${id}`);
         if (cancelled) return;
         setPost(p);
-        setRevealed(false);
+        // respect the forum's global spoiler toggle
+        try { setRevealed(localStorage.getItem("bnd_show_spoilers") === "1"); } catch { setRevealed(false); }
         const c = await commentsP;
         if (cancelled) return;
         if (c) {
@@ -108,7 +126,7 @@ export default function ForumPost() {
       }
     })();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, user?.id]);
 
   // Patch one comment (root or reply) in the tree.
   const updateComment = (cid, patch) =>
@@ -149,6 +167,50 @@ export default function ForumPost() {
     } catch (err) {
       if (err.code === "quiz_required") { window.location.href = "/quiz"; return; }
       updateComment(c.id, () => prev);
+    }
+  };
+
+  const isMine = !!user && !!post && post.author.username === user.username;
+
+  const startEdit = () => {
+    setEditTitle(post.title);
+    setEditBody(post.body);
+    setOwnerErr("");
+    setDeleteArmed(false);
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    if (ownerBusy) return;
+    setOwnerBusy(true);
+    setOwnerErr("");
+    try {
+      const { post: p } = await portalApi(`/forum/posts/${id}`, {
+        method: "PATCH",
+        body: { title: editTitle, body: editBody },
+      });
+      setPost(p); // server copy carries the new editedAt
+      setEditing(false);
+    } catch (err) {
+      setOwnerErr(err.message);
+    } finally {
+      setOwnerBusy(false);
+    }
+  };
+
+  // First click arms the button ("Really delete?"), second click deletes.
+  const deletePost = async () => {
+    if (!deleteArmed) { setDeleteArmed(true); return; }
+    if (ownerBusy) return;
+    setOwnerBusy(true);
+    setOwnerErr("");
+    try {
+      await portalApi(`/forum/posts/${id}`, { method: "DELETE" });
+      router.replace("/forum");
+    } catch (err) {
+      setOwnerErr(err.message);
+      setDeleteArmed(false);
+      setOwnerBusy(false);
     }
   };
 
@@ -199,7 +261,11 @@ export default function ForumPost() {
     }
   };
 
-  const ReplyBox = ({ rootId }) => (
+  // Render helpers, NOT components: defining component types inside the page
+  // gives React a brand-new type every render, so each keystroke in the reply
+  // textarea remounted it and dropped the caret to position 0 — typed text
+  // came out reversed. Plain function calls keep the same element tree.
+  const renderReplyBox = (rootId) => (
     <div style={s("margin-top: 10px;")}>
       <textarea autoFocus value={replyDraft} onChange={(e) => setReplyDraft(e.target.value)} rows={2} placeholder="Write a reply… use @ to mention someone" style={s("width: 100%; box-sizing: border-box; resize: none; border: 0; outline: 0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 9px; padding: 10px 12px; color: #fff; font-family: inherit; font-size: 13.5px; line-height: 1.5;")}></textarea>
       {replyErr && <div style={s("margin-top: 6px; font-size: 12px; color: #ff8a96;")}>{replyErr}</div>}
@@ -214,11 +280,11 @@ export default function ForumPost() {
     </div>
   );
 
-  const CommentRow = ({ c, rootId, small }) => {
+  const renderCommentRow = (c, rootId, small) => {
     const isMe = c.author.username === user?.username;
     return (
       <div style={s("display: flex; gap: 12px;")}>
-        <CommentAvatar small={small} />
+        <CommentAvatar small={small} pic={c.author.avatarPic} />
         <div style={s("min-width: 0; flex: 1;")}>
           <div style={s("display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 12px; color: rgba(255,255,255,0.55); flex-wrap: wrap;")}>
             <span style={s(`font-family: 'Oswald', sans-serif; letter-spacing: 0.03em; color: ${isMe ? "#ff8a96" : "rgba(255,255,255,0.85)"};`)}>{"u/" + c.author.username}{isMe ? " (you)" : ""}</span>
@@ -230,12 +296,24 @@ export default function ForumPost() {
             <button onClick={() => openReply(c)} data-web-hover="true" style={s("display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; cursor: pointer; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.55); padding: 0;")}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 17l-5-5 5-5" /><path d="M20 18v-2a4 4 0 00-4-4H4" /></svg>Reply
             </button>
+            {!isMe && <ReportControl entityType="comment" entityId={c.id} variant="inline" />}
           </div>
-          {openReplyId === c.id && <ReplyBox rootId={rootId} />}
+          {openReplyId === c.id && renderReplyBox(rootId)}
         </div>
       </div>
     );
   };
+
+  // members-only: shared post links land on the onboarding gate; after auth
+  // the same URL loads in place
+  if (!sessionLoading && !user) {
+    return (
+      <div style={s("position: relative; min-height: 100vh; background: radial-gradient(130% 80% at 82% -6%, #1c0512 0%, #0b0713 46%, #07060c 100%);")}>
+        <img src="/assets/web.png" alt="" style={s("position: fixed; top: -14%; right: -10%; width: min(760px, 52vw); opacity: 0.05; mix-blend-mode: screen; pointer-events: none; z-index: 0;")} />
+        <ForumGate onJoin={() => openAuth("register")} onLogin={() => openAuth("login")} />
+      </div>
+    );
+  }
 
   return (
     <div style={s("position: relative; min-height: 100vh; background: radial-gradient(130% 80% at 82% -6%, #1c0512 0%, #0b0713 46%, #07060c 100%);")}>
@@ -258,10 +336,46 @@ export default function ForumPost() {
                 <PostVoteRail score={post.score} myVote={post.myVote} onVote={votePost} />
                 <div style={s("flex: 1; min-width: 0; padding: 18px 22px;")}>
                   <div style={s("display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; color: rgba(255,255,255,0.5); flex-wrap: wrap;")}>
+                    {post.author.avatarPic && (
+                      <img src={post.author.avatarPic} alt="" style={{ width: "22px", height: "22px", borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,60,74,0.45)", flexShrink: 0 }} />
+                    )}
                     <span>Posted by u/{post.author.username}</span>
                     <span style={{ opacity: 0.5 }}>·</span><span>{relTime(post.createdAt)}</span>
+                    {post.editedAt && (
+                      <>
+                        <span style={{ opacity: 0.5 }}>·</span>
+                        <span style={s("font-style: italic; color: rgba(255,255,255,0.45);")}>edited {relTime(post.editedAt)}</span>
+                      </>
+                    )}
+                    {isMine && !editing && (
+                      <span style={s("margin-left: auto; display: inline-flex; align-items: center; gap: 14px;")}>
+                        <button onClick={startEdit} data-web-hover="true" className="link-hover-red" style={s("display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; cursor: pointer; padding: 0; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.55); transition: color 200ms ease;")}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" /></svg>Edit
+                        </button>
+                        <button onClick={deletePost} data-web-hover="true" style={s(`display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; cursor: pointer; padding: 0; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: ${deleteArmed ? "#ff5a6a" : "rgba(255,255,255,0.55)"}; transition: color 200ms ease;`)}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" /></svg>{deleteArmed ? "Really delete?" : "Delete"}
+                        </button>
+                      </span>
+                    )}
                   </div>
-                  <h1 style={s("font-family: 'Oswald', sans-serif; font-weight: 500; font-size: clamp(22px, 3.4vw, 30px); line-height: 1.12; color: #fff; margin-bottom: 14px;")}>{post.title}</h1>
+                  {ownerErr && !editing && <div style={s("margin: -4px 0 10px; font-size: 12px; color: #ff8a96;")}>{ownerErr}</div>}
+                  {editing ? (
+                    <div style={s("margin-bottom: 16px;")}>
+                      <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="An interesting title…" style={s("width: 100%; box-sizing: border-box; border: 0; outline: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 12px 14px; color: #fff; font-family: inherit; font-size: 15px; margin-bottom: 10px;")} />
+                      <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={6} placeholder="Tell the Web what happened…" style={s("width: 100%; box-sizing: border-box; resize: vertical; border: 0; outline: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 12px 14px; color: #fff; font-family: inherit; font-size: 14px; line-height: 1.6;")}></textarea>
+                      {ownerErr && <div style={s("margin-top: 8px; font-size: 12px; color: #ff8a96;")}>{ownerErr}</div>}
+                      <div style={s("display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;")}>
+                        <button onClick={() => { setEditing(false); setOwnerErr(""); }} data-web-hover="true" style={s("border: 0; background: transparent; color: rgba(255,255,255,0.55); font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; padding: 8px 12px;")}>Cancel</button>
+                        <button onClick={saveEdit} disabled={ownerBusy} data-web-hover="true" className="fm-cta" style={s(`position: relative; border: 0; padding: 0; background: transparent; cursor: ${ownerBusy ? "default" : "pointer"}; opacity: ${ownerBusy ? "0.7" : "1"};`)}>
+                          <span style={s("display: block; padding: 2px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);")}>
+                            <span style={s("position: relative; overflow: hidden; display: inline-flex; padding: 9px 20px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px); color: #fff; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;")}><span className="fm-sheen"></span>{ownerBusy ? "Saving…" : "Save changes"}</span>
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                  <>
+                  <h1 style={s(`font-family: 'Oswald', sans-serif; font-weight: 500; font-size: clamp(22px, 3.4vw, 30px); line-height: 1.12; color: #fff; margin-bottom: 14px; ${post.isSpoiler && !revealed ? "filter: blur(8px); user-select: none;" : ""}`)}>{post.title}</h1>
                   {post.isSpoiler && !revealed ? (
                     <div style={s("position: relative; margin: 0 0 16px;")}>
                       <p style={s("margin: 0; font-size: 15px; line-height: 1.65; color: rgba(226,226,240,0.82); text-wrap: pretty; filter: blur(8px); user-select: none; pointer-events: none;")}>{post.body}</p>
@@ -280,6 +394,8 @@ export default function ForumPost() {
                       <p style={s("margin: 0 0 16px; font-size: 15px; line-height: 1.65; color: rgba(226,226,240,0.82); text-wrap: pretty;")}>{post.body}</p>
                     </>
                   )}
+                  </>
+                  )}
                   {post.media?.length > 0 && (
                     <div style={s(`display: flex; flex-direction: column; gap: 12px; margin: 0 0 16px; ${post.isSpoiler && !revealed ? "filter: blur(16px); pointer-events: none;" : ""}`)}>
                       {post.media.map((m) =>
@@ -294,6 +410,7 @@ export default function ForumPost() {
                   <div style={s("display: flex; align-items: center; gap: 10px; flex-wrap: wrap;")}>
                     <span style={s("display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px; background: rgba(255,255,255,0.05); font-size: 12px; color: rgba(255,255,255,0.7);")}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.4 8.4 0 01-11.9 7.6L3 21l1.9-6.1A8.4 8.4 0 1121 11.5z" /></svg>{fmtCount(total)} Comments</span>
                     <ShareButton thread={post} />
+                    {!isMine && <ReportControl entityType="post" entityId={post.id} variant="pill" />}
                   </div>
                 </div>
               </div>
@@ -322,11 +439,11 @@ export default function ForumPost() {
               )}
               {roots.map((r) => (
                 <div key={r.id} style={s("padding: 16px 18px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px;")}>
-                  <CommentRow c={r} rootId={r.id} />
+                  {renderCommentRow(r, r.id)}
                   {r.replies.length > 0 && (
                     <div style={s("margin-top: 14px; padding-left: 16px; border-left: 2px solid rgba(255,60,74,0.25); display: flex; flex-direction: column; gap: 14px;")}>
                       {r.replies.map((rep) => (
-                        <CommentRow key={rep.id} c={rep} rootId={r.id} small />
+                        <Fragment key={rep.id}>{renderCommentRow(rep, r.id, true)}</Fragment>
                       ))}
                     </div>
                   )}

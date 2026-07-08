@@ -10,6 +10,7 @@ const KIND = {
   mj_rejected: "mj-rejected",
   fanart_approved: "fanart-approved",
   fanart_rejected: "fanart-rejected",
+  post_removed: "post-removed",
   system: "system",
 };
 

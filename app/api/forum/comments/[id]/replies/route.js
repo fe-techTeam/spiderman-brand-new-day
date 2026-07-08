@@ -4,12 +4,15 @@ import { commentDTO, parseMentions } from "@/lib/server/forum";
 import { createNotification, notifyMentions } from "@/lib/server/notify";
 import { vId, vString } from "@/lib/server/validate";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { postingBlockedResponse } from "@/lib/server/moderation";
 
 const SELECT = `
   SELECT c.id, c.body, c.score, c.created_at, c.parent_comment_id, c.root_comment_id,
-         u.username, ru.username AS reply_to_username, cv.value AS my_vote
+         u.username, av.profile_asset AS author_avatar_pic,
+         ru.username AS reply_to_username, cv.value AS my_vote
   FROM comments c
   JOIN users u ON u.id = c.user_id
+  LEFT JOIN avatars av ON av.id = u.avatar_id
   LEFT JOIN users ru ON ru.id = c.reply_to_user_id
   LEFT JOIN comment_votes cv ON cv.comment_id = c.id AND cv.user_id = ?`;
 
@@ -17,6 +20,8 @@ export async function POST(request, { params }) {
   const gate = await requireUser();
   if (gate.error) return gate.error;
   const user = gate.user;
+  const banned = postingBlockedResponse(user);
+  if (banned) return banned;
   const { id: rawId } = await params;
   const targetId = vId(rawId);
   if (!targetId) return Response.json({ error: "Not found" }, { status: 404 });

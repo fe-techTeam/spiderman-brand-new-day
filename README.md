@@ -43,8 +43,15 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Deploy
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Self-hosted via Docker, with CloudFront as the CDN in front of the app and a
+private S3 bucket for user media. See [DEPLOYMENT.md](DEPLOYMENT.md) for the
+full workflow (compose commands, S3 bucket policy, CloudFront behaviors and
+invalidations).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+cp .env.example .env        # compose reads .env; fill in DB/JWT/S3 values
+docker compose up -d --build
+docker compose run --rm migrate node scripts/seed-admin.js   # once
+```

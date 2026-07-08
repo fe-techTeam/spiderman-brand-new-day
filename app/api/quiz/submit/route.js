@@ -43,7 +43,7 @@ export async function POST(request) {
   });
 
   const [avatar] = await query(
-    "SELECT slug, name, emoji, tagline, description, color FROM avatars WHERE id = ?",
+    "SELECT slug, name, emoji, tagline, description, color, badge_asset AS card FROM avatars WHERE id = ?",
     [result.avatarId]
   );
   return Response.json({

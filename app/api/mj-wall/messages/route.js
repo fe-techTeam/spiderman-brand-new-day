@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/server/auth";
 import { decodeCursor, encodeCursor } from "@/lib/server/forum";
 import { vString } from "@/lib/server/validate";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { postingBlockedResponse } from "@/lib/server/moderation";
 
 // Public gallery — approved messages only, newest first, keyset paginated.
 export async function GET(request) {
@@ -19,8 +20,10 @@ export async function GET(request) {
     args.push(Number(cursor.id));
   }
   const rows = await query(
-    `SELECT m.id, m.body, m.created_at, u.username
-     FROM mj_messages m JOIN users u ON u.id = m.user_id
+    `SELECT m.id, m.body, m.created_at, u.username, av.profile_asset AS avatar_pic
+     FROM mj_messages m
+     JOIN users u ON u.id = m.user_id
+     LEFT JOIN avatars av ON av.id = u.avatar_id
      ${where} ORDER BY m.id DESC LIMIT ${limit + 1}`,
     args
   );
@@ -32,7 +35,7 @@ export async function GET(request) {
       id: m.id,
       body: m.body,
       createdAt: m.created_at,
-      author: { username: m.username },
+      author: { username: m.username, avatarPic: m.avatar_pic || null },
     })),
     nextCursor: hasMore ? encodeCursor({ id: page[page.length - 1].id }) : null,
   });
@@ -41,13 +44,15 @@ export async function GET(request) {
 export async function POST(request) {
   const gate = await requireUser();
   if (gate.error) return gate.error;
+  const banned = postingBlockedResponse(gate.user);
+  if (banned) return banned;
   if (!(await rateLimit(`mj:${gate.user.id}`, 5, 60 * 60))) {
     return Response.json({ error: "You've sent a lot of messages — try again later." }, { status: 429 });
   }
 
   const body = await request.json().catch(() => ({}));
-  const text = vString(body.body, { min: 2, max: 500 });
-  if (!text) return Response.json({ error: "Message must be 2–500 characters" }, { status: 400 });
+  const text = vString(body.body, { min: 2, max: 280 });
+  if (!text) return Response.json({ error: "Message must be 2–280 characters" }, { status: 400 });
 
   const result = await query("INSERT INTO mj_messages (user_id, body) VALUES (?, ?)", [gate.user.id, text]);
   return Response.json(

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { ArrowRight, MessageSquareHeart, Flag } from "lucide-react";
 import { adminApi } from "@/lib/admin/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,8 +26,8 @@ export default function AdminDashboardPage() {
 
   if (!data) {
     return (
-      <div className="grid gap-4 md:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="grid gap-4 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-28" />
         ))}
       </div>
@@ -37,8 +38,6 @@ export default function AdminDashboardPage() {
   const kpis = [
     { label: "Total users", value: counts.totalUsers, sub: `+${counts.newUsers7d} this week` },
     { label: "Active posts", value: counts.activePosts, sub: `${counts.activeComments} comments` },
-    { label: "MJ Wall pending", value: counts.pendingMj, href: "/admin/mj-wall", alert: counts.pendingMj > 0 },
-    { label: "Fan art pending", value: counts.pendingFanArt, href: "/admin/fan-art", alert: counts.pendingFanArt > 0 },
   ];
 
   return (
@@ -48,25 +47,74 @@ export default function AdminDashboardPage() {
         <p className="text-sm text-muted-foreground">The state of the Web at a glance.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        {kpis.map((k) => {
-          const card = (
-            <Card key={k.label} className={k.alert ? "border-primary/60" : undefined}>
-              <CardHeader className="pb-2">
-                <CardDescription>{k.label}</CardDescription>
-                <CardTitle className="text-3xl">{k.value}</CardTitle>
-              </CardHeader>
-              {k.sub && <CardContent className="text-xs text-muted-foreground">{k.sub}</CardContent>}
-            </Card>
-          );
-          return k.href ? (
-            <Link key={k.label} href={k.href}>
-              {card}
-            </Link>
-          ) : (
-            card
-          );
-        })}
+      <div className="grid gap-4 md:grid-cols-3">
+        {kpis.map((k) => (
+          <Card key={k.label}>
+            <CardHeader className="pb-2">
+              <CardDescription>{k.label}</CardDescription>
+              <CardTitle className="text-3xl">{k.value}</CardTitle>
+            </CardHeader>
+            {k.sub && <CardContent className="text-xs text-muted-foreground">{k.sub}</CardContent>}
+          </Card>
+        ))}
+
+        {/* MJ Wall review queue — deliberately louder than the stat cards */}
+        <Link href="/admin/mj-wall" className="block">
+          <Card className="relative h-full overflow-hidden border-primary/50 bg-gradient-to-br from-primary/20 via-primary/5 to-card transition-colors hover:border-primary">
+            <div className="pointer-events-none absolute -right-8 -top-8 size-28 rounded-full bg-primary/20 blur-2xl" />
+            <CardHeader className="pb-2">
+              <CardDescription className="flex items-center gap-2 font-semibold uppercase tracking-[0.14em] text-primary">
+                <MessageSquareHeart className="size-4" /> MJ Wall pending
+              </CardDescription>
+              <CardTitle className="text-3xl">{counts.pendingMj}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              {counts.pendingMj > 0 ? (
+                <>
+                  Review the queue <ArrowRight className="size-3.5" />
+                </>
+              ) : (
+                "Queue clear — nothing waiting"
+              )}
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Reported content queue — louder when something needs attention */}
+        <Link href="/admin/reports" className="block">
+          <Card
+            className={
+              "relative h-full overflow-hidden transition-colors " +
+              (counts.openReports > 0
+                ? "border-destructive/50 bg-gradient-to-br from-destructive/20 via-destructive/5 to-card hover:border-destructive"
+                : "hover:border-primary/50")
+            }
+          >
+            {counts.openReports > 0 && (
+              <div className="pointer-events-none absolute -right-8 -top-8 size-28 rounded-full bg-destructive/20 blur-2xl" />
+            )}
+            <CardHeader className="pb-2">
+              <CardDescription
+                className={
+                  "flex items-center gap-2 font-semibold uppercase tracking-[0.14em] " +
+                  (counts.openReports > 0 ? "text-destructive" : "")
+                }
+              >
+                <Flag className="size-4" /> Reports open
+              </CardDescription>
+              <CardTitle className="text-3xl">{counts.openReports}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              {counts.openReports > 0 ? (
+                <>
+                  Review reported content <ArrowRight className="size-3.5" />
+                </>
+              ) : (
+                "Nothing reported — all clear"
+              )}
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
