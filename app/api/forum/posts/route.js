@@ -87,7 +87,7 @@ export async function POST(request) {
     return Response.json({ error: "You're posting too fast — take a breath." }, { status: 429 });
   }
 
-  // JSON (text-only) or multipart (with photos/videos) — both supported.
+  // JSON (text-only) or multipart (with photos) — both supported.
   let title, text, isSpoiler, communityId, flairId;
   let files = [];
   const contentType = request.headers.get("content-type") || "";
@@ -132,7 +132,7 @@ export async function POST(request) {
   const saved = [];
   for (const file of files) {
     try {
-      saved.push(await saveUpload(file, "posts", { allowVideo: true }));
+      saved.push(await saveUpload(file, "posts", { allowVideo: false }));
     } catch (err) {
       return Response.json({ error: err.message }, { status: 400 });
     }

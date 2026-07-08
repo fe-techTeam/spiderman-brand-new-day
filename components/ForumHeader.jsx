@@ -102,6 +102,10 @@ function UserChip({ user, logout }) {
           <div onClick={() => setOpen(false)} style={s("position: fixed; inset: 0; z-index: 44;")}></div>
           <div style={s("position: absolute; top: calc(100% + 10px); right: 0; z-index: 45; width: 180px; background: linear-gradient(160deg, rgba(18,14,22,0.98), rgba(9,8,14,0.99)); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; box-shadow: 0 26px 60px rgba(0,0,0,0.6); overflow: hidden; animation: bnd-menu-drop 220ms cubic-bezier(.2,.7,.2,1) both;")}>
             <div style={s("padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;")}>u/{user.username}</div>
+            <Link href="/" onClick={() => setOpen(false)} data-web-hover="true" style={s("display: flex; align-items: center; gap: 9px; width: 100%; box-sizing: border-box; text-align: left; text-decoration: none; padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.85);")}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>
+              Back to Home
+            </Link>
             <button onClick={() => { setOpen(false); logout(); }} data-web-hover="true" style={s("display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 13px 16px; font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: #ff6b79; cursor: pointer;")}>Sign out</button>
           </div>
         </>

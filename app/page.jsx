@@ -393,7 +393,12 @@ export default function Home() {
           t.animate([{ transform: "scaleY(1)" }, { transform: "scaleY(0)" }], { duration: openMs, easing: cEase, fill: "forwards" });
           b.animate([{ transform: "scaleY(1)" }, { transform: "scaleY(0)" }], { duration: openMs, easing: cEase, fill: "forwards" });
         }
-        setTimeout(done, openMs);
+        setTimeout(() => {
+          // iOS: momentum/snap physics still running when the blink fired can
+          // drag the page off the target after scrollInstant — re-pin it
+          if (Math.abs(target.getBoundingClientRect().top) > 8) scrollInstant(target);
+          done();
+        }, openMs);
       }, closeMs + 30);
     };
     const transIris = (target, done) => {
@@ -500,56 +505,30 @@ export default function Home() {
       if (["ArrowDown", "PageDown"].includes(ev.key)) { ev.preventDefault(); const n = nextPageIdx(1); if (n >= 0) goToPage(n); }
       else if (["ArrowUp", "PageUp"].includes(ev.key)) { ev.preventDefault(); const n = nextPageIdx(-1); if (n >= 0) goToPage(n); }
     };
-    /* One swipe = one section on phones (user request: "even a bit" of scroll
-       pages with the blink). The flip fires MID-GESTURE the moment the finger
-       has moved ~12px — waiting for touchend let small drags rest between
-       sections. Sections meaningfully taller than the viewport (MJ Wall,
-       footer) still scroll natively inside; the 1.15× slack matters because
-       the iOS URL bar makes every 100vh section read slightly "taller" than
-       the visible viewport, which used to hand those few px to native scroll
-       (the mid-section drift with no blink). Pull-to-refresh stays available
-       at the very top. */
-    let touchStartY = null, touchConsumed = false;
-    const onTouchStart = (ev) => { touchStartY = ev.touches[0].clientY; touchConsumed = false; };
+    /* Phones scroll 100% NATIVELY. The old JS pager (preventDefault + its own
+       flip) fought iOS momentum and CSS snap — swipes randomly died in one
+       direction or the other. CSS does the paging instead: every section has
+       scroll-snap-align: start + scroll-snap-stop: always, which native
+       physics respect reliably (one swipe advances one section; areas taller
+       than the viewport scroll freely inside). The shutter still blinks via
+       the scroll-spy reaction effect (bars only, no scrolling). Desktop
+       touchscreens keep the pager: their wheel path already owns the scroll. */
+    let touchStartY = null;
+    const onTouchStart = (ev) => { touchStartY = ev.touches[0].clientY; };
     const onTouchMove = (ev) => {
+      if (!isDesktopRef.current) return; // phones: native scroll + CSS snap
       if (modalOpen() || touchStartY == null) return;
       // inner scrollers (the twins roster) keep native touch scrolling
       if (ev.target && ev.target.closest && ev.target.closest("[data-scrollable]")) return;
-      if (isDesktopRef.current) { ev.preventDefault(); return; }
-      // gesture already spent its one page flip — keep eating the drag so the
-      // remaining finger travel can't scroll the page away from the section
-      if (touchConsumed) { ev.preventDefault(); return; }
-      const dy = touchStartY - ev.touches[0].clientY;
-      if (!dy) return;
-      const dir = dy > 0 ? 1 : -1;
-      if (dir < 0 && (window.scrollY || 0) <= 0) return; // allow pull-to-refresh
-      const vh = window.innerHeight || 800;
-      const cur = pages().find((el) => { const r = el.getBoundingClientRect(); return r.top <= 8 && r.bottom >= vh - 8; });
-      if (cur) {
-        const r = cur.getBoundingClientRect();
-        // genuinely tall section with room left inside — native scroll
-        if (r.height > vh * 1.15 && (dir > 0 ? r.bottom > vh + 8 : r.top < -8)) return;
-      }
       ev.preventDefault();
-      if (Math.abs(dy) > 12) {
-        touchConsumed = true; // one gesture = one section, even if held/dragged on
-        if (!paging) { const n = nextPageIdx(dir); if (n >= 0) goToPage(n); }
-      }
     };
     const onTouchEnd = (ev) => {
-      const consumed = touchConsumed;
-      touchConsumed = false;
+      if (!isDesktopRef.current) { touchStartY = null; return; }
       if (modalOpen() || paging || touchStartY == null) { touchStartY = null; return; }
       const endY = (ev.changedTouches && ev.changedTouches[0].clientY) || touchStartY;
       const diff = touchStartY - endY;
       touchStartY = null;
-      if (isDesktopRef.current) {
-        if (Math.abs(diff) > 50) { const n = nextPageIdx(diff > 0 ? 1 : -1); if (n >= 0) goToPage(n); }
-        return;
-      }
-      if (consumed) return; // the flip already happened mid-gesture
-      // fallback for sub-12px flicks the move handler ignored
-      if (Math.abs(diff) > 8) { const n = nextPageIdx(diff > 0 ? 1 : -1); if (n >= 0) goToPage(n); }
+      if (Math.abs(diff) > 50) { const n = nextPageIdx(diff > 0 ? 1 : -1); if (n >= 0) goToPage(n); }
     };
 
     window.addEventListener("wheel", onWheel, { passive: false });
@@ -650,11 +629,24 @@ export default function Home() {
     return () => globeInst.destroy();
   }, [showLivingWeb]);
 
-  /* NOTE: there used to be a second mobile blink here, fired whenever the
-     scroll-spy's activeSection changed — it predates the eager touch pager.
-     Now every mobile section change already blinks inside goToPage, so the
-     observer version only produced stray doubles (worst on the tall footer,
-     whose intersection threshold trips well after the pager's own blink). */
+  /* phones scroll natively (CSS snap pages the sections) — the shutter blinks
+     as a REACTION when the scroll-spy lands on a new section: bars close/open
+     only, never scrolls. goToPage's own blink (menu taps, hash jumps) flags
+     mobileBlinkBusyRef so a programmatic jump doesn't double-blink. */
+  const blinkPrevSectionRef = useRef(null);
+  useEffect(() => {
+    if (isDesktop || blinkPrevSectionRef.current === activeSection) { blinkPrevSectionRef.current = activeSection; return; }
+    const first = blinkPrevSectionRef.current === null;
+    blinkPrevSectionRef.current = activeSection;
+    if (first || mobileBlinkBusyRef.current) return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const t = barTopRef.current, b = barBottomRef.current;
+    if (!t || !b) return;
+    const frames = [{ transform: "scaleY(0)" }, { transform: "scaleY(1)", offset: 0.45 }, { transform: "scaleY(0)" }];
+    const opts = { duration: 400, easing: "cubic-bezier(.5,0,.15,1)" };
+    t.animate(frames, opts);
+    b.animate(frames, opts);
+  }, [activeSection, isDesktop]);
 
   /* lock the page scroll while any popup is up — otherwise the page drifts
      to a halfway point behind the popup and the pager blinks oddly after it
@@ -898,7 +890,7 @@ export default function Home() {
                   <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #fff;")}>{c.country}</span>
                 </div>
               ) : (
-                <span title={c.city} style={s("display: block; width: 11px; height: 11px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #ff7280, #d6021a); box-shadow: 0 0 10px 3px rgba(255,60,74,0.65), 0 0 0 1px rgba(255,255,255,0.2);")}></span>
+                <span title={c.city} style={s("display: block; width: 8px; height: 8px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgba(255,114,128,0.8), rgba(214,2,26,0.7)); box-shadow: 0 0 6px 1px rgba(255,60,74,0.28), 0 0 0 1px rgba(255,255,255,0.1);")}></span>
               )}
             </div>
           ))}
@@ -1051,7 +1043,7 @@ export default function Home() {
                 <button onClick={() => { setMjSent(false); setMjMessage(""); setTimeout(() => mjInputRef.current && mjInputRef.current.focus(), 60); }} style={s("background: transparent; border: 0; color: #ff5a6a; font: inherit; letter-spacing: 0.18em; text-transform: uppercase; font-size: 12px; cursor: pointer; padding: 4px 0;")}>Write another ›</button>
               </div>
             ) : (
-              <div style={s("margin-top: 28px;")}>
+              <div id="mj-composer" style={s("margin-top: 28px;")}>
                 <div style={s("position: relative; padding: 3px; background: linear-gradient(180deg, #ff3a4a 0%, #8b000d 100%); clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);")}>
                   <textarea
                     ref={mjInputRef}
@@ -1063,7 +1055,7 @@ export default function Home() {
                     style={s("display: block; width: 100%; box-sizing: border-box; resize: none; padding: 18px 22px; border: 0; outline: 0; background: #060e2a; color: #ffffff; text-shadow: 0 0 8px rgba(255,255,255,0.7), 0 0 18px rgba(255,255,255,0.35); font-family: inherit; font-size: 15px; line-height: 1.5; clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);")}
                   ></textarea>
                 </div>
-                <div style={s("margin-top: 20px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap;")}>
+                <div id="mj-actions" style={s("margin-top: 20px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap;")}>
                   <button onClick={onMjSubmit} disabled={mjSending} style={s(`position: relative; border: 0; padding: 0; background: transparent; cursor: ${mjSending ? "default" : "pointer"}; opacity: ${mjSending ? "0.7" : "1"}; font-family: inherit;`)}>
                     <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #1f4cd6 0%, #0b2a8a 100%); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); box-shadow: 0 10px 28px rgba(0,0,0,0.4);")}>
                       <span style={s("display: block; padding: 15px 34px; background: linear-gradient(180deg, #ffd23f 0%, #f7a91d 100%); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #6b2a00; font-weight: 700; font-size: 14px; letter-spacing: 0.24em; text-transform: uppercase; text-shadow: 0 1px 0 rgba(255,255,255,0.35);")}>Add to the wall</span>

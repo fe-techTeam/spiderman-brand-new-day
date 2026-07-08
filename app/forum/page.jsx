@@ -44,6 +44,7 @@ export default function Forum() {
   useEffect(() => {
     try { setShowSpoilers(localStorage.getItem("bnd_show_spoilers") === "1"); } catch {}
   }, []);
+
   const toggleSpoilers = () =>
     setShowSpoilers((v) => {
       const next = !v;
@@ -133,7 +134,7 @@ export default function Forum() {
     setCreateOpen(false); setSpoiler(false); setTitle(""); setBodyText(""); setCreateError(""); setMediaFiles([]);
   };
 
-  // Client-side mirror of the server caps (5 MB images / 50 MB videos, max 4).
+  // Client-side mirror of the server caps (images only, 5 MB each, max 4).
   const addMediaFiles = (fileList) => {
     const incoming = Array.from(fileList || []);
     setCreateError("");
@@ -141,10 +142,12 @@ export default function Forum() {
       const next = [...prev];
       for (const f of incoming) {
         if (next.length >= 4) { setCreateError("At most 4 attachments per post"); break; }
-        const isVideo = f.type.startsWith("video/");
-        const capMb = isVideo ? 50 : 5;
-        if (f.size > capMb * 1024 * 1024) {
-          setCreateError(`${f.name} is too large (max ${capMb} MB for ${isVideo ? "videos" : "images"})`);
+        if (f.type.startsWith("video/")) {
+          setCreateError("Only images can be attached to posts");
+          continue;
+        }
+        if (f.size > 5 * 1024 * 1024) {
+          setCreateError(`${f.name} is too large (max 5 MB per image)`);
           continue;
         }
         next.push(f);
@@ -245,8 +248,12 @@ export default function Forum() {
             const v = t.myVote;
             const isRevealed = showSpoilers || revealed.has(t.id);
             const blurred = t.isSpoiler && !isRevealed;
+            // Blurred spoiler: the FIRST tap anywhere on the card reveals it —
+            // a tap target inside the card can't work on phones, where every
+            // tap must otherwise navigate. Once revealed, taps open the post;
+            // the "Hide spoiler" chip in the meta row re-hides.
             return (
-              <article key={t.id} onClick={() => router.push(`/forum/${t.id}`)} data-web-hover="true" className="fm-card" style={s(`cursor: pointer; position: relative; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.2), rgba(255,40,60,0.26)); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); animation: fm-rise .6s cubic-bezier(.16,.84,.3,1) both; animation-delay: ${Math.min(i, 8) * 60}ms;`)}>
+              <article key={t.id} onClick={() => { if (blurred) { toggleReveal(t.id); return; } router.push(`/forum/${t.id}`); }} data-web-hover="true" className="fm-card" style={s(`cursor: pointer; position: relative; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.2), rgba(255,40,60,0.26)); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); animation: fm-rise .6s cubic-bezier(.16,.84,.3,1) both; animation-delay: ${Math.min(i, 8) * 60}ms;`)}>
                 <div style={s("display: flex; align-items: stretch; background: linear-gradient(150deg, rgba(16,18,34,0.97), rgba(9,10,20,0.98)); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);")}>
                   {/* vote rail */}
                   <div className="fm-vote" style={s("flex-shrink: 0; width: 62px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px; padding: 16px 0; background: rgba(255,40,60,0.05); border-right: 1px solid rgba(255,255,255,0.06);")}>
@@ -284,7 +291,7 @@ export default function Forum() {
                     </div>
                     <h3 style={s(`font-size: clamp(17px, 1.7vw, 21px); font-weight: 500; color: #fff; line-height: 1.15; margin-bottom: 8px; ${blurred ? "filter: blur(6px); user-select: none;" : ""}`)}>{t.title}</h3>
                     {t.isSpoiler ? (
-                      <div onClick={(e) => { if (!showSpoilers) { e.stopPropagation(); toggleReveal(t.id); } }} style={s("position: relative; margin: 0 0 14px;")}>
+                      <div style={s("position: relative; margin: 0 0 14px;")}>
                         <p className="fm-snippet" style={s(`margin: 0; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty; ${blurred ? "filter: blur(6px); user-select: none;" : ""}`)}>{snippet(t.body)}</p>
                         {blurred && (
                           <span style={s("position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 999px; background: rgba(12,10,22,0.85); border: 1px solid rgba(255,60,74,0.45); color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap;")}>Spoiler — tap to reveal</span>
@@ -363,14 +370,14 @@ export default function Forum() {
               <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="An interesting title…" style={s("width: 100%; box-sizing: border-box; border: 0; outline: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 13px 15px; color: #fff; font-family: inherit; font-size: 15px; margin-bottom: 12px;")} />
               <textarea value={bodyText} onChange={(e) => setBodyText(e.target.value)} rows={4} placeholder="Tell the Web what happened…" style={s("width: 100%; box-sizing: border-box; resize: none; border: 0; outline: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 13px 15px; color: #fff; font-family: inherit; font-size: 14px; line-height: 1.5; margin-bottom: 12px;")}></textarea>
 
-              {/* photo / video attachments (max 4 · images ≤5MB · videos ≤50MB) */}
+              {/* photo attachments (max 4 · images ≤5MB — no videos) */}
               <div style={s("margin-bottom: 14px;")}>
                 <label data-web-hover="true" style={s("display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border: 1px dashed rgba(255,255,255,0.25); border-radius: 9px; cursor: pointer; color: rgba(255,255,255,0.7); font-family: 'Oswald', sans-serif; font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase;")}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
-                  Add photo / video
+                  Add photo
                   <input
                     type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
                     multiple
                     onChange={(e) => { addMediaFiles(e.target.files); e.target.value = ""; }}
                     style={s("display: none;")}

@@ -94,6 +94,15 @@ export default function MusicPlayer({ onSfx }) {
     return () => { if (raf) cancelAnimationFrame(raf); };
   }, []);
 
+  /* touch-opened controls close themselves after 2s of no interaction —
+     the open tray hanging around looked clunky on phones. Any interaction
+     (play/mute) re-arms the window. */
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => setOpen(false), 2000);
+    return () => clearTimeout(t);
+  }, [open, playing, muted]);
+
   const sfx = () => onSfx && onSfx();
   const togglePlay = () => {
     sfx();
@@ -130,10 +139,11 @@ export default function MusicPlayer({ onSfx }) {
       {/* hidden 1×1 player host — audio only */}
       <div ref={hostRef} style={s("position: fixed; width: 1px; height: 1px; left: -9999px; top: -9999px; overflow: hidden; pointer-events: none;")}></div>
 
-      <div className={`bnd-music${open ? " open" : ""}`} style={s("position: fixed; left: clamp(16px, 2.5vw, 30px); bottom: calc(clamp(16px, 2.5vw, 30px) + env(safe-area-inset-bottom, 0px)); z-index: 90; display: flex; align-items: center;")}>
+      {/* z-index 50 = same layer as the navbar; popups/menus (z 55+) cover it */}
+      <div className={`bnd-music${open ? " open" : ""}`} style={s("position: fixed; left: clamp(16px, 2.5vw, 30px); bottom: calc(clamp(16px, 2.5vw, 30px) + env(safe-area-inset-bottom, 0px)); z-index: 50; display: flex; align-items: center;")}>
         <div style={s("position: relative; display: flex; align-items: center; padding: 8px; background: linear-gradient(150deg, rgba(20,10,16,0.92), rgba(9,7,14,0.94)); border: 1px solid rgba(255,60,74,0.35); clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px); box-shadow: 0 12px 34px rgba(0,0,0,0.5), 0 0 22px rgba(255,40,60,0.15); backdrop-filter: blur(8px);")}>
           {/* spinning cover disc (expand toggle on touch, play/pause on desktop) */}
-          <div onClick={onDiscClick} data-web-hover="true" role="button" aria-label={playing ? "Pause music" : "Play music"} style={{ position: "relative", width: "46px", height: "46px", borderRadius: "50%", overflow: "hidden", background: "#0c0a16", border: "1px solid rgba(255,60,74,0.55)", flexShrink: 0, cursor: "pointer", boxShadow: "0 0 14px rgba(255,40,60,0.3)", animation: `bnd-disc-spin ${playing ? "4s" : "12s"} linear infinite` }}>
+          <div onClick={onDiscClick} data-web-hover="true" role="button" aria-label={playing ? "Pause music" : "Play music"} className="bnd-music-disc" style={{ position: "relative", width: "46px", height: "46px", borderRadius: "50%", overflow: "hidden", background: "#0c0a16", border: "1px solid rgba(255,60,74,0.55)", flexShrink: 0, cursor: "pointer", boxShadow: "0 0 14px rgba(255,40,60,0.3)", animation: `bnd-disc-spin ${playing ? "4s" : "12s"} linear infinite` }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/assets/music-cover.png" alt="Brand New Day OST" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
             <div style={s("position: absolute; inset: 0; border-radius: 50%; background: repeating-radial-gradient(circle at 50% 50%, rgba(0,0,0,0.14) 0 2px, transparent 2px 4px); pointer-events: none;")}></div>
@@ -143,16 +153,16 @@ export default function MusicPlayer({ onSfx }) {
           {/* collapsible controls: hover on desktop, tap on mobile */}
           <div className="bnd-music-body">
             <div style={s("display: flex; flex-direction: column; gap: 4px; min-width: 0; padding-left: 12px; padding-right: 4px;")}>
-              <span style={s("font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #fff; white-space: nowrap;")}>Brand New Day <span style={{ color: "rgba(255,255,255,0.4)" }}>· OST</span></span>
+              <span className="bnd-music-title" style={s("font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #fff; white-space: nowrap;")}>Brand New Day <span style={{ color: "rgba(255,255,255,0.4)" }}>· OST</span></span>
               {/* spectrum */}
-              <div ref={specRef} style={s("display: flex; align-items: flex-end; gap: 2px; height: 16px;")}>
+              <div ref={specRef} className="bnd-music-spec" style={s("display: flex; align-items: flex-end; gap: 2px; height: 16px;")}>
                 {SPEC_BARS.map((h, i) => (
                   <span key={i} className="bnd-eq-bar" style={{ width: "2.5px", height: `${Math.round(h * 100)}%`, animationDuration: `${(0.5 + (i % 5) * 0.12).toFixed(2)}s`, animationDelay: `${((i % 7) * 0.07).toFixed(2)}s` }}></span>
                 ))}
               </div>
             </div>
             {/* mute (also starts playback if idle) */}
-            <button onClick={toggleMute} data-web-hover="true" aria-label="Mute or unmute" style={s("flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer; background: linear-gradient(180deg, #ff3a4a, #c00014); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(214,2,26,0.45);")}>
+            <button onClick={toggleMute} data-web-hover="true" aria-label="Mute or unmute" className="bnd-music-mute" style={s("flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer; background: linear-gradient(180deg, #ff3a4a, #c00014); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(214,2,26,0.45);")}>
               {muted ? (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z" /><path d="M22 9l-6 6M16 9l6 6" /></svg>
               ) : (
