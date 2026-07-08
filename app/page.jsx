@@ -796,7 +796,7 @@ export default function Home() {
         {/* BG LAYER — phones get the dedicated portrait banner (its rooftop
             figure IS the hero there, so the desktop decorations hide too) */}
         <div ref={bgRef} style={s("position: absolute; inset: 0; z-index: 1; will-change: transform; transform-origin: 50% 15%;")}>
-          <Image src={isDesktop ? "/assets/bg.jpg" : "/assets/bg-mobile.jpg"} alt="" fill priority sizes="100vw" style={{ objectFit: "cover", objectPosition: "50% 0%", userSelect: "none", pointerEvents: "none" }} />
+          <Image src={isDesktop ? "/assets/bg.jpg" : "/assets/bg-mobile.jpg"} alt="" fill preload sizes="100vw" style={{ objectFit: "cover", objectPosition: "50% 0%", userSelect: "none", pointerEvents: "none" }} />
         </div>
 
         {/* SUN GLOW (desktop art only — the mobile banner bakes in its own flare) */}

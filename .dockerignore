@@ -1,0 +1,30 @@
+# Build artifacts and deps (rebuilt inside the image)
+node_modules
+.next
+out
+build
+
+# Secrets — env reaches containers via docker-compose env_file, never the image
+.env
+.env.*
+!.env.example
+
+# User uploads (mounted as a volume, not baked in)
+uploads
+
+# VCS / tooling / docs not needed to build
+.git
+.gitignore
+.vercel
+.claude
+claude
+coverage
+npm-debug.log*
+Dockerfile
+docker-compose.yml
+.dockerignore
+AGENTS.md
+BACKEND.md
+CLAUDE.md
+DEPLOYMENT.md
+README.md

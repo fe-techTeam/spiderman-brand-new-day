@@ -8,9 +8,17 @@ import { activeDriver, getObjectStream } from "@/lib/server/storage";
 const NAME_RE = /^[a-f0-9]{32}\.(jpg|png|webp|gif)$/;
 const MIME = { jpg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif" };
 
+// no-store so CloudFront never negative-caches a card that is mid-upload.
+function notFound() {
+  return Response.json(
+    { error: "Not found" },
+    { status: 404, headers: { "Cache-Control": "private, no-store" } }
+  );
+}
+
 export async function GET(_request, { params }) {
   const { file } = await params;
-  if (!NAME_RE.test(file || "")) return Response.json({ error: "Not found" }, { status: 404 });
+  if (!NAME_RE.test(file || "")) return notFound();
 
   // badge_asset stores only the URL (no driver column) — try the active
   // driver first, then the other one so cards survive a local↔S3 switch.
@@ -27,7 +35,7 @@ export async function GET(_request, { params }) {
       });
     } catch {}
   }
-  if (!obj) return Response.json({ error: "Not found" }, { status: 404 });
+  if (!obj) return notFound();
 
   return new Response(obj.stream, {
     headers: {
