@@ -254,9 +254,12 @@ body { width: 100%; }
 
 /* ===== Landing mobile: safe viewport + calmer CTAs ===== */
 @media (max-width: 760px) {
-  /* the portrait hero banner carries its own flare — the desktop glow/web
-     decorations hide, but spidey himself still swings in (user feedback) */
-  .bnd-hero-deco:not(.bnd-hero-spidey) { display: none !important; }
+  /* the portrait hero banner carries its own flare, so the desktop sun glow
+     hides — but spidey and the web he hangs from stay (user feedback) */
+  .bnd-hero-deco:not(.bnd-hero-spidey):not(.bnd-hero-web) { display: none !important; }
+  /* the desktop 63vw web reads tiny on portrait — scale it past the edges so
+     spidey (centered at -11vw) still hangs from its middle like on desktop */
+  .bnd-hero-web { width: 115vw !important; }
   /* the hero logo rides ~15% higher so the banner art breathes below it */
   .bnd-hero-stack { bottom: calc(clamp(40px, 7vh, 96px) + 15svh) !important; }
   /* keep the navbar (logo + hamburger) inside the notch-safe zone */

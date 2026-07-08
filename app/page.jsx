@@ -810,8 +810,8 @@ export default function Home() {
         {/* SUN GLOW (desktop art only — the mobile banner bakes in its own flare) */}
         <div className="bnd-hero-deco" style={s("position: absolute; top: 4%; left: 19%; width: 520px; height: 520px; z-index: 2; border-radius: 50%; background: radial-gradient(circle, rgba(255,236,200,0.55) 0%, rgba(255,180,90,0.15) 40%, transparent 70%); filter: blur(8px); animation: bnd-glow-breath 4500ms ease-in-out infinite; pointer-events: none;")}></div>
 
-        {/* WEB OVERLAY */}
-        <div className="bnd-hero-deco" style={s("position: absolute; top: clamp(40px, 5vh, 70px); left: 50%; transform: translateX(calc(-50% - 13vw)); width: min(1216px, 63vw); z-index: 20; pointer-events: none;")}>
+        {/* WEB OVERLAY (also on phones — scaled up there so spidey still hangs from it) */}
+        <div className="bnd-hero-deco bnd-hero-web" style={s("position: absolute; top: clamp(40px, 5vh, 70px); left: 50%; transform: translateX(calc(-50% - 13vw)); width: min(1216px, 63vw); z-index: 20; pointer-events: none;")}>
           <img src="/assets/web.png" alt="" style={s("width: 100%; height: auto; display: block; filter: blur(1.6px); opacity: 0.65; animation: bnd-spidey-bob 5s ease-in-out infinite; animation-delay: -1s;")} />
         </div>
 
@@ -881,7 +881,8 @@ export default function Home() {
       {showLivingWeb && (
       <section data-page="livingweb" data-screen-label="The Living Web" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background: radial-gradient(120% 100% at 50% 26%, #0b1226 0%, #070711 55%, #040409 100%);")}>
         <div className="lw-map" style={s("position: absolute; top: 12%; bottom: 12%; left: 45%; transform: translateX(-50%); width: 84%; z-index: 1;")}>
-          <canvas ref={globeRef} style={s("position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.95; pointer-events: none;")}></canvas>
+          {/* kept well under 1 — at 0.95 the map outshone the chips/header/cards on top */}
+          <canvas ref={globeRef} style={s("position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.5; pointer-events: none;")}></canvas>
         </div>
         <div style={s("position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4,4,9,0.9) 0%, rgba(4,4,9,0.35) 26%, transparent 42%, transparent 60%, rgba(4,4,9,0.4) 78%, rgba(4,4,9,0.86) 100%); pointer-events: none;")}></div>
         <div style={s("position: absolute; inset: 0; background: linear-gradient(180deg, rgba(4,4,9,0.5) 0%, transparent 20%, transparent 62%, rgba(4,4,9,0.9) 100%); pointer-events: none;")}></div>
@@ -890,7 +891,8 @@ export default function Home() {
         <div className="lw-map" style={s("position: absolute; top: 12%; bottom: 12%; left: 45%; transform: translateX(-50%); width: 84%; z-index: 3; pointer-events: none;")}>
           {MAP_CHIPS.map((c, i) => (
             <div key={i} style={s(`position: absolute; left: ${c.x}; top: ${c.y}; transform: translate(-50%, -50%); pointer-events: none;`)}>
-              {c.labeled ? (
+              {/* twin view: names/flags off the background — every city is a plain ping */}
+              {c.labeled && !(twinMode && user) ? (
                 <div style={s("display: inline-flex; align-items: center; gap: 8px; padding: 6px 11px; border-radius: 9px; background: rgba(10,12,24,0.82); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 6px 18px rgba(0,0,0,0.5); backdrop-filter: blur(4px); white-space: nowrap;")}>
                   <span style={s("flex-shrink: 0; width: 22px; height: 15px; border-radius: 2px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,0.15);")}><Flag code={c.flagCode} /></span>
                   <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #fff;")}>{c.country}</span>
