@@ -10,7 +10,7 @@ import { createSfx } from "@/lib/sfx";
 import { initGlobe } from "@/lib/globe";
 import { initParticles } from "@/lib/particles";
 import { portalApi } from "@/lib/portal/api";
-import { Flag } from "@/components/Flags";
+import { Flag, DotMarker } from "@/components/Flags";
 import { useSession } from "@/components/auth/SessionProvider";
 import Nav from "@/components/main/Nav";
 import WalkthroughModal from "@/components/main/WalkthroughModal";
@@ -43,6 +43,16 @@ const MAP_CHIPS = [
   city, country, labeled: !!labeled, flagCode: fk, x: projX(lon), y: projY(lat),
 }));
 
+/* twins roster: stylized mini-flags exist for a handful of countries — map the
+   free-text users.country (geo-ip names) onto them; DotMarker covers the rest */
+const FLAG_BY_COUNTRY = {
+  india: "in", "united states": "us", usa: "us", "united states of america": "us",
+  "united kingdom": "uk", uk: "uk", england: "uk", "great britain": "uk",
+  japan: "jp", brazil: "br", "south africa": "za", nigeria: "ng", australia: "au",
+};
+const countryFlag = (c) => (c ? FLAG_BY_COUNTRY[String(c).trim().toLowerCase()] || null : null);
+const TWIN_PAGE = 5; // roster rows revealed per scroll step
+
 /* landing sections in DOM order — drives the right-side web-rail nav */
 const RAIL_SECTIONS = [
   { key: "hero", label: "Brand New Day" },
@@ -69,6 +79,8 @@ export default function Home() {
   const [mjSending, setMjSending] = useState(false);
   const [mjError, setMjError] = useState("");
   const [twinMode, setTwinMode] = useState(false);
+  const [twinData, setTwinData] = useState(null); // { count, twins[] } once /api/twins answers
+  const [twinsVisible, setTwinsVisible] = useState(TWIN_PAGE);
   const [activeSection, setActiveSection] = useState("hero");
 
   // Logged-in members already picked their identity during onboarding — the
@@ -468,6 +480,8 @@ export default function Home() {
     const onWheel = (ev) => {
       if (!isDesktopRef.current) return; // mobile scrolls natively
       if (modalOpen()) return;
+      // inner scrollers (the twins roster) keep native wheel scrolling
+      if (ev.target && ev.target.closest && ev.target.closest("[data-scrollable]")) return;
       ev.preventDefault();
       // One physical gesture = exactly one section, no matter how hard/far.
       // Every wheel event keeps the gesture "alive"; a trackpad fling's inertial
@@ -499,6 +513,8 @@ export default function Home() {
     const onTouchStart = (ev) => { touchStartY = ev.touches[0].clientY; touchConsumed = false; };
     const onTouchMove = (ev) => {
       if (modalOpen() || touchStartY == null) return;
+      // inner scrollers (the twins roster) keep native touch scrolling
+      if (ev.target && ev.target.closest && ev.target.closest("[data-scrollable]")) return;
       if (isDesktopRef.current) { ev.preventDefault(); return; }
       // gesture already spent its one page flip — keep eating the drag so the
       // remaining finger travel can't scroll the page away from the section
@@ -613,6 +629,19 @@ export default function Home() {
     try { if (localStorage.getItem("bnd_twins_revealed") === "1") setTwinMode(true); } catch {}
   }, []);
 
+  /* twin roster — the count plus up to 50 random members sharing the avatar */
+  useEffect(() => {
+    if (!twinMode || !user) return;
+    let on = true;
+    setTwinData(null);
+    setTwinsVisible(TWIN_PAGE);
+    portalApi("/twins")
+      .then((d) => { if (on) setTwinData({ count: d.count || 0, twins: Array.isArray(d.twins) ? d.twins : [] }); })
+      .catch(() => { if (on) setTwinData({ count: 0, twins: [], failed: true }); });
+    return () => { on = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [twinMode, user?.id]);
+
   /* the Living Web section is members-only, so its canvas mounts/unmounts with
      the session — (re)initialize the globe whenever the section appears */
   useEffect(() => {
@@ -705,6 +734,12 @@ export default function Home() {
     if (twinTiltRef.current) twinTiltRef.current.style.transform = "rotateY(0) rotateX(0) scale(1)";
     if (twinGlareRef.current) twinGlareRef.current.style.opacity = "0";
   };
+  /* roster scroll-pagination: nearing the bottom reveals the next TWIN_PAGE rows */
+  const onTwinsScroll = (e) => {
+    const el = e.currentTarget;
+    if (el.scrollTop + el.clientHeight < el.scrollHeight - 56) return;
+    setTwinsVisible((v) => (twinData && v < twinData.twins.length ? Math.min(v + TWIN_PAGE, twinData.twins.length) : v));
+  };
 
   // Which section (if any) each nav item corresponds to — drives the active highlight.
   const navSections = [null, "mjwall", null, "tracker"];
@@ -780,15 +815,15 @@ export default function Home() {
           <img src="/assets/web.png" alt="" style={s("width: 100%; height: auto; display: block; filter: blur(1.6px); opacity: 0.65; animation: bnd-spidey-bob 5s ease-in-out infinite; animation-delay: -1s;")} />
         </div>
 
-        {/* SPIDEY */}
-        <div ref={spideyWrapRef} className="bnd-hero-deco" style={s("position: absolute; top: clamp(105px, 12vh, 165px); left: 50%; z-index: 15; pointer-events: none; transform: translateX(calc(-50% - 11vw - 10px));")}>
+        {/* SPIDEY (also floats on phones — only the glow/web decorations hide there) */}
+        <div ref={spideyWrapRef} className="bnd-hero-deco bnd-hero-spidey" style={s("position: absolute; top: clamp(105px, 12vh, 165px); left: 50%; z-index: 15; pointer-events: none; transform: translateX(calc(-50% - 11vw - 10px));")}>
           <div style={s(`position: relative; width: ${spideyWidth}; aspect-ratio: 588/600; will-change: transform; animation: bnd-spidey-bob 5s ease-in-out infinite; animation-delay: -1s;`)}>
             <img src="/assets/spiderman.png" alt="Spider-Man" style={s("width: 100%; height: 100%; display: block; filter: drop-shadow(0 30px 50px rgba(0,0,0,0.55)) drop-shadow(0 8px 18px rgba(255,120,40,0.18));")} />
           </div>
         </div>
 
         {/* HERO TYPE STACK (logo) */}
-        <div ref={heroStackRef} style={s("position: absolute; left: 0; right: 0; bottom: clamp(40px, 7vh, 96px); z-index: 10; display: flex; flex-direction: column; align-items: center; pointer-events: none; will-change: transform;")}>
+        <div ref={heroStackRef} className="bnd-hero-stack" style={s("position: absolute; left: 0; right: 0; bottom: clamp(40px, 7vh, 96px); z-index: 10; display: flex; flex-direction: column; align-items: center; pointer-events: none; will-change: transform;")}>
           <div style={s("position: relative; z-index: 1; width: 100%; display: flex; justify-content: center;")}>
             <div ref={logoRef} style={s(`position: relative; width: ${logoWidth}; will-change: transform; animation: bnd-logo-punch 1200ms 750ms cubic-bezier(.16,.84,.3,1) both;`)}>
               <img src="/assets/logo.png" alt="Spider-Man: Brand New Day" style={s("width: 100%; height: auto; display: block; filter: drop-shadow(0 12px 28px rgba(0,0,0,0.6)) drop-shadow(0 0 24px rgba(214,2,26,0.25));")} />
@@ -882,46 +917,109 @@ export default function Home() {
           </>
         )}
 
-        {/* TWIN MODE — members only. Twins matching is parked for now: the
-            reveal shows your assigned collectible card + Spidey Code (same
-            treatment as the quiz reveal), with the twins marked coming soon. */}
+        {/* TWIN MODE — members only. Left: your assigned collectible card with
+            the Spidey Code above it (same treatment as the quiz reveal).
+            Right: the live twins roster — how many members share the identity,
+            a scroll-paginated random 50 of them, and the retake-quiz CTA. */}
         {twinMode && user && (
-          <div className="bnd-reveal in" style={s("position: absolute; inset: 0; z-index: 7; box-sizing: border-box; padding: clamp(76px, 11vh, 110px) 24px clamp(22px, 4vh, 36px); display: flex; flex-direction: column; align-items: center; justify-content: center;")}>
-            <button onClick={() => setTwinMode(false)} data-web-hover="true" style={s("position: absolute; top: clamp(84px, 12vh, 118px); left: clamp(24px, 5vw, 70px); display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 0; color: rgba(255,255,255,0.7); font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer;")}>‹ Back to the Web</button>
+          <div className="bnd-reveal in" style={s(`position: absolute; inset: 0; z-index: 7; box-sizing: border-box; padding: ${isDesktop ? "clamp(76px, 11vh, 110px) clamp(24px, 5vw, 70px) clamp(22px, 4vh, 36px)" : "64px 18px 14px"}; display: flex; align-items: center; justify-content: center;`)}>
+            <button onClick={() => setTwinMode(false)} data-web-hover="true" style={s(`position: absolute; top: ${isDesktop ? "clamp(84px, 12vh, 118px)" : "58px"}; left: ${isDesktop ? "clamp(24px, 5vw, 70px)" : "18px"}; z-index: 2; display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 0; color: rgba(255,255,255,0.7); font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer;`)}>‹ Back to the Web</button>
 
-            {/* Spidey Code eyebrow */}
-            <div className="bnd-line" style={s("animation-delay: 80ms; display: inline-flex; align-items: center; gap: 10px; margin-bottom: clamp(16px, 2.6vh, 26px); flex-wrap: wrap; justify-content: center;")}>
-              <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, transparent, ${heroColor})` }}></span>
-              <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: rgba(255,255,255,0.5);")}>Spidey Code</span>
-              <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, fontWeight: 600, letterSpacing: "0.2em", color: heroColor, textShadow: `0 0 12px ${heroGlow}` }}>{user.spideyCode || "—"}</span>
-              <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, ${heroColor}, transparent)` }}></span>
-            </div>
+            <div style={s(`width: 100%; max-width: 1100px; display: flex; flex-direction: ${isDesktop ? "row" : "column"}; align-items: center; justify-content: center; gap: ${isDesktop ? "clamp(40px, 6vw, 96px)" : "16px"};`)}>
 
-            {user.avatar?.card ? (
-              /* the assigned collectible card, with the reveal-screen effect
-                 (entry punch, ambient glow, float, pointer tilt + glare) */
-              <div style={s("perspective: 1200px; animation: ri-card-in 1s cubic-bezier(.16,.84,.3,1) both;")}>
-                <div ref={twinTiltRef} onMouseMove={onTwinTilt} onMouseLeave={onTwinTiltOut} style={s("position: relative; display: inline-block; will-change: transform; transition: transform .3s cubic-bezier(.16,.84,.3,1);")}>
-                  <div style={{ position: "absolute", inset: "-6% -6% -2%", borderRadius: 22, background: `radial-gradient(circle at 50% 40%, ${heroGlow} 0%, transparent 68%)`, filter: "blur(22px)", animation: "ri-pulse-glow 4.5s ease-in-out infinite", pointerEvents: "none" }}></div>
-                  <img src={user.avatar.card} alt={user.avatar.name} style={s("position: relative; display: block; height: min(52vh, 500px); max-width: 86vw; width: auto; filter: drop-shadow(0 30px 60px rgba(0,0,0,0.6)); animation: ri-card-float 6s ease-in-out infinite;")} />
-                  <div ref={twinGlareRef} style={s("position: absolute; inset: 0; border-radius: 18px; background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.28), transparent 45%); opacity: 0; pointer-events: none; transition: opacity .3s ease;")}></div>
+              {/* ---- your identity: Spidey Code over the collectible card ---- */}
+              <div style={s("flex-shrink: 0; display: flex; flex-direction: column; align-items: center; min-width: 0;")}>
+                <div className="bnd-line" style={s(`animation-delay: 80ms; display: inline-flex; align-items: center; gap: 10px; margin-bottom: ${isDesktop ? "clamp(14px, 2.2vh, 22px)" : "10px"}; flex-wrap: wrap; justify-content: center;`)}>
+                  <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, transparent, ${heroColor})` }}></span>
+                  <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: rgba(255,255,255,0.5);")}>Spidey Code</span>
+                  <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, fontWeight: 600, letterSpacing: "0.2em", color: heroColor, textShadow: `0 0 12px ${heroGlow}` }}>{user.spideyCode || "—"}</span>
+                  <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, ${heroColor}, transparent)` }}></span>
+                </div>
+
+                {user.avatar?.card ? (
+                  /* the assigned collectible card, with the reveal-screen effect
+                     (entry punch, ambient glow, float, pointer tilt + glare) */
+                  <div style={s("perspective: 1200px; animation: ri-card-in 1s cubic-bezier(.16,.84,.3,1) both;")}>
+                    <div ref={twinTiltRef} onMouseMove={onTwinTilt} onMouseLeave={onTwinTiltOut} style={s("position: relative; display: inline-block; will-change: transform; transition: transform .3s cubic-bezier(.16,.84,.3,1);")}>
+                      <div style={{ position: "absolute", inset: "-6% -6% -2%", borderRadius: 22, background: `radial-gradient(circle at 50% 40%, ${heroGlow} 0%, transparent 68%)`, filter: "blur(22px)", animation: "ri-pulse-glow 4.5s ease-in-out infinite", pointerEvents: "none" }}></div>
+                      <img src={user.avatar.card} alt={user.avatar.name} style={s(`position: relative; display: block; height: ${isDesktop ? "min(46vh, 440px)" : "min(22vh, 190px)"}; max-width: 80vw; width: auto; filter: drop-shadow(0 30px 60px rgba(0,0,0,0.6)); animation: ri-card-float 6s ease-in-out infinite;`)} />
+                      <div ref={twinGlareRef} style={s("position: absolute; inset: 0; border-radius: 18px; background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.28), transparent 45%); opacity: 0; pointer-events: none; transition: opacity .3s ease;")}></div>
+                    </div>
+                  </div>
+                ) : (
+                  /* emblem fallback while this identity has no card art yet */
+                  <div style={s(`position: relative; width: ${isDesktop ? "clamp(120px, 18vh, 170px)" : "clamp(90px, 14vh, 130px)"}; height: ${isDesktop ? "clamp(120px, 18vh, 170px)" : "clamp(90px, 14vh, 130px)"};`)}>
+                    <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid ${heroColor}`, opacity: 0.4, animation: "ri-ring 2.4s ease-out infinite" }}></span>
+                    <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid ${heroColor}`, opacity: 0.4, animation: "ri-ring 2.4s ease-out infinite 1.2s" }}></span>
+                    <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "radial-gradient(circle at 50% 42%, rgba(30,12,20,0.9), rgba(8,6,14,0.95))", display: "flex", alignItems: "center", justifyContent: "center", "--gl": heroGlow, animation: "ri-emblem 3.4s ease-in-out infinite" }}>
+                      <svg viewBox="0 0 100 100" style={{ width: "58%", height: "58%" }} fill="none" stroke={heroColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="50" cy="44" rx="9" ry="12" /><path d="M50 32V16M42 36 22 26M58 36l20-10M43 52 27 66M57 52l16 14M50 56v20" /></svg>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ---- the twins roster ---- */}
+              <div className="bnd-line" style={s(`animation-delay: 260ms; width: ${isDesktop ? "min(440px, 44vw)" : "min(440px, 100%)"}; min-width: 0;`)}>
+                <div style={{ padding: 1, background: `linear-gradient(160deg, ${heroGlow}, rgba(255,255,255,0.09) 55%, rgba(255,255,255,0.04))`, clipPath: "polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px)", boxShadow: "0 24px 60px rgba(0,0,0,0.45)" }}>
+                  <div style={s(`background: linear-gradient(165deg, rgba(13,13,24,0.92), rgba(7,7,14,0.95)); clip-path: polygon(17px 0, 100% 0, 100% calc(100% - 17px), calc(100% - 17px) 100%, 0 100%, 0 17px); padding: ${isDesktop ? "20px 22px 16px" : "14px 14px 12px"}; backdrop-filter: blur(6px);`)}>
+
+                    {/* live eyebrow */}
+                    <div style={s("display: inline-flex; align-items: center; gap: 8px; margin-bottom: 10px;")}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: heroColor, boxShadow: `0 0 8px ${heroGlow}`, animation: "bnd-blip 2s ease-in-out infinite" }}></span>
+                      <span style={s("font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.5);")}>The Living Web · Matches</span>
+                    </div>
+
+                    {/* the count — the headline of the reveal */}
+                    <div style={s("display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;")}>
+                      <span style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 600, fontSize: isDesktop ? 46 : 34, lineHeight: 1, color: heroColor, textShadow: `0 0 24px ${heroGlow}` }}>{twinData ? twinData.count : "—"}</span>
+                      <span style={s("font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #fff;")}>Web Twin{twinData && twinData.count === 1 ? "" : "s"} found</span>
+                    </div>
+                    <p style={s(`margin: 8px 0 0; font-size: ${isDesktop ? "13.5px" : "12.5px"}; line-height: 1.55; color: rgba(226,226,240,0.66); text-wrap: pretty;`)}>Members around the world who unmasked as <span style={{ color: heroColor, fontWeight: 600 }}>{user.avatar?.name || "your identity"}</span> — the same Spider as you.</p>
+
+                    {/* roster — 5 rows tall, scrolling reveals 5 more at a time */}
+                    {!twinData ? (
+                      <div style={s("padding: 24px 0 16px; display: flex; align-items: center; gap: 10px; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.26em; text-transform: uppercase; color: rgba(255,255,255,0.5);")}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: heroColor, boxShadow: `0 0 8px ${heroGlow}`, animation: "bnd-blip 1.2s ease-in-out infinite" }}></span>
+                        Searching the Web…
+                      </div>
+                    ) : twinData.twins.length === 0 ? (
+                      <p style={s("margin: 16px 0 12px; font-size: 13.5px; line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>
+                        {twinData.failed ? "The Web glitched — try again in a moment." : "You're the first of your kind. Every legend starts alone — twins will appear as more fans unmask."}
+                      </p>
+                    ) : (
+                      <div data-scrollable="true" onScroll={onTwinsScroll} style={s(`margin-top: 14px; max-height: ${isDesktop ? "min(300px, 34vh)" : "min(24vh, 210px)"}; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px;`)}>
+                        {twinData.twins.slice(0, twinsVisible).map((t, i) => {
+                          const fc = countryFlag(t.country);
+                          return (
+                            <div key={`${t.username}-${i}`} className="lw-twin-row" style={{ animationDelay: `${(i % TWIN_PAGE) * 70}ms`, display: "flex", alignItems: "center", gap: 11, padding: "9px 12px", marginBottom: 8, background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10 }}>
+                              <span style={{ flexShrink: 0, width: 30, height: 30, borderRadius: "50%", background: `linear-gradient(180deg, ${heroGlow}, rgba(10,8,16,0.9))`, border: `1px solid ${heroColor}66`, color: "#fff", fontFamily: "'Oswald', sans-serif", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", textTransform: "uppercase" }}>{t.username[0]}</span>
+                              <span style={s("flex: 1; min-width: 0; font-size: 14px; color: rgba(255,255,255,0.92); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;")}>u/{t.username}</span>
+                              <span style={s("flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; max-width: 46%;")}>
+                                <span style={s("flex-shrink: 0; width: 20px; height: 13px; border-radius: 2px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,0.14);")}>{fc ? <Flag code={fc} /> : <DotMarker />}</span>
+                                <span style={s("font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;")}>{t.country || "-"}</span>
+                              </span>
+                            </div>
+                          );
+                        })}
+                        {twinsVisible < twinData.twins.length && (
+                          <div style={s("padding: 2px 0 8px; text-align: center; font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.26em; text-transform: uppercase; color: rgba(255,255,255,0.38);")}>Scroll for more ↓</div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* footer: shown-of counter + retake CTA */}
+                    <div style={s("margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;")}>
+                      {twinData && twinData.twins.length > 0 && (
+                        <span style={s("font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.45);")}>
+                          {Math.min(twinsVisible, twinData.twins.length)} of {twinData.twins.length} shown{twinData.count > twinData.twins.length ? ` · ${twinData.count} total` : ""}
+                        </span>
+                      )}
+                      <button onClick={() => { sfxRef.current && sfxRef.current.play("click"); router.push("/quiz?retake=1"); }} data-web-hover="true" className="lw-ghost" style={s("margin-left: auto; display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.03); border-radius: 9px; padding: 9px 16px; color: rgba(255,255,255,0.85); font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer;")}>↻ Retake Identity Quiz</button>
+                    </div>
+
+                  </div>
                 </div>
               </div>
-            ) : (
-              /* emblem fallback while this identity has no card art yet */
-              <div style={s("position: relative; width: clamp(120px, 18vh, 170px); height: clamp(120px, 18vh, 170px);")}>
-                <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid ${heroColor}`, opacity: 0.4, animation: "ri-ring 2.4s ease-out infinite" }}></span>
-                <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid ${heroColor}`, opacity: 0.4, animation: "ri-ring 2.4s ease-out infinite 1.2s" }}></span>
-                <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "radial-gradient(circle at 50% 42%, rgba(30,12,20,0.9), rgba(8,6,14,0.95))", display: "flex", alignItems: "center", justifyContent: "center", "--gl": heroGlow, animation: "ri-emblem 3.4s ease-in-out infinite" }}>
-                  <svg viewBox="0 0 100 100" style={{ width: "58%", height: "58%" }} fill="none" stroke={heroColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="50" cy="44" rx="9" ry="12" /><path d="M50 32V16M42 36 22 26M58 36l20-10M43 52 27 66M57 52l16 14M50 56v20" /></svg>
-                </div>
-              </div>
-            )}
-
-            {/* twins themselves: coming soon */}
-            <div className="bnd-line" style={s("animation-delay: 320ms; margin-top: clamp(18px, 3vh, 28px); display: inline-flex; align-items: center; gap: 9px;")}>
-              <span style={s("width: 6px; height: 6px; border-radius: 50%; background: #ff2f40; box-shadow: 0 0 8px rgba(255,47,64,0.8); animation: bnd-blip 2s ease-in-out infinite;")}></span>
-              <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.65);")}>Web Twins — <span style={{ color: "#ff5a6a" }}>Coming Soon</span></span>
             </div>
           </div>
         )}

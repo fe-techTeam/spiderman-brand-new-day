@@ -39,7 +39,7 @@ export default function Nav({
 
   return (
     <>
-      <nav style={s("position: fixed; top: 0; left: 0; right: 0; z-index: 50; padding: clamp(14px, 2vh, 22px) clamp(24px, 4vw, 60px); display: flex; align-items: center; justify-content: space-between; gap: clamp(12px, 2vw, 24px); opacity: 1; background: linear-gradient(to bottom, rgba(8,8,12,0.55) 0%, rgba(8,8,12,0) 100%);")}>
+      <nav className="bnd-nav" style={s("position: fixed; top: 0; left: 0; right: 0; z-index: 50; padding: clamp(14px, 2vh, 22px) clamp(24px, 4vw, 60px); display: flex; align-items: center; justify-content: space-between; gap: clamp(12px, 2vw, 24px); opacity: 1; background: linear-gradient(to bottom, rgba(8,8,12,0.55) 0%, rgba(8,8,12,0) 100%);")}>
         <a href="#" onClick={(e) => { e.preventDefault(); onGoHome(); }} style={s("display: block; line-height: 0; flex-shrink: 0;")}>
           <img src="/assets/nav-logo.png" alt="Spider-Man: Brand New Day" style={s("height: clamp(44px, 4.4vw, 64px); width: auto; display: block; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6));")} />
         </a>

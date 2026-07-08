@@ -53,6 +53,7 @@ export default function Forum() {
     });
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false); // mobile-only rules popup
   const [spoiler, setSpoiler] = useState(false);
   const [mediaFiles, setMediaFiles] = useState([]);
   const [title, setTitle] = useState("");
@@ -217,10 +218,14 @@ export default function Forum() {
                 <span style={s(`position: absolute; top: 2px; left: ${showSpoilers ? "13px" : "2px"}; width: 11px; height: 11px; border-radius: 50%; background: #fff; transition: left .2s ease;`)}></span>
               </span>
             </button>
+            {/* phones: the sidebar is hidden, so the rules live behind this icon */}
+            <button onClick={() => setRulesOpen(true)} data-web-hover="true" aria-label="Web Rules" title="Web Rules" className="fm-rules-btn" style={s("align-items: center; justify-content: center; flex-shrink: 0; width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.7); cursor: pointer; padding: 0;")}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l8 4v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6z" /></svg>
+            </button>
           </div>
 
-          {/* create prompt */}
-          <div className="fm-card" style={s("position: relative; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.24), rgba(255,40,60,0.3)); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);")}>
+          {/* create prompt (desktop only — phones get the floating + button) */}
+          <div className="fm-card fm-prompt" style={s("position: relative; padding: 1px; background: linear-gradient(150deg, rgba(120,150,220,0.24), rgba(255,40,60,0.3)); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);")}>
             <div style={s("display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: linear-gradient(150deg, rgba(16,18,34,0.96), rgba(9,10,20,0.97)); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);")}>
               <div style={s("flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px; background: radial-gradient(circle at 40% 32%, #2a1420, #0c0a16); border: 1px solid rgba(255,60,74,0.4); display: flex; align-items: center; justify-content: center;")}>
                 <SpiderAvatar size="54%" strokeWidth={4} />
@@ -277,19 +282,19 @@ export default function Forum() {
                         </button>
                       )}
                     </div>
-                    <h3 style={s("font-size: clamp(17px, 1.7vw, 21px); font-weight: 500; color: #fff; line-height: 1.15; margin-bottom: 8px;")}>{t.title}</h3>
+                    <h3 style={s(`font-size: clamp(17px, 1.7vw, 21px); font-weight: 500; color: #fff; line-height: 1.15; margin-bottom: 8px; ${blurred ? "filter: blur(6px); user-select: none;" : ""}`)}>{t.title}</h3>
                     {t.isSpoiler ? (
                       <div onClick={(e) => { if (!showSpoilers) { e.stopPropagation(); toggleReveal(t.id); } }} style={s("position: relative; margin: 0 0 14px;")}>
-                        <p style={s(`margin: 0; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty; ${blurred ? "filter: blur(6px); user-select: none;" : ""}`)}>{snippet(t.body)}</p>
+                        <p className="fm-snippet" style={s(`margin: 0; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty; ${blurred ? "filter: blur(6px); user-select: none;" : ""}`)}>{snippet(t.body)}</p>
                         {blurred && (
                           <span style={s("position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 999px; background: rgba(12,10,22,0.85); border: 1px solid rgba(255,60,74,0.45); color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap;")}>Spoiler — tap to reveal</span>
                         )}
                       </div>
                     ) : (
-                      <p style={s("margin: 0 0 14px; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>{snippet(t.body)}</p>
+                      <p className="fm-snippet" style={s("margin: 0 0 14px; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>{snippet(t.body)}</p>
                     )}
                     {t.media?.length > 0 && (
-                      <div style={s(`position: relative; margin: 0 0 14px; max-width: 460px; border-radius: 11px; overflow: hidden; background: #141018; border: 1px solid rgba(255,255,255,0.08); ${blurred ? "filter: blur(14px);" : ""}`)}>
+                      <div className="fm-media" style={s(`position: relative; margin: 0 0 14px; max-width: 460px; border-radius: 11px; overflow: hidden; background: #141018; border: 1px solid rgba(255,255,255,0.08); ${blurred ? "filter: blur(14px);" : ""}`)}>
                         {t.media[0].kind === "video" ? (
                           <video src={t.media[0].url} controls preload="metadata" onClick={(e) => e.stopPropagation()} style={s("display: block; width: 100%; max-height: 300px; background: #000;")} />
                         ) : (
@@ -407,6 +412,29 @@ export default function Forum() {
           </div>
         </div>
       )}
+
+      {/* WEB RULES POPUP (phones — opened from the sortbar shield icon) */}
+      {rulesOpen && (
+        <div onClick={() => setRulesOpen(false)} style={s("position: fixed; inset: 0; z-index: 90; background: rgba(4,4,10,0.82); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 24px; animation: fm-rise .3s ease both;")}>
+          <div onClick={(e) => e.stopPropagation()} style={s("position: relative; width: min(400px, 100%); padding: 2px; background: linear-gradient(150deg, rgba(255,40,60,0.55), rgba(120,150,220,0.4)); clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px); box-shadow: 0 40px 100px rgba(0,0,0,0.6);")}>
+            <div style={s("background: linear-gradient(150deg, rgba(20,10,18,0.97), rgba(9,10,20,0.98)); clip-path: polygon(19px 0, 100% 0, 100% calc(100% - 19px), calc(100% - 19px) 100%, 0 100%, 0 19px); padding: 24px 24px 18px;")}>
+              <h3 style={s("display: flex; align-items: center; gap: 9px; font-size: 14px; letter-spacing: 0.16em; text-transform: uppercase; color: #fff; margin-bottom: 12px;")}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff5a6a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l8 4v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6z" /></svg>
+                Web Rules
+              </h3>
+              {RULES.map((r) => (
+                <div key={r.n} style={s("display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.06); font-size: 13px; line-height: 1.5; color: rgba(226,226,240,0.72);")}><span style={s("font-family: 'Oswald', sans-serif; color: #ff5a6a; flex-shrink: 0;")}>{r.n}</span><span>{r.text}</span></div>
+              ))}
+            </div>
+            <button onClick={() => setRulesOpen(false)} aria-label="Close" data-web-hover="true" style={s("position: absolute; top: 12px; right: 12px; z-index: 3; width: 34px; height: 34px; border-radius: 50%; border: 0; background: linear-gradient(180deg, #ff3a4a, #c00014); color: #fff; font-size: 18px; cursor: pointer; box-shadow: 0 8px 22px rgba(0,0,0,0.5); font-family: inherit; line-height: 1; display: flex; align-items: center; justify-content: center;")}>×</button>
+          </div>
+        </div>
+      )}
+
+      {/* phones: floating create button — the one-tap way to post */}
+      <button onClick={onCreate} aria-label="Create post" data-web-hover="true" className="fm-fab">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+      </button>
     </div>
   );
 }

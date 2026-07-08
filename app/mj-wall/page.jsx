@@ -2,9 +2,11 @@
 "use client";
 
 // The MJ Wall — "Living Memory Wall" (ported from MJ Wall.dc.html). Memory
-// cards are dealt into masonry columns on a normally-scrolling page (the wall
-// can hold hundreds of entries — more load in as you approach the bottom).
-// Cards expand into a modal, and a sticky composer posts to the real API.
+// cards are dealt into columns that drift on their own — odd columns scroll
+// up, even columns scroll down, each looping seamlessly (the column content
+// is doubled; sparse walls repeat their entries until every column is full).
+// Hovering a column holds it. Cards expand into a modal, and the composer
+// posts to the real API.
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -58,8 +60,6 @@ const mapMsg = (m, i) => ({
 export default function MjWallPage() {
   const { user, openAuth } = useSession();
   const [messages, setMessages] = useState(SEEDS); // seeded copy stays as the fallback
-  const [nextCursor, setNextCursor] = useState(null);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [selected, setSelected] = useState(null);
   const [draft, setDraft] = useState("");
   const [justSent, setJustSent] = useState(false);
@@ -68,50 +68,20 @@ export default function MjWallPage() {
   const [ncol, setNcol] = useState(4);
   const inputRef = useRef(null);
   const spotRef = useRef(null);
-  const moreRef = useRef(null);
 
-  // state mirrors for the auto-scroll RAF loop (reads every frame, no re-binds)
-  const selectedRef = useRef(null);
-  const nextCursorRef = useRef(null);
-  selectedRef.current = selected;
-  nextCursorRef.current = nextCursor;
-
-  /* live messages — only admin-approved ones ever render on the wall */
+  /* live messages — only admin-approved ones ever render on the wall (the
+     latest page; the looping columns repeat entries, so one page is plenty) */
   useEffect(() => {
     let on = true;
     portalApi("/mj-wall/messages?limit=30")
       .then((data) => {
         if (!on || !Array.isArray(data.messages) || !data.messages.length) return;
         setMessages(data.messages.map(mapMsg));
-        setNextCursor(data.nextCursor || null);
       })
       .catch(() => {}); // the seeded wall stays up
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  /* infinite scroll — pull the next page while a cursor remains */
-  useEffect(() => {
-    const el = moreRef.current;
-    if (!el || !nextCursor || loadingMore || !("IntersectionObserver" in window)) return;
-    const obs = new IntersectionObserver(async (entries) => {
-      if (!entries.some((en) => en.isIntersecting)) return;
-      obs.disconnect();
-      setLoadingMore(true);
-      try {
-        const data = await portalApi(`/mj-wall/messages?limit=30&cursor=${encodeURIComponent(nextCursor)}`);
-        const fresh = Array.isArray(data.messages) ? data.messages : [];
-        setMessages((prev) => [...prev, ...fresh.map((m, i) => mapMsg(m, prev.length + i))]);
-        setNextCursor(data.nextCursor || null);
-      } catch (e) {
-        // leave the cursor in place — scrolling near the sentinel retries
-      } finally {
-        setLoadingMore(false);
-      }
-    }, { rootMargin: "700px 0px" });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [nextCursor, loadingMore]);
 
   /* cursor spotlight follows the pointer (eased RAF, from the mockup) */
   useEffect(() => {
@@ -139,76 +109,6 @@ export default function MjWallPage() {
     };
   }, []);
 
-  /* constant crawl — the wall drifts down on its own like the design mockup's
-     living wall, but hands control back the moment the user scrolls: any
-     wheel / touch / key / scrollbar input pauses the crawl, and it resumes
-     after a few idle seconds. Also holds while the card modal is open or the
-     composer has focus. */
-  useEffect(() => {
-    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const SPEED = 24; // px/s — slow enough to read a card as it passes
-    const RESUME_MS = 4000; // idle time before the crawl takes over again
-    let pausedUntil = performance.now() + 2400; // let the entry animations land
-    let acc = 0; // fractional px carry — scrollTo only moves whole pixels
-    let lastY = window.scrollY;
-    let lastT = performance.now();
-    let atEndSince = null;
-    let raf = null;
-
-    const pause = () => { pausedUntil = performance.now() + RESUME_MS; };
-
-    const tick = (now) => {
-      raf = requestAnimationFrame(tick);
-      const dt = Math.min(100, now - lastT);
-      lastT = now;
-      // a scroll we didn't cause (scrollbar drag, touch momentum) also pauses —
-      // our own steps happen below, after this check, so they never trip it
-      if (Math.abs(window.scrollY - lastY) > 2) pause();
-      const held =
-        now < pausedUntil ||
-        selectedRef.current ||
-        document.activeElement === inputRef.current;
-      if (!held) {
-        const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-        if (window.scrollY >= maxY - 1) {
-          // bottom reached: while more pages exist the infinite-scroll loader
-          // grows the document and the crawl continues; once the wall is truly
-          // exhausted, breathe, then wrap back to the top and keep flowing
-          if (!nextCursorRef.current) {
-            if (atEndSince == null) atEndSince = now;
-            else if (now - atEndSince > 2600) {
-              // instant: html has scroll-behavior:smooth, which would glide
-              window.scrollTo({ top: 0, behavior: "instant" });
-              atEndSince = null;
-            }
-          }
-        } else {
-          atEndSince = null;
-          acc += (SPEED * dt) / 1000;
-          const step = Math.floor(acc);
-          if (step >= 1) {
-            acc -= step;
-            window.scrollTo({ top: Math.min(maxY, window.scrollY + step), behavior: "instant" });
-          }
-        }
-      }
-      lastY = window.scrollY;
-    };
-    raf = requestAnimationFrame(tick);
-
-    window.addEventListener("wheel", pause, { passive: true });
-    window.addEventListener("touchstart", pause, { passive: true });
-    window.addEventListener("touchmove", pause, { passive: true });
-    window.addEventListener("keydown", pause);
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-      window.removeEventListener("wheel", pause);
-      window.removeEventListener("touchstart", pause);
-      window.removeEventListener("touchmove", pause);
-      window.removeEventListener("keydown", pause);
-    };
-  }, []);
-
   const post = async () => {
     const t = draft.trim().slice(0, MSG_MAX);
     if (!t) { inputRef.current && inputRef.current.focus(); return; }
@@ -230,10 +130,17 @@ export default function MjWallPage() {
     }
   };
 
-  /* deal the cards round-robin into masonry columns — every entry renders
-     exactly once, and the page scrolls to reach all of them */
+  /* deal the cards round-robin into the drifting columns. Sparse walls repeat
+     their entries until every column holds enough cards for a seamless loop —
+     the wall must never look empty */
+  const MIN_PER_COL = 6;
+  let deck = messages;
+  if (messages.length && messages.length < ncol * MIN_PER_COL) {
+    const reps = Math.ceil((ncol * MIN_PER_COL) / messages.length);
+    deck = Array.from({ length: reps }, () => messages).flat();
+  }
   const cols = Array.from({ length: ncol }, () => []);
-  messages.forEach((m, i) => cols[i % ncol].push({ ...m, idx: i }));
+  deck.forEach((m, i) => cols[i % ncol].push({ ...m, idx: i }));
 
   const cardBody = (m) => (
     <div style={{ background: m.bg, clipPath: "polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px)", padding: "15px 16px" }}>
@@ -251,7 +158,7 @@ export default function MjWallPage() {
   );
 
   return (
-    <div style={s("position: relative; min-height: 100vh; display: flex; flex-direction: column; background: radial-gradient(120% 90% at 50% -10%, #2a0510 0%, #0d0713 48%, #08060c 100%);")}>
+    <div className="mjw-page" style={s("position: relative; display: flex; flex-direction: column; overflow: hidden; background: radial-gradient(120% 90% at 50% -10%, #2a0510 0%, #0d0713 48%, #08060c 100%);")}>
 
       {/* ambient motes */}
       <div style={s("position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden;")}>
@@ -301,26 +208,31 @@ export default function MjWallPage() {
         <p style={s("margin: 12px auto 0; max-width: 540px; font-size: clamp(13px, 1.4vw, 15px); line-height: 1.55; color: rgba(226,226,240,0.66); animation: mjw-rise 1s ease .3s both;")}>Memories of Peter, flowing in from every corner of the Web.</p>
       </div>
 
-      {/* SCROLLING WALL — every entry renders once; more pages load near the bottom */}
-      <div style={{ position: "relative", zIndex: 10, flex: 1, width: "100%", maxWidth: "1380px", margin: "0 auto", boxSizing: "border-box", padding: "6px clamp(14px, 3vw, 40px) 28px" }}>
-        <div style={s("display: flex; gap: clamp(12px, 1.4vw, 20px); justify-content: center; align-items: flex-start;")}>
-          {cols.map((col, ci) => (
-            <div key={ci} style={s("flex: 1 1 0; min-width: 0; max-width: 320px; display: flex; flex-direction: column; gap: clamp(12px, 1.4vw, 18px);")}>
-              {col.map((m) => (
-                <div key={m.id} className="mjw-card" onClick={() => setSelected(m)} data-web-hover="true" style={{ position: "relative", padding: "1px", background: `linear-gradient(150deg, ${m.edgeA}, ${m.edgeB})`, clipPath: "polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px)", cursor: "pointer", animation: "mjw-rise .55s ease both", animationDelay: `${Math.min(m.idx, 12) * 45}ms` }}>
-                  {cardBody(m)}
+      {/* THE LIVING WALL — every column loops on its own (its content renders
+          twice for a seamless wrap): odd columns drift up, even columns drift
+          down. Hovering a column holds it still; the modal holds them all. */}
+      <div className={`mjw-viewport${selected ? " mjw-hold" : ""}`} style={{ position: "relative", zIndex: 10, flex: 1, minHeight: 0, width: "100%", maxWidth: "1380px", margin: "0 auto", boxSizing: "border-box", padding: "0 clamp(14px, 3vw, 40px)", overflow: "hidden" }}>
+        <div style={s("display: flex; gap: clamp(12px, 1.4vw, 20px); justify-content: center; align-items: stretch; height: 100%;")}>
+          {cols.map((col, ci) => {
+            const drift = ci % 2 === 0 ? "mjw-loop-up" : "mjw-loop-down";
+            const dur = Math.max(30, col.length * 6 + ci * 4); // ~constant px/s, slightly desynced per column
+            return (
+              <div key={ci} className="mjw-col" style={s("flex: 1 1 0; min-width: 0; max-width: 320px; height: 100%; overflow: hidden;")}>
+                <div className="mjw-col-loop" style={{ animation: `${drift} ${dur}s linear infinite` }}>
+                  {[0, 1].map((copy) => (
+                    <div key={copy} aria-hidden={copy === 1 || undefined} style={s("display: flex; flex-direction: column;")}>
+                      {col.map((m) => (
+                        <div key={`${copy}-${m.idx}`} className="mjw-card" onClick={() => setSelected(m)} data-web-hover="true" style={{ position: "relative", marginBottom: "clamp(12px, 1.4vw, 18px)", padding: "1px", background: `linear-gradient(150deg, ${m.edgeA}, ${m.edgeB})`, clipPath: "polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px)", cursor: "pointer", animation: copy === 0 ? "mjw-rise .55s ease both" : undefined, animationDelay: copy === 0 ? `${Math.min(m.idx, 12) * 45}ms` : undefined }}>
+                          {cardBody(m)}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
-
-        {/* infinite-scroll sentinel */}
-        {nextCursor && (
-          <div ref={moreRef} style={s("padding: 26px 0 8px; text-align: center; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(255,255,255,0.35);")}>
-            {loadingMore ? "Weaving in more memories…" : ""}
-          </div>
-        )}
       </div>
 
       {/* EXPANDED CARD MODAL */}

@@ -170,7 +170,7 @@ export default function AuthModal({ initialMode = "register", onClose, onAuthed 
               <p style={s("margin: 0 0 18px; font-size: 13.5px; line-height: 1.55; color: rgba(226,226,240,0.7);")}>Enter your email and we&apos;ll send you a link to reset your password.</p>
               <div style={s("margin-bottom: 22px;")}>
                 <label style={s(LABEL)}>Email</label>
-                <input value={form.email} onChange={set("email")} type="email" autoComplete="email" placeholder="you@example.com" required style={s(FIELD)} />
+                <input value={form.email} onChange={set("email")} type="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="you@example.com" required style={s(FIELD)} />
                 {fieldError("email")}
               </div>
               {forgotMsg && (
@@ -190,20 +190,20 @@ export default function AuthModal({ initialMode = "register", onClose, onAuthed 
               {isReg && (
                 <div style={s("margin-bottom: 14px;")}>
                   <label style={s(LABEL)}>Username</label>
-                  <input value={form.username} onChange={set("username")} type="text" autoComplete="username" placeholder="your_web_handle" required style={s(FIELD)} />
+                  <input value={form.username} onChange={set("username")} type="text" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="your_web_handle" required style={s(FIELD)} />
                   {fieldError("username")}
                 </div>
               )}
               {isReg ? (
                 <div style={s("margin-bottom: 14px;")}>
                   <label style={s(LABEL)}>Email</label>
-                  <input value={form.email} onChange={set("email")} type="email" autoComplete="email" placeholder="you@example.com" required style={s(FIELD)} />
+                  <input value={form.email} onChange={set("email")} type="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="you@example.com" required style={s(FIELD)} />
                   {fieldError("email")}
                 </div>
               ) : (
                 <div style={s("margin-bottom: 14px;")}>
                   <label style={s(LABEL)}>Email or Username</label>
-                  <input value={form.identifier} onChange={set("identifier")} type="text" autoComplete="username" placeholder="you@example.com or your_web_handle" required style={s(FIELD)} />
+                  <input value={form.identifier} onChange={set("identifier")} type="text" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="you@example.com or your_web_handle" required style={s(FIELD)} />
                   {fieldError("identifier")}
                 </div>
               )}

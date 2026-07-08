@@ -373,7 +373,7 @@ export default function ForumPost() {
                     </div>
                   ) : (
                   <>
-                  <h1 style={s("font-family: 'Oswald', sans-serif; font-weight: 500; font-size: clamp(22px, 3.4vw, 30px); line-height: 1.12; color: #fff; margin-bottom: 14px;")}>{post.title}</h1>
+                  <h1 style={s(`font-family: 'Oswald', sans-serif; font-weight: 500; font-size: clamp(22px, 3.4vw, 30px); line-height: 1.12; color: #fff; margin-bottom: 14px; ${post.isSpoiler && !revealed ? "filter: blur(8px); user-select: none;" : ""}`)}>{post.title}</h1>
                   {post.isSpoiler && !revealed ? (
                     <div style={s("position: relative; margin: 0 0 16px;")}>
                       <p style={s("margin: 0; font-size: 15px; line-height: 1.65; color: rgba(226,226,240,0.82); text-wrap: pretty; filter: blur(8px); user-select: none; pointer-events: none;")}>{post.body}</p>
