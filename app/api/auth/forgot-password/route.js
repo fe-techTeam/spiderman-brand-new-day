@@ -2,10 +2,11 @@ import crypto from "node:crypto";
 import { query } from "@/lib/server/db";
 import { vEmail } from "@/lib/server/validate";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { isEmailConfigured, sendPasswordResetEmail } from "@/lib/server/email";
 
-// No email provider is wired yet (see BACKEND.md §16.5): in development the
-// reset link is returned in the response and logged; in production this is the
-// seam where the mail service plugs in.
+// Reset links go out via AWS SES once SES_FROM_EMAIL is configured (see
+// lib/server/email.js). Without it, dev keeps returning the link in the
+// response; production only logs.
 
 export async function POST(request) {
   const body = await request.json().catch(() => ({}));
@@ -29,6 +30,15 @@ export async function POST(request) {
   );
 
   const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === "production" ? "https://spidermania.in" : "http://localhost:3000")}/reset-password?token=${token}`;
+  if (isEmailConfigured()) {
+    // Still 200 on failure — a send error must not reveal the email exists.
+    try {
+      await sendPasswordResetEmail({ to: email, resetUrl });
+    } catch (err) {
+      console.error(`[forgot-password] SES send failed for ${email}:`, err);
+    }
+    return ok;
+  }
   console.log(`[forgot-password] reset link for ${email}: ${resetUrl}`);
   if (process.env.NODE_ENV !== "production") {
     return Response.json({ ok: true, message: "Dev mode: use the link below.", resetUrl });

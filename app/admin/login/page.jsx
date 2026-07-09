@@ -84,6 +84,12 @@ export default function AdminLoginPage() {
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? "Signing in…" : "Sign in"}
             </Button>
+            <Link
+              href="/admin/forgot-password"
+              className="text-center text-sm text-muted-foreground underline-offset-4 hover:underline"
+            >
+              Forgot password?
+            </Link>
           </form>
         </CardContent>
       </Card>

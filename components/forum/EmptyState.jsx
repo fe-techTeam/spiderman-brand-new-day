@@ -17,7 +17,7 @@ export default function EmptyState({ onCreate }) {
         </svg>
       </div>
       <h3 style={s("position: relative; font-family: 'Oswald', sans-serif; font-size: clamp(20px, 4vw, 26px); color: #fff; margin-bottom: 10px;")}>No stories on the Web yet</h3>
-      <p style={s("position: relative; margin: 0 auto 26px; max-width: 420px; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.65);")}>The Web is quiet for now. Be the first to swing in and share your story with the Spider-Verse.</p>
+      <p style={s("position: relative; margin: 0 auto 26px; max-width: 420px; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.65);")}>The Web is quiet for now. Be the first to swing in and share your story with the Spider World.</p>
       <button onClick={onCreate} data-web-hover="true" className="fm-cta" style={s("position: relative; border: 0; padding: 0; background: transparent; cursor: pointer;")}>
         <span style={s("display: block; padding: 2px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);")}>
           <span style={s("position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 9px; padding: 13px 30px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px); color: #fff; font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase;")}><span className="fm-sheen"></span><span style={{ fontSize: "16px", lineHeight: 1 }}>+</span> Create the first post</span>

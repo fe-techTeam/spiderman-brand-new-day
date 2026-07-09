@@ -24,7 +24,7 @@ export default function ForumGate({ onJoin, onLogin }) {
             <span style={s("width: 34px; height: 1px; background: linear-gradient(90deg, #ff5a6a, transparent);")}></span>
           </div>
 
-          <h1 style={s("margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(26px, 5.6vw, 36px); line-height: 1.04; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,0.6); text-wrap: balance;")}>The Spider-Verse Forum <span style={{ color: "#ff2f40" }}>is behind the mask.</span></h1>
+          <h1 style={s("margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(26px, 5.6vw, 36px); line-height: 1.04; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,0.6); text-wrap: balance;")}>The Spider World Forum <span style={{ color: "#ff2f40" }}>is behind the mask.</span></h1>
           <p style={s("margin: 14px auto 26px; max-width: 380px; font-size: clamp(13px, 1.5vw, 15px); line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>Get onboarded to step inside — claim your Spider identity and join a Web of real people, real identities, real stories.</p>
 
           <button onClick={onJoin} data-web-hover="true" className="bnd-cta" style={s("width: 100%; position: relative; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>

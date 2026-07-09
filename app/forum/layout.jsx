@@ -2,7 +2,7 @@ import { ForumProvider } from "@/components/forum/ForumProvider";
 import ForumHeader from "@/components/ForumHeader";
 
 export const metadata = {
-  title: "Spider-Verse Forum",
+  title: "Spider World Forum",
   description: "Real people, real identities, real stories — discuss theories, easter eggs, and all things Spider-Man.",
 };
 

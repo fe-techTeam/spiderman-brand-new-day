@@ -156,7 +156,7 @@ export default function AuthModal({ initialMode = "register", onClose, onAuthed 
             <span style={s("width: 34px; height: 1px; background: linear-gradient(90deg, transparent, #ff5a6a);")}></span>
             <span style={s("font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.34em; text-transform: uppercase; color: #ff6b79;")}>Swing In</span>
           </div>
-          <h2 style={s("margin: 0 0 20px; font-family: 'Oswald', sans-serif; font-size: clamp(24px, 6vw, 32px); line-height: 1; font-weight: 500; text-transform: uppercase; color: #fff;")}>{isForgot ? "Reset Your Password" : isReg ? "Join the Spider-Verse" : "Welcome Back"}</h2>
+          <h2 style={s("margin: 0 0 20px; font-family: 'Oswald', sans-serif; font-size: clamp(24px, 6vw, 32px); line-height: 1; font-weight: 500; text-transform: uppercase; color: #fff;")}>{isForgot ? "Reset Your Password" : isReg ? "Join the Spider World" : "Welcome Back"}</h2>
 
           {/* tabs */}
           {!isForgot && (

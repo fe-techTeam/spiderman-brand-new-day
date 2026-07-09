@@ -24,9 +24,11 @@ async function hasValidAdminToken(request) {
 export async function proxy(request) {
   const { pathname } = request.nextUrl;
   const isLogin = pathname === "/admin/login";
+  // Pre-auth pages: login + the self-service password-reset flow.
+  const isPublic = isLogin || pathname === "/admin/forgot-password" || pathname === "/admin/reset-password";
   const authed = await hasValidAdminToken(request);
 
-  if (!authed && !isLogin) {
+  if (!authed && !isPublic) {
     const url = new URL("/admin/login", request.nextUrl);
     return NextResponse.redirect(url);
   }

@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/server/auth";
 import { commentDTO, parseMentions } from "@/lib/server/forum";
 import { createNotification, notifyMentions } from "@/lib/server/notify";
 import { vId, vString } from "@/lib/server/validate";
+import { containsProfanity, profanityResponse } from "@/lib/server/profanity";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { postingBlockedResponse } from "@/lib/server/moderation";
 
@@ -32,6 +33,7 @@ export async function POST(request, { params }) {
   const body = await request.json().catch(() => ({}));
   const text = vString(body.body, { min: 1, max: 5000 });
   if (!text) return Response.json({ error: "Reply can't be empty" }, { status: 400 });
+  if (containsProfanity(text)) return profanityResponse("reply");
 
   const replyId = await withTransaction(async (conn) => {
     const [[target]] = await conn.execute(

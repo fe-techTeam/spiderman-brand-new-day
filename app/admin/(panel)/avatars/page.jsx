@@ -164,7 +164,7 @@ export default function AdminAvatarsPage() {
         <div>
           <h1 className="text-2xl font-bold">Avatars</h1>
           <p className="text-sm text-muted-foreground">
-            The 10 Spider-Verse identities (plus any you add). Deactivating requires remapping
+            The 10 Spider World identities (plus any you add). Deactivating requires remapping
             quiz options first.
           </p>
         </div>

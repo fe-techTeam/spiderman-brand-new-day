@@ -11,6 +11,15 @@ const { loadEnvConfig } = require("@next/env");
 
 loadEnvConfig(process.cwd()); // same .env.local the Next runtime reads
 
+// The npm `prebuild` hook runs this before every `next build` so bare-metal
+// (PM2) deploys migrate automatically. The Docker builder stage has no DB and
+// sets SKIP_DB_MIGRATE=1 to opt out — there, migrations run at container boot
+// instead (scripts/docker-entrypoint.sh).
+if (process.env.SKIP_DB_MIGRATE === "1") {
+  console.log("SKIP_DB_MIGRATE=1 — skipping migrations.");
+  process.exit(0);
+}
+
 const DB_NAME = process.env.DB_NAME || "spiderman_bnd";
 
 async function main() {

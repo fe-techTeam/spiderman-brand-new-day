@@ -2,6 +2,7 @@ import "./globals.css";
 import SessionProvider from "@/components/auth/SessionProvider";
 import CursorFx from "@/components/CursorFx";
 import MusicPlayer from "@/components/main/MusicPlayer";
+import InputScrollLock from "@/components/main/InputScrollLock";
 
 const SITE_URL = "https://spidermania.in";
 const SITE_NAME = "Spider-Man: Brand New Day";
@@ -13,7 +14,7 @@ export const metadata = {
   title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
   description: SITE_DESCRIPTION,
   alternates: { canonical: "./" }, // resolves per-route against metadataBase
-  keywords: ["Spider-Man", "Brand New Day", "Spider-Verse", "MJ Wall", "Spidey Tracker", "Marvel", "fan community"],
+  keywords: ["Spider-Man", "Brand New Day", "Spider World", "MJ Wall", "Spidey Tracker", "Marvel", "fan community"],
   openGraph: {
     type: "website",
     url: SITE_URL,
@@ -61,6 +62,9 @@ export default function RootLayout({ children }) {
       <body>
         <SessionProvider>{children}</SessionProvider>
         <CursorFx />
+        {/* Mobile: freeze page scroll while a text field is focused (see
+            component docblock). Root-mounted so every route gets it. */}
+        <InputScrollLock />
         {/* Mounted at the root so the score keeps playing across every route
             (landing → onboarding → forum → MJ wall) instead of restarting. */}
         <MusicPlayer />

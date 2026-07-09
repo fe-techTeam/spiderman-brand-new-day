@@ -163,7 +163,7 @@ export default function AdminDashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Identity spread</CardTitle>
-            <CardDescription>Users per Spider-Verse avatar</CardDescription>
+            <CardDescription>Users per Spider World avatar</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {identitySpread.map((a) => {

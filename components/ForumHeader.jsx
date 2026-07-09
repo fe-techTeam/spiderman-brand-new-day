@@ -123,7 +123,7 @@ export default function ForumHeader() {
         <img src="/assets/nav-logo.png" alt="Brand New Day" style={s("height: 42px; width: auto; display: block;")} />
       </Link>
       <Link href="/forum" className="fm-header-title" style={s("position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; text-decoration: none;")}>
-        <span style={s("font-family: 'Oswald', sans-serif; font-size: 15px; letter-spacing: 0.2em; text-transform: uppercase; color: #fff;")}>Spider-Verse</span>
+        <span style={s("font-family: 'Oswald', sans-serif; font-size: 15px; letter-spacing: 0.2em; text-transform: uppercase; color: #fff;")}>Spider World</span>
         <span style={s("font-family: 'Oswald', sans-serif; font-size: 15px; letter-spacing: 0.2em; text-transform: uppercase; color: #ff2f40;")}>Forum</span>
       </Link>
       <div style={s("margin-left: auto; display: flex; align-items: center; gap: 12px; flex-shrink: 0;")}>

@@ -2,6 +2,7 @@ import { query } from "@/lib/server/db";
 import { requireUser, verifyUserSession } from "@/lib/server/auth";
 import { mediaForPosts, postDTO } from "@/lib/server/forum";
 import { vId, vString } from "@/lib/server/validate";
+import { containsProfanity, profanityResponse } from "@/lib/server/profanity";
 
 const SELECT = `
   SELECT p.id, p.title, p.body, p.is_spoiler, p.score, p.comment_count, p.created_at, p.edited_at,
@@ -41,6 +42,7 @@ export async function PATCH(request, { params }) {
   if (!title || !text) {
     return Response.json({ error: "Title (3+ chars) and body are required" }, { status: 400 });
   }
+  if (containsProfanity(title, text)) return profanityResponse("post");
 
   // Ownership enforced in the WHERE — no IDOR. The row is overwritten in
   // place (no version history); edited_at only ever holds the latest edit.

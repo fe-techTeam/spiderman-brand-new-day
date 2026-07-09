@@ -346,7 +346,7 @@ export default function Forum() {
           {/* about */}
           <div style={s("position: relative; padding: 1px; background: linear-gradient(150deg, rgba(255,40,60,0.5), rgba(120,150,220,0.35)); clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);")}>
             <div style={s("background: linear-gradient(150deg, rgba(20,10,18,0.96), rgba(9,10,20,0.97)); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); padding: 18px 18px 20px;")}>
-              <h3 style={s("font-size: 16px; color: #fff; margin-bottom: 10px;")}>The Spider-Verse Forum</h3>
+              <h3 style={s("font-size: 16px; color: #fff; margin-bottom: 10px;")}>The Spider World Forum</h3>
               <p style={s("margin: 0 0 16px; font-size: 13px; line-height: 1.55; color: rgba(226,226,240,0.7);")}>Where the whole Web talks. Real people, real identities, real stories. Pick a thread and add your voice.</p>
               <button onClick={onCreate} data-web-hover="true" className="fm-cta" style={s("width: 100%; position: relative; border: 0; padding: 0; background: transparent; cursor: pointer;")}>
                 <span style={s("display: block; padding: 2px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px);")}>
