@@ -2,6 +2,7 @@ import { query, withTransaction } from "@/lib/server/db";
 import { requireAdmin, auditLog } from "@/lib/server/admin-auth";
 import { vEnum, vId, vString } from "@/lib/server/validate";
 import { consequenceForStrikes, takedownMessage } from "@/lib/server/moderation";
+import { recountPostComments } from "@/lib/server/forum";
 
 const CONTENT_TABLE = { post: "posts", comment: "comments" };
 
@@ -69,12 +70,27 @@ export async function PATCH(request, { params }) {
       return { strike: null, note: "already_removed" };
     }
 
-    await conn.execute(
-      `UPDATE ${table}
-       SET status = 'hidden', moderated_by = ?, moderated_at = NOW(3), moderation_reason = ?
-       WHERE id = ?`,
-      [gate.admin.id, reason, report.entity_id]
-    );
+    if (report.entity_type === "comment") {
+      // Hide the comment AND cascade to its still-active replies (the thread has
+      // no tombstone for a hidden root's replies, so they'd vanish either way) …
+      const [[c]] = await conn.execute("SELECT post_id FROM comments WHERE id = ?", [report.entity_id]);
+      await conn.execute(
+        `UPDATE comments
+         SET status = 'hidden', moderated_by = ?, moderated_at = NOW(3), moderation_reason = ?
+         WHERE (id = ? OR root_comment_id = ?) AND status = 'active'`,
+        [gate.admin.id, reason, report.entity_id, report.entity_id]
+      );
+      // … then re-sync the post's comment_count so the forum card badge doesn't
+      // keep counting the removed comment(s).
+      if (c) await recountPostComments(conn, c.post_id);
+    } else {
+      await conn.execute(
+        `UPDATE posts
+         SET status = 'hidden', moderated_by = ?, moderated_at = NOW(3), moderation_reason = ?
+         WHERE id = ?`,
+        [gate.admin.id, reason, report.entity_id]
+      );
+    }
 
     // Lock the offender row, bump the cumulative strike count, apply consequence.
     const [[author]] = await conn.execute(

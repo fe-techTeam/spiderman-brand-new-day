@@ -10,7 +10,7 @@ export default function TrailerModal({ onClose, onStopProp }) {
         <div style={s("position: relative; padding: 4px; background: linear-gradient(180deg, #ff1f33 0%, #8b000d 100%); clip-path: polygon(28px 0, 100% 0, 100% calc(100% - 28px), calc(100% - 28px) 100%, 0 100%, 0 28px); box-shadow: 0 40px 100px rgba(0,0,0,0.6);")}>
           <div style={s("position: relative; background: #000; clip-path: polygon(24px 0, 100% 0, 100% calc(100% - 24px), calc(100% - 24px) 100%, 0 100%, 0 24px); overflow: hidden; aspect-ratio: 16/9;")}>
             <iframe
-              src="https://www.youtube-nocookie.com/embed/QdLExXYsyQw?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1"
+              src="https://www.youtube-nocookie.com/embed/62bIsvRcPv0?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1"
               title="Spider-Man: Brand New Day — Trailer"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

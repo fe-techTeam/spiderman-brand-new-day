@@ -10,6 +10,7 @@ import Link from "next/link";
 import { s } from "@/lib/style";
 import { useSession } from "@/components/auth/SessionProvider";
 import { portalApi } from "@/lib/portal/api";
+import { dismissKeyboard } from "@/lib/dismissKeyboard";
 import { relTime } from "@/lib/time";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -124,6 +125,7 @@ export default function FanArtPage() {
     }
     setSubmitting(true);
     setSubmitErr("");
+    dismissKeyboard(); // hide the mobile keyboard as the fan-art upload begins
     try {
       const fd = new FormData();
       fd.append("title", form.title);

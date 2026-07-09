@@ -13,6 +13,7 @@ import Link from "next/link";
 import { s } from "@/lib/style";
 import { useSession } from "@/components/auth/SessionProvider";
 import { portalApi } from "@/lib/portal/api";
+import { dismissKeyboard } from "@/lib/dismissKeyboard";
 
 /* card palettes cycle red / blue / yellow (verbatim from the mockup) */
 const PALS = [
@@ -206,6 +207,7 @@ export default function MjWallPage() {
     if (!t) { inputRef.current && inputRef.current.focus(); return; }
     if (!user) { openAuth("login"); return; }
     if (sending) return;
+    dismissKeyboard(); // retract the mobile keyboard as the message is sent
     setSending(true);
     setSendError("");
     try {

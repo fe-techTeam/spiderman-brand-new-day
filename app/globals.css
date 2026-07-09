@@ -44,6 +44,35 @@ html, body {
 html.bnd-snap { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
 body { width: 100%; }
 
+/* Landing page is a cinematic experience, not a document — block text selection
+   and the mobile long-press callout so a stray drag/long-press can't blue-select
+   the hero copy or "Select All". Scoped to .bnd-snap (added to <html> ONLY while
+   the landing is mounted), so the Forum / MJ Wall / quiz stay fully selectable.
+   Real form fields (the MJ message box, auth inputs) opt back in so users can
+   still select/edit what they type. */
+html.bnd-snap, html.bnd-snap body {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+html.bnd-snap input, html.bnd-snap textarea, html.bnd-snap [contenteditable="true"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+}
+
+/* iOS Safari zooms the whole page when a focused input's font-size is < 16px,
+   then leaves the layout shoved sideways. Several forms (auth modal 15px, forum
+   comment/reply 13.5–14px, reset-password, fan-art) tripped this. Floor every
+   text control at 16px on phones — desktop keeps the designed sizes. (The MJ
+   composer already did this locally; this generalises it to the whole app.) */
+@media (max-width: 760px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
 ::selection { background: #d6021a; color: #fff; }
 
 /* ===== Keyframes ===== */
@@ -297,8 +326,9 @@ body { width: 100%; }
   /* the desktop 63vw web reads tiny on portrait — scale it past the edges so
      spidey (centered at -11vw) still hangs from its middle like on desktop */
   .bnd-hero-web { width: 115vw !important; }
-  /* the hero logo rides ~15% higher so the banner art breathes below it */
-  .bnd-hero-stack { bottom: calc(clamp(40px, 7vh, 96px) + 15svh) !important; }
+  /* the hero logo rides ~15% higher so the banner art breathes below it
+     (nudged 50px back down per design feedback) */
+  .bnd-hero-stack { bottom: calc(clamp(40px, 7vh, 96px) + 15svh - 50px) !important; }
   /* keep the navbar (logo + hamburger) inside the notch-safe zone */
   .bnd-nav { padding-top: calc(34px + env(safe-area-inset-top, 0px)) !important; }
   /* music player: half size, docked in the navbar beside the hamburger
@@ -319,7 +349,10 @@ body { width: 100%; }
      viewport, so bottom-anchored content (hero logo, Living Web header,
      tracker CTA) stays fully on screen. MJ Wall + footer grow with content
      (their own rules above/below), so they are exempt. */
-  [data-page]:not([data-page="footer"]):not([data-page="mjwall"]) { height: 100svh !important; }
+  [data-page]:not([data-page="footer"]):not([data-page="mjwall"]):not([data-page="tracker"]) { height: 100svh !important; }
+  /* tracker stacks logo→copy→radar→CTA on phones — let it grow past 100svh on
+     small screens instead of clipping the CTA under overflow:hidden */
+  section[data-page="tracker"] { height: auto !important; min-height: 100svh !important; }
   footer[data-page="footer"] {
     height: auto !important;
     min-height: 100svh !important;
@@ -347,6 +380,36 @@ body { width: 100%; }
   /* MJ "Add to the wall" (landing) — compact so it shares a row with the
      "View all messages" link */
   #mj-prompt button > span > span { padding: 10px 14px !important; font-size: 11px !important; letter-spacing: 0.14em !important; }
+}
+
+/* ===== Spidey Tracker mobile: radar art BEFORE the CTA, center-aligned ===== */
+@media (max-width: 760px) {
+  #tracker-inner {
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    text-align: center; /* logo, heading, copy and CTA all centered on phones */
+    gap: 0 !important;
+    padding-top: calc(64px + env(safe-area-inset-top, 0px)) !important;
+    /* keep the CTA clear of the home-indicator / gesture bar */
+    padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  /* dissolve the copy column so its children join #tracker-inner's flex — that
+     is what lets the radar (order 1) slot between the text and the CTA (order 2)
+     while the desktop two-column layout stays untouched */
+  #tracker-copy { display: contents; }
+  #tracker-radar {
+    order: 1;
+    align-self: center !important;
+    /* top margin clears the spidey sprite hanging ~62px above the radar art;
+       bottom margin clears the "Lat/Lon" caption that hangs 22px BELOW the art
+       (it's absolutely positioned, so margins are the only thing keeping the
+       CTA off it — 10px used to overlap) */
+    margin: 72px 0 28px !important;
+  }
+  /* −15% vs the previous 250px/64vw so the radar breathes above the button */
+  #tracker-radar-art { width: min(212px, 54vw) !important; }
+  #tracker-cta { order: 2; align-self: center; margin-top: 12px !important; }
 }
 
 /* Custom spider cursor across the site (inputs keep the text caret for typing) */

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { s } from "@/lib/style";
 import { portalApi } from "@/lib/portal/api";
+import { dismissKeyboard } from "@/lib/dismissKeyboard";
 
 // Quick-fill suggestions — tapping one seeds the reason box; the fan can edit.
 const PRESETS = [
@@ -60,6 +61,7 @@ export default function ReportControl({ entityType, entityId, variant = "pill", 
       return;
     }
     if (busy) return;
+    dismissKeyboard(); // hide the mobile keyboard once the report is submitted
     setBusy(true);
     setError("");
     try {

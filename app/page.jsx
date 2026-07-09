@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { s } from "@/lib/style";
+import { dismissKeyboard } from "@/lib/dismissKeyboard";
 import { createSfx } from "@/lib/sfx";
 import { initGlobe } from "@/lib/globe";
 import { initParticles } from "@/lib/particles";
@@ -334,7 +335,22 @@ export default function Home() {
     }, 140);
 
     /* ---- full-section cinematic pager (desktop only; mobile scrolls natively) ---- */
-    let pageIndex = 0, paging = false, gestureLive = false, wheelIdleTimer = null;
+    let pageIndex = 0, paging = false;
+    // Wheel gating by MOMENTUM DECAY, not by a time gap (fullpage.js-style). No
+    // single time threshold can separate a fling's inertial tail from a fresh
+    // scroll — a too-short gap double-advances on the tail, a too-long one jams
+    // fast scrolling. Magnitude does separate them: a deliberate flick/notch
+    // keeps the recent average at/above the wider window, while inertia decays
+    // monotonically (recent average drops below the wider one). So ACTIVE fast
+    // scrolling keeps advancing (no lag/lockout) yet one fling = one section.
+    let wheelSamples = []; // trailing |deltaY| magnitudes
+    let wheelLastTs = 0;
+    const avgTail = (arr, n) => {
+      const start = Math.max(0, arr.length - n);
+      let sum = 0;
+      for (let i = start; i < arr.length; i++) sum += arr[i];
+      return sum / (arr.length - start || 1);
+    };
     const transStyle = "shutter";
     const pages = () => Array.from(document.querySelectorAll("[data-page]"));
     const modalOpen = () => trailerOpenRef.current || mobileMenuOpenRef.current || walkOpenRef.current || authOpenRef.current;
@@ -349,12 +365,6 @@ export default function Home() {
       }
       for (let i = list.length - 1; i >= 0; i--) if (list[i].getBoundingClientRect().top < -8) return i;
       return -1;
-    };
-    // A gesture ends only after the wheel is idle for 350ms AND no transition is
-    // running — a stray gap during the transition can't split one fling into two.
-    const endGesture = () => {
-      if (paging) { clearTimeout(wheelIdleTimer); wheelIdleTimer = setTimeout(endGesture, 200); return; }
-      gestureLive = false;
     };
 
     const scrollTween = (target, dur, ease, cb) => {
@@ -482,13 +492,7 @@ export default function Home() {
       if (paging) return;
       paging = true;
       pageIndex = idx;
-      const done = () => setTimeout(() => {
-        paging = false;
-        // re-arm the idle window from the end of the transition, so the gesture
-        // only ends after a real pause once the blink has finished.
-        clearTimeout(wheelIdleTimer);
-        wheelIdleTimer = setTimeout(endGesture, 350);
-      }, 60);
+      const done = () => setTimeout(() => { paging = false; }, 60);
       const style = reduceMotion ? "dissolve" : transStyle;
       if (style === "camera") transCamera(targetEl, done);
       else if (style === "shutter") transShutter(targetEl, done);
@@ -512,17 +516,28 @@ export default function Home() {
       // inner scrollers (the twins roster) keep native wheel scrolling
       if (ev.target && ev.target.closest && ev.target.closest("[data-scrollable]")) return;
       ev.preventDefault();
-      // One physical gesture = exactly one section, no matter how hard/far.
-      // Every wheel event keeps the gesture "alive"; a trackpad fling's inertial
-      // stream (and the transition) stay part of the same gesture. The gesture
-      // only ends once the wheel has been idle for 350ms — then the next event
-      // starts a fresh gesture and advances again.
-      clearTimeout(wheelIdleTimer);
-      wheelIdleTimer = setTimeout(endGesture, 350);
-      if (gestureLive || paging || !ev.deltaY) return;
-      gestureLive = true;
+      if (!ev.deltaY) return;
+      const now = performance.now();
+      // A real pause (>200ms of silence) starts a fresh gesture buffer so the
+      // next scroll reads as a clean spike, not a continuation of the last one.
+      if (wheelSamples.length && now - wheelLastTs > 200) wheelSamples.length = 0;
+      wheelLastTs = now;
+      wheelSamples.push(Math.abs(ev.deltaY));
+      if (wheelSamples.length > 80) wheelSamples.shift(); // bound the buffer
+      if (paging) return; // swallow everything during the ~530ms blink transition
+      // Advance only when the movement is NOT decaying: recent average (last ~10
+      // events) at/above the wider window (last ~60). A fresh flick/notch spikes,
+      // so recent≥wide → advance; a single fling's tail shrinks, so recent<wide →
+      // ignored (kills the double-advance). Sustained fast scrolling keeps
+      // recent≈wide → keeps advancing once per transition (kills the lag).
+      if (avgTail(wheelSamples, 10) < avgTail(wheelSamples, 60)) return;
+      // A gesture's opening events must show real intent: sub-2px deltas right
+      // after a buffer reset are a momentum tail's last sparse breaths (>200ms
+      // apart), not a new scroll — without this they'd read as a fresh gesture.
+      if (wheelSamples.length <= 3 && Math.abs(ev.deltaY) < 2) return;
       const nxt = nextPageIdx(ev.deltaY > 0 ? 1 : -1);
-      if (nxt >= 0) goToPage(nxt); // -1: nothing above the first / below the last
+      if (nxt < 0) return; // nothing above the first / below the last
+      goToPage(nxt);
     };
     const onPagerKey = (ev) => {
       if (!isDesktopRef.current || modalOpen() || paging) return;
@@ -555,11 +570,48 @@ export default function Home() {
       if (Math.abs(diff) > 50) { const n = nextPageIdx(diff > 0 ? 1 : -1); if (n >= 0) goToPage(n); }
     };
 
+    /* ---- mobile shutter blink: fire the instant a native swipe crosses into a
+       new section, read straight from scroll geometry. The activeSection scroll-
+       spy (which drives the nav highlight) only flips at 40% visibility — ~1s
+       after the snap settles — so driving the blink off it lagged the swipe.
+       center-of-viewport flips as soon as you're past halfway, right when a
+       shutter should fire. rAF-throttled so it costs one check per frame. ---- */
+    let blinkSection = null, blinkRAF = 0;
+    const nearestSection = () => {
+      const mid = (window.innerHeight || 800) / 2;
+      const list = pages();
+      for (const el of list) {
+        const r = el.getBoundingClientRect();
+        if (r.top <= mid && r.bottom > mid) return el.getAttribute("data-page");
+      }
+      return list[0] ? list[0].getAttribute("data-page") : null;
+    };
+    const onMobileBlinkScroll = () => {
+      if (isDesktopRef.current || blinkRAF) return;
+      blinkRAF = requestAnimationFrame(() => {
+        blinkRAF = 0;
+        const cur = nearestSection();
+        if (cur === blinkSection) return;
+        const first = blinkSection === null;
+        blinkSection = cur;
+        // first paint arms the tracker; a programmatic goToPage blink (menu taps,
+        // hash/rail jumps) already flags mobileBlinkBusyRef so we don't double-fire
+        if (first || mobileBlinkBusyRef.current || reduceMotion) return;
+        const t = barTopRef.current, b = barBottomRef.current;
+        if (!t || !b) return;
+        const frames = [{ transform: "scaleY(0)" }, { transform: "scaleY(1)", offset: 0.45 }, { transform: "scaleY(0)" }];
+        const opts = { duration: 380, easing: "cubic-bezier(.5,0,.15,1)" };
+        t.animate(frames, opts);
+        b.animate(frames, opts);
+      });
+    };
+
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("keydown", onPagerKey);
     window.addEventListener("touchstart", onTouchStart, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("touchend", onTouchEnd, { passive: true });
+    window.addEventListener("scroll", onMobileBlinkScroll, { passive: true });
 
     /* ---- typewriter placeholder for the MJ message field ---- */
     const twFull = "Write your message to MJ...";
@@ -596,9 +648,10 @@ export default function Home() {
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("scroll", onMobileBlinkScroll);
       if (raf) cancelAnimationFrame(raf);
+      if (blinkRAF) cancelAnimationFrame(blinkRAF);
       clearTimeout(walkInT);
-      clearTimeout(wheelIdleTimer);
       clearTimeout(twTimer);
       if (revealObs) revealObs.disconnect();
       if (sectionObs) sectionObs.disconnect();
@@ -653,24 +706,11 @@ export default function Home() {
     return () => globeInst.destroy();
   }, [showLivingWeb]);
 
-  /* phones scroll natively (CSS snap pages the sections) — the shutter blinks
-     as a REACTION when the scroll-spy lands on a new section: bars close/open
-     only, never scrolls. goToPage's own blink (menu taps, hash jumps) flags
-     mobileBlinkBusyRef so a programmatic jump doesn't double-blink. */
-  const blinkPrevSectionRef = useRef(null);
-  useEffect(() => {
-    if (isDesktop || blinkPrevSectionRef.current === activeSection) { blinkPrevSectionRef.current = activeSection; return; }
-    const first = blinkPrevSectionRef.current === null;
-    blinkPrevSectionRef.current = activeSection;
-    if (first || mobileBlinkBusyRef.current) return;
-    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const t = barTopRef.current, b = barBottomRef.current;
-    if (!t || !b) return;
-    const frames = [{ transform: "scaleY(0)" }, { transform: "scaleY(1)", offset: 0.45 }, { transform: "scaleY(0)" }];
-    const opts = { duration: 400, easing: "cubic-bezier(.5,0,.15,1)" };
-    t.animate(frames, opts);
-    b.animate(frames, opts);
-  }, [activeSection, isDesktop]);
+  /* phones scroll natively (CSS snap pages the sections) — the shutter blink is
+     driven imperatively from scroll geometry inside the mount effect (see
+     "mobile shutter blink"), NOT from the activeSection scroll-spy: that spy only
+     flips at 40% visibility, ~1s after the snap settles, so the blink lagged the
+     swipe badly. Reading the center-of-viewport section fires it mid-swipe. */
 
   /* lock the page scroll while any popup is up — otherwise the page drifts
      to a halfway point behind the popup and the pager blinks oddly after it
@@ -711,6 +751,7 @@ export default function Home() {
     if (!mjMessage.trim()) { mjInputRef.current && mjInputRef.current.focus(); return; }
     if (!user) { openAuth("login"); return; }
     if (mjSending) return;
+    dismissKeyboard(); // retract the mobile keyboard the moment they send
     setMjSending(true);
     setMjError("");
     try {
@@ -1133,12 +1174,14 @@ export default function Home() {
       {/* ================= SPIDEY TRACKER ================= */}
       <section data-page="tracker" data-screen-label="Spidey Tracker" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background-color: #0a1330; background-image: radial-gradient(120% 100% at 22% 30%, rgba(6,10,22,0.35) 0%, rgba(5,8,20,0.72) 60%, rgba(4,6,14,0.9) 100%), url('/assets/tracker-map-bg.jpg'); background-size: cover, cover; background-position: center, center; display: flex; align-items: center;")}>
         <img src="/assets/web.png" alt="" style={s("position: absolute; bottom: -14%; right: -8%; width: min(640px, 42vw); opacity: 0.05; mix-blend-mode: screen; pointer-events: none;")} />
-        <div data-page-content data-reveal className="bnd-reveal" style={s("position: relative; z-index: 4; width: 100%; max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: clamp(78px, 12vh, 120px) clamp(24px, 5vw, 80px) clamp(40px, 7vh, 70px); display: flex; align-items: center; justify-content: space-between; gap: clamp(30px, 5vw, 70px); flex-wrap: wrap;")}>
-          <div style={s("flex: 1; min-width: 300px; max-width: 560px;")}>
+        <div id="tracker-inner" data-page-content data-reveal className="bnd-reveal" style={s("position: relative; z-index: 4; width: 100%; max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: clamp(78px, 12vh, 120px) clamp(24px, 5vw, 80px) clamp(40px, 7vh, 70px); display: flex; align-items: center; justify-content: space-between; gap: clamp(30px, 5vw, 70px); flex-wrap: wrap;")}>
+          {/* on phones #tracker-copy dissolves (display: contents) so the radar can
+              slot between the copy and the CTA — see the tracker mobile CSS */}
+          <div id="tracker-copy" style={s("flex: 1; min-width: 300px; max-width: 560px;")}>
             <img src="/assets/tracker-logo.png" alt="Spidey Tracker" className="bnd-line" style={s("animation-delay: 70ms; display: block; width: clamp(240px, 26vw, 360px); height: auto; margin-bottom: 22px; filter: drop-shadow(0 6px 20px rgba(0,0,0,0.5));")} />
             <h2 className="bnd-head" style={s("animation-delay: 180ms; margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(24px, 3.4vw, 46px); line-height: 1.02; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 34px rgba(0,0,0,0.6);")}>You don't have to look far…<br /><span style={{ color: "#ff2f40" }}>he might already be around the corner.</span></h2>
             <p className="bnd-line" style={s("animation-delay: 370ms; margin: 20px 0 0; font-size: clamp(14px, 1.5vw, 18px); line-height: 1.6; color: rgba(226,226,240,0.74); text-wrap: pretty;")}>Somewhere, he has already left a mark.</p>
-            <a href="https://spideytracker.net/intl/in/" target="_blank" rel="noopener noreferrer" onMouseEnter={onWalkHover} data-web-hover="true" className="bnd-line bnd-cta" style={s("animation-delay: 500ms; display: inline-block; margin-top: clamp(26px, 4vh, 40px); text-decoration: none; border: 0; padding: 0; background: transparent; cursor: pointer;")}>
+            <a id="tracker-cta" href="https://spideytracker.net/intl/in/" target="_blank" rel="noopener noreferrer" onMouseEnter={onWalkHover} data-web-hover="true" className="bnd-line bnd-cta" style={s("animation-delay: 500ms; display: inline-block; margin-top: clamp(26px, 4vh, 40px); text-decoration: none; border: 0; padding: 0; background: transparent; cursor: pointer;")}>
               <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);")}>
                 <span className="bnd-cta-inner" style={s("display: inline-flex; align-items: center; gap: 12px; padding: 15px 40px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 15px; letter-spacing: 0.2em; text-transform: uppercase;")}><span className="bnd-cta-sheen"></span>Open Spidey Tracker <span style={{ fontSize: "17px", lineHeight: 1 }}>↗</span></span>
               </span>
@@ -1146,8 +1189,8 @@ export default function Home() {
           </div>
 
           {/* radar */}
-          <div className="bnd-line" style={s("animation-delay: 300ms; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: clamp(14px, 2vh, 24px); margin-right: clamp(20px, 5vw, 90px);")}>
-            <div style={s("position: relative; width: clamp(280px, 35vw, 460px); aspect-ratio: 1;")}>
+          <div id="tracker-radar" className="bnd-line" style={s("animation-delay: 300ms; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: clamp(14px, 2vh, 24px); margin-right: clamp(20px, 5vw, 90px);")}>
+            <div id="tracker-radar-art" style={s("position: relative; width: clamp(280px, 35vw, 460px); aspect-ratio: 1;")}>
               {/* swinging spidey (77-frame idle on a web line) */}
               <div className="tracker-spidey" style={s("position: absolute; left: 50%; margin-left: -40px; top: -62px; width: 80px; z-index: 8; display: flex; flex-direction: column; align-items: center; pointer-events: none;")}>
                 <div className="spidey-inner" style={s("transform-origin: top center; display: flex; flex-direction: column; align-items: center;")}>
@@ -1199,7 +1242,7 @@ export default function Home() {
           {/* right large thumbnail */}
           <button onClick={() => { sfxRef.current && sfxRef.current.play("click"); setTrailerOpen(true); }} onMouseEnter={onWalkHover} data-web-hover="true" className="bnd-line trailer-card" style={s("animation-delay: 370ms; flex: 0 1 400px; min-width: 260px; max-width: 400px; position: relative; border: 0; padding: 2px; background: linear-gradient(150deg, rgba(255,40,60,0.6), rgba(31,76,214,0.45)); clip-path: polygon(22px 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%, 0 22px); cursor: pointer; transition: transform 340ms cubic-bezier(.16,.84,.3,1), box-shadow 340ms ease;")}>
             <div style={s("position: relative; aspect-ratio: 16/9; overflow: hidden; clip-path: polygon(21px 0, 100% 0, 100% calc(100% - 21px), calc(100% - 21px) 100%, 0 100%, 0 21px); background: #0a0713;")}>
-              <img src="/assets/trailer-thumb.jpg" alt="Spider-Man: Brand New Day — Official Trailer" style={s("position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;")} />
+              <img src="/assets/trailer-thumb-62bIsvRcPv0.jpg" alt="Spider-Man: Brand New Day — Official Trailer" style={s("position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;")} />
               <div style={s("position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(120,20,30,0.25) 0%, rgba(6,4,12,0.55) 100%); pointer-events: none;")}></div>
               <span style={s("position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: clamp(68px, 8vw, 96px); height: clamp(68px, 8vw, 96px); border-radius: 50%; border: 2px solid rgba(255,60,74,0.9); background: rgba(20,6,10,0.4); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 30px rgba(255,60,74,0.5), inset 0 0 20px rgba(255,60,74,0.2); pointer-events: none;")}>
                 <span style={s("position: absolute; inset: -9px; border-radius: 50%; border: 2px solid rgba(255,60,74,0.4); animation: bnd-radar-ring 2.8s ease-out infinite;")}></span>
