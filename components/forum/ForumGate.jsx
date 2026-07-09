@@ -7,7 +7,7 @@ import { s } from "@/lib/style";
 // after the session refreshes (no navigation, deep links keep working).
 export default function ForumGate({ onJoin, onLogin }) {
   return (
-    <div style={s("position: relative; z-index: 2; min-height: calc(100vh - 70px); display: flex; align-items: center; justify-content: center; padding: clamp(28px, 6vh, 64px) clamp(18px, 5vw, 40px);")}>
+    <div className="fm-gate" style={s("position: relative; z-index: 2; min-height: calc(100vh - 70px); display: flex; align-items: center; justify-content: center; padding: clamp(28px, 6vh, 64px) clamp(18px, 5vw, 40px);")}>
       <div style={s("position: relative; width: min(520px, 100%); padding: 2px; background: linear-gradient(135deg, rgba(120,150,220,0.4) 0%, rgba(255,40,60,0.55) 50%, rgba(120,150,220,0.25) 100%); clip-path: polygon(24px 0, 100% 0, 100% calc(100% - 24px), calc(100% - 24px) 100%, 0 100%, 0 24px); box-shadow: 0 40px 110px rgba(0,0,0,0.7), 0 0 70px rgba(30,50,110,0.3); animation: fm-rise .5s cubic-bezier(.16,.84,.3,1) both;")}>
         <div style={s("position: relative; background: linear-gradient(160deg, rgba(11,17,34,0.98) 0%, rgba(6,9,20,0.99) 55%, rgba(14,9,20,0.98) 100%); clip-path: polygon(23px 0, 100% 0, 100% calc(100% - 23px), calc(100% - 23px) 100%, 0 100%, 0 23px); padding: clamp(32px, 6vw, 46px) clamp(24px, 5vw, 40px); text-align: center; overflow: hidden;")}>
           <img src="/assets/web.png" alt="" style={s("position: absolute; top: -50px; right: -60px; width: 240px; opacity: 0.07; mix-blend-mode: screen; pointer-events: none;")} />

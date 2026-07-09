@@ -51,5 +51,8 @@ RUN mkdir -p .next/cache/images uploads && chown -R nextjs:nodejs .next/cache up
 
 USER nextjs
 EXPOSE 3000
-# Exec form so SIGTERM reaches node and in-flight requests drain on stop.
-CMD ["node", "server.js"]
+# Apply pending DB migrations, then start the server. migrate.js is idempotent
+# (tracked in schema_migrations) and guarded by a MySQL advisory lock, so it is
+# safe on every boot and when several tasks start at once. The script `exec`s
+# node, so PID 1 is still node — SIGTERM reaches it and in-flight requests drain.
+CMD ["sh", "scripts/docker-entrypoint.sh"]

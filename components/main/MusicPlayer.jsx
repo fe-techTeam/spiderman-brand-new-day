@@ -1,13 +1,16 @@
 "use client";
 
 // Marvel music player — port of the design's corner widget, placed bottom-LEFT
-// per user request. A hidden looping YouTube player supplies the score; the UI
-// is an always-spinning album-cover disc (12s idle, 4s while playing) whose
-// controls slide out on hover (desktop) or disc-tap (touch): the track label,
-// a 16-bar spectrum that dances while the music plays, and one red button
-// that starts the track on first press and toggles mute afterwards.
+// per user request. Mounted once in the root layout so the score persists across
+// every route. A hidden looping YouTube player supplies it: it autoplays MUTED on
+// load (allowed by autoplay policies) and the first user interaction anywhere
+// unmutes it instantly (already buffered). The UI is an always-spinning
+// album-cover disc (12s idle, 4s while playing) whose controls slide out on hover
+// (desktop) or disc-tap (touch): the track label, a 16-bar spectrum that dances
+// while the music plays, and one red button that toggles mute.
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { s } from "@/lib/style";
 
 const TRACK_ID = "WSv4BfIMNRA";
@@ -15,14 +18,21 @@ const TRACK_ID = "WSv4BfIMNRA";
 const SPEC_BARS = [0.55, 0.9, 0.4, 1, 0.7, 0.5, 0.95, 0.6, 0.85, 0.45, 1, 0.65, 0.5, 0.9, 0.6, 0.8];
 
 export default function MusicPlayer({ onSfx }) {
+  const pathname = usePathname();
+  const isHome = pathname === "/"; // only the landing docks the player by the hamburger
   const [open, setOpen] = useState(false); // touch devices: tapped-open controls
   const [playing, setPlaying] = useState(false);
-  const [muted, setMuted] = useState(false);
+  // Autoplay policy: the track starts MUTED on load (allowed everywhere) so it is
+  // buffered and already running silently; the first user interaction unmutes it
+  // instantly (no load lag). So the initial UI state is muted.
+  const [muted, setMuted] = useState(true);
   const ytRef = useRef(null);
   const hostRef = useRef(null);
   const specRef = useRef(null);
   const playingRef = useRef(false);
   playingRef.current = playing;
+  const wantAudibleRef = useRef(false); // user wants sound (armed on first gesture)
+  const userMutedRef = useRef(false);   // user explicitly muted — never auto-unmute
 
   /* hidden 1×1 YouTube player — audio only */
   useEffect(() => {
@@ -43,8 +53,19 @@ export default function MusicPlayer({ onSfx }) {
       host.appendChild(mount);
       player = new window.YT.Player(mount, {
         videoId: TRACK_ID,
-        playerVars: { autoplay: 0, controls: 0, loop: 1, playlist: TRACK_ID, playsinline: 1 },
+        playerVars: { autoplay: 1, mute: 1, controls: 0, loop: 1, playlist: TRACK_ID, playsinline: 1 },
         events: {
+          onReady: (e) => {
+            // muted autoplay keeps the score buffered and running from load, so
+            // the first unmute is instant (no fetch/buffer lag on toggle-on)
+            try { e.target.mute(); e.target.playVideo(); } catch {}
+            // if the user already interacted before the player finished loading,
+            // honor it and bring the sound in now
+            if (wantAudibleRef.current && !userMutedRef.current) {
+              try { e.target.unMute(); } catch {}
+              setMuted(false);
+            }
+          },
           onStateChange: (e) => {
             const YT = window.YT;
             if (!YT) return;
@@ -94,6 +115,34 @@ export default function MusicPlayer({ onSfx }) {
     return () => { if (raf) cancelAnimationFrame(raf); };
   }, []);
 
+  /* Autoplay begins muted; the first interaction ANYWHERE on the page makes the
+     score audible — the track is already buffered, so it comes in instantly.
+     Fires once, and never overrides an explicit user mute. */
+  useEffect(() => {
+    const makeAudible = () => {
+      if (wantAudibleRef.current) return;
+      wantAudibleRef.current = true;
+      if (!userMutedRef.current) {
+        const yt = ytRef.current;
+        if (yt && yt.unMute) { try { yt.unMute(); yt.playVideo(); } catch {} }
+        setMuted(false);
+        setPlaying(true);
+      }
+      cleanup();
+    };
+    const cleanup = () => {
+      window.removeEventListener("pointerdown", makeAudible);
+      window.removeEventListener("keydown", makeAudible);
+      window.removeEventListener("touchstart", makeAudible);
+      window.removeEventListener("wheel", makeAudible);
+    };
+    window.addEventListener("pointerdown", makeAudible, { passive: true });
+    window.addEventListener("keydown", makeAudible, { passive: true });
+    window.addEventListener("touchstart", makeAudible, { passive: true });
+    window.addEventListener("wheel", makeAudible, { passive: true });
+    return cleanup;
+  }, []);
+
   /* touch-opened controls close themselves after 2s of no interaction —
      the open tray hanging around looked clunky on phones. Any interaction
      (play/mute) re-arms the window. */
@@ -106,24 +155,33 @@ export default function MusicPlayer({ onSfx }) {
   const sfx = () => onSfx && onSfx();
   const togglePlay = () => {
     sfx();
+    wantAudibleRef.current = true;
     const yt = ytRef.current;
     const next = !playing;
     setPlaying(next);
     if (yt && yt.playVideo) { next ? yt.playVideo() : yt.pauseVideo(); }
+    // resuming a still-muted autoplay track: bring the sound in (unless the user
+    // deliberately muted it) — the buffer is warm, so it's instant
+    if (next && muted && !userMutedRef.current) {
+      if (yt && yt.unMute) { try { yt.unMute(); } catch {} }
+      setMuted(false);
+    }
   };
   const toggleMute = () => {
     sfx();
+    wantAudibleRef.current = true;
     const yt = ytRef.current;
-    // if the track hasn't started yet, first click starts it (unmuted)
-    if (!playing) {
-      setPlaying(true);
+    if (muted) {
+      // unmute — the track is already buffered/playing, so this is instant
+      userMutedRef.current = false;
       setMuted(false);
-      if (yt && yt.playVideo) { yt.unMute(); yt.playVideo(); }
-      return;
+      setPlaying(true);
+      if (yt) { try { yt.unMute(); yt.playVideo(); } catch {} }
+    } else {
+      userMutedRef.current = true;
+      setMuted(true);
+      if (yt) { try { yt.mute(); } catch {} }
     }
-    if (!yt || !yt.mute) { setMuted(!muted); return; }
-    if (muted) { yt.unMute(); setMuted(false); }
-    else { yt.mute(); setMuted(true); }
   };
   const onDiscClick = () => {
     sfx();
@@ -140,7 +198,7 @@ export default function MusicPlayer({ onSfx }) {
       <div ref={hostRef} style={s("position: fixed; width: 1px; height: 1px; left: -9999px; top: -9999px; overflow: hidden; pointer-events: none;")}></div>
 
       {/* z-index 50 = same layer as the navbar; popups/menus (z 55+) cover it */}
-      <div className={`bnd-music${open ? " open" : ""}`} style={s("position: fixed; left: clamp(16px, 2.5vw, 30px); bottom: calc(clamp(16px, 2.5vw, 30px) + env(safe-area-inset-bottom, 0px)); z-index: 50; display: flex; align-items: center;")}>
+      <div className={`bnd-music${isHome ? " bnd-music--home" : ""}${open ? " open" : ""}`} style={s("position: fixed; left: clamp(16px, 2.5vw, 30px); bottom: calc(clamp(16px, 2.5vw, 30px) + env(safe-area-inset-bottom, 0px)); z-index: 50; display: flex; align-items: center;")}>
         <div style={s("position: relative; display: flex; align-items: center; padding: 8px; background: linear-gradient(150deg, rgba(20,10,16,0.92), rgba(9,7,14,0.94)); border: 1px solid rgba(255,60,74,0.35); clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px); box-shadow: 0 12px 34px rgba(0,0,0,0.5), 0 0 22px rgba(255,40,60,0.15); backdrop-filter: blur(8px);")}>
           {/* spinning cover disc (expand toggle on touch, play/pause on desktop) */}
           <div onClick={onDiscClick} data-web-hover="true" role="button" aria-label={playing ? "Pause music" : "Play music"} className="bnd-music-disc" style={{ position: "relative", width: "46px", height: "46px", borderRadius: "50%", overflow: "hidden", background: "#0c0a16", border: "1px solid rgba(255,60,74,0.55)", flexShrink: 0, cursor: "pointer", boxShadow: "0 0 14px rgba(255,40,60,0.3)", animation: `bnd-disc-spin ${playing ? "4s" : "12s"} linear infinite` }}>

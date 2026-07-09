@@ -36,8 +36,12 @@ html, body {
 }
 /* Snap stays on for mobile too: sections align themselves with native scroll
    physics (areas taller than the viewport still scroll freely inside), and the
-   landing page blinks the film shutter when a swipe lands on a new section. */
-html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+   landing page blinks the film shutter when a swipe lands on a new section.
+   Scoped to `.bnd-snap` (added to <html> only while the landing page is mounted)
+   so mandatory snap + smooth-scroll never leak onto other routes — that leak
+   left the Forum opening a snap-point down, tucking its sort bar under the
+   sticky header until you scrolled up. */
+html.bnd-snap { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
 body { width: 100%; }
 
 ::selection { background: #d6021a; color: #fff; }
@@ -208,6 +212,33 @@ body { width: 100%; }
   0%, 100% { opacity: 0.35; }
   50%      { opacity: 0.65; }
 }
+/* ===== Hero scroll hint: mouse outline + a travelling dot ===== */
+/* Positioned bottom-centre by default (mobile); the desktop rule below docks it
+   into the right-hand web-rail column. Only rendered on the landing hero. */
+.bnd-scrollhint-mouse {
+  display: block; width: 22px; height: 34px; position: relative;
+  border: 1.5px solid rgba(255,255,255,0.5); border-radius: 12px;
+  box-shadow: 0 0 16px rgba(0,0,0,0.35);
+}
+.bnd-scrollhint-dot {
+  position: absolute; top: 6px; left: 50%; width: 3px; height: 7px; margin-left: -1.5px;
+  border-radius: 2px; background: #ff3a4a; box-shadow: 0 0 8px rgba(255,58,74,0.7);
+  animation: bnd-scrollhint 1.8s cubic-bezier(.4,0,.2,1) infinite;
+}
+@keyframes bnd-scrollhint {
+  0%   { opacity: 0; transform: translateY(0); }
+  20%  { opacity: 1; }
+  70%  { opacity: 1; transform: translateY(12px); }
+  100% { opacity: 0; transform: translateY(12px); }
+}
+/* desktop: dock it on the right, aligned to the web-rail column near the bottom */
+@media (min-width: 760px) {
+  .bnd-scrollhint { left: auto !important; right: clamp(12px, 1.8vw, 28px) !important; bottom: clamp(26px, 8vh, 68px) !important; transform: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bnd-scrollhint-dot { animation: none; top: 12px; opacity: 0.85; }
+}
+
 /* ===== Music player: spinning cover disc + spectrum (design port v2) ===== */
 @keyframes bnd-disc-spin { to { transform: rotate(360deg); } }
 @keyframes bnd-eq { 0% { transform: scaleY(0.22); } 100% { transform: scaleY(1); } }
@@ -271,8 +302,11 @@ body { width: 100%; }
   /* keep the navbar (logo + hamburger) inside the notch-safe zone */
   .bnd-nav { padding-top: calc(34px + env(safe-area-inset-top, 0px)) !important; }
   /* music player: half size, docked in the navbar beside the hamburger
-     (hamburger: 46px square at right: 24px; player centers against it) */
-  .bnd-music { left: auto !important; bottom: auto !important; right: 80px !important; top: calc(40px + env(safe-area-inset-top, 0px)) !important; }
+     (hamburger: 46px square at right: 24px; player centers against it).
+     Only the landing docks by the hamburger — on other routes (forum, MJ wall,
+     onboarding) the player keeps its default bottom-left corner so it never
+     collides with those pages' own top-right controls. */
+  .bnd-music--home { left: auto !important; bottom: auto !important; right: 80px !important; top: calc(40px + env(safe-area-inset-top, 0px)) !important; }
   .bnd-music > div { padding: 4px !important; }
   .bnd-music-disc { width: 24px !important; height: 24px !important; }
   .bnd-music-disc > span { width: 5px !important; height: 5px !important; margin: -2.5px 0 0 -2.5px !important; }
@@ -291,6 +325,23 @@ body { width: 100%; }
     min-height: 100svh !important;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+  /* Section veil: black out every section except the active one so a 100svh snap
+     that lands a hair off (the mobile toolbar changes the real viewport height)
+     never shows a sliver of the neighbour. It clears as you blink into each
+     section. Driven by the .bnd-veil-ready / .bnd-sec-on classes set in
+     app/page.jsx; z-index 40 sits above section content (max 22) but below the
+     fixed rail (44) / nav (50) / shutter (95), so the persistent UI stays put. */
+  .bnd-veil-ready [data-page]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    background: #05040a;
+    opacity: 1;
+    pointer-events: none;
+    transition: opacity .45s ease;
+  }
+  .bnd-veil-ready [data-page].bnd-sec-on::after { opacity: 0; }
   /* the desktop-sized CTAs read huge on phones — one tier down, everywhere */
   .bnd-cta .bnd-cta-inner { padding: 11px 22px !important; font-size: 12px !important; }
   /* MJ "Add to the wall" (landing) — compact so it shares a row with the
@@ -377,13 +428,11 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
   -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 52px, #000 calc(100% - 56px), transparent 100%);
   mask-image: linear-gradient(180deg, transparent 0, #000 52px, #000 calc(100% - 56px), transparent 100%);
 }
-/* column content is doubled, so -50% lands exactly one copy down: the wrap is
-   invisible. Down-columns run the same distance in reverse. */
-@keyframes mjw-loop-up { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, -50%, 0); } }
-@keyframes mjw-loop-down { from { transform: translate3d(0, -50%, 0); } to { transform: translate3d(0, 0, 0); } }
+/* Column content is doubled so a position can wrap by exactly one copy without a
+   visible seam. Motion (auto-drift + manual scrubbing, hover/modal pause, and
+   the reduced-motion case) is driven per-frame from JS in app/mj-wall/page.jsx,
+   so only the compositor hint lives here now. */
 .mjw-col-loop { will-change: transform; }
-.mjw-col:hover .mjw-col-loop, .mjw-hold .mjw-col-loop { animation-play-state: paused; }
-@media (prefers-reduced-motion: reduce) { .mjw-col-loop { animation: none !important; } }
 
 /* ============================================================
    Living Web — twins roster (twin mode of the landing section)
@@ -525,6 +574,13 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
   .fm-cta > span > span { padding: 10px 22px !important; font-size: 12px !important; }
 }
 .fm-exit:hover { border-color: rgba(255,60,74,0.5) !important; color: #ff8a95 !important; }
+
+/* Members-only gate ("…is behind the mask."): vertical centring reads fine on
+   desktop, but the tall min-height drops the card too low on phones — pull it up
+   toward the top so it doesn't sit awkwardly near the bottom edge. */
+@media (max-width: 560px) {
+  .fm-gate { align-items: flex-start !important; padding-top: clamp(24px, 9vh, 64px) !important; }
+}
 
 /* Pulsing red dot on the notifications bell when there are unread items */
 @keyframes bnd-notif-pulse {

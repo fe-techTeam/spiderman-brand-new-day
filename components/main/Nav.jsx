@@ -8,7 +8,7 @@ import { useSession } from "@/components/auth/SessionProvider";
 
 // Fixed top navigation + mobile dropdown menu. Ported from the hero's <nav>.
 // Logged-in users see a "u/username" chip that opens a small account popup
-// (My Space + Sign out) instead of the SWING IN CTA.
+// (Forum + Sign out) instead of the SWING IN CTA.
 export default function Nav({
   isDesktop,
   mobileMenuVisible,
@@ -92,7 +92,7 @@ export default function Nav({
                       </div>
                       <button onClick={() => { setMenuOpen(false); goAccount(); }} data-web-hover="true" style={s("width: 100%; display: flex; align-items: center; gap: 9px; border: 0; background: transparent; cursor: pointer; padding: 10px; border-radius: 8px; color: rgba(255,255,255,0.85); font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; text-align: left; transition: background .2s ease;")} className="bnd-pop-item">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>
-                        {user.needsQuiz ? "Finish Onboarding" : "My Space"}
+                        {user.needsQuiz ? "Finish Onboarding" : "Forum"}
                       </button>
                       {!user.needsQuiz && (
                         <button onClick={() => { setMenuOpen(false); router.push("/quiz?retake=1"); }} data-web-hover="true" style={s("width: 100%; display: flex; align-items: center; gap: 9px; border: 0; background: transparent; cursor: pointer; padding: 10px; border-radius: 8px; color: rgba(255,255,255,0.85); font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; text-align: left; transition: background .2s ease;")} className="bnd-pop-item">

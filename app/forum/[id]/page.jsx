@@ -100,7 +100,20 @@ export default function ForumPost() {
   const [openReplyId, setOpenReplyId] = useState(null);
   const [replyDraft, setReplyDraft] = useState("");
   const [replyErr, setReplyErr] = useState("");
+  const replyRef = useRef(null); // the open reply textarea (one at a time)
   const submitting = useRef(false);
+
+  // When a reply box opens it is prefilled with "@username " — focus it and drop
+  // the caret AFTER the mention (autoFocus alone lands the caret at position 0,
+  // before the @, which is what the user was hitting).
+  useEffect(() => {
+    if (openReplyId == null) return;
+    const el = replyRef.current;
+    if (!el) return;
+    el.focus();
+    const end = el.value.length;
+    el.setSelectionRange(end, end);
+  }, [openReplyId]);
 
   useEffect(() => {
     if (!user) return; // members-only — the gate below handles logged-out visits
@@ -267,7 +280,7 @@ export default function ForumPost() {
   // came out reversed. Plain function calls keep the same element tree.
   const renderReplyBox = (rootId) => (
     <div style={s("margin-top: 10px;")}>
-      <textarea autoFocus value={replyDraft} onChange={(e) => setReplyDraft(e.target.value)} rows={2} placeholder="Write a reply… use @ to mention someone" style={s("width: 100%; box-sizing: border-box; resize: none; border: 0; outline: 0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 9px; padding: 10px 12px; color: #fff; font-family: inherit; font-size: 13.5px; line-height: 1.5;")}></textarea>
+      <textarea ref={replyRef} value={replyDraft} onChange={(e) => setReplyDraft(e.target.value)} rows={2} placeholder="Write a reply… use @ to mention someone" style={s("width: 100%; box-sizing: border-box; resize: none; border: 0; outline: 0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 9px; padding: 10px 12px; color: #fff; font-family: inherit; font-size: 13.5px; line-height: 1.5;")}></textarea>
       {replyErr && <div style={s("margin-top: 6px; font-size: 12px; color: #ff8a96;")}>{replyErr}</div>}
       <div style={s("display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;")}>
         <button onClick={() => { setOpenReplyId(null); setReplyDraft(""); setReplyErr(""); }} data-web-hover="true" style={s("border: 0; background: transparent; color: rgba(255,255,255,0.55); font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; padding: 8px 12px;")}>Cancel</button>
