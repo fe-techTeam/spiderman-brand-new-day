@@ -21,35 +21,57 @@ import TrailerModal from "@/components/main/TrailerModal";
 /* ---------------------------------------------------------------- static data */
 
 const WALK_ITEMS = [
-  { icon: "/assets/icon-spider-id.png", line1: "Discover Your", line2: "Spider Identity", desc: "Answer a few questions to unlock your unique Spider-Verse Avatar." },
-  { icon: "/assets/icon-find-spider.png", line1: "Find Your", line2: "Spider Twins", desc: "Meet fans around the world who share your Spider identity." },
-  { icon: "/assets/icon-message.png", line1: "Leave a Message", line2: "For MJ", desc: "Share your thoughts and messages for MJ with the community." },
-  { icon: "/assets/icon-trailer.svg", line1: "Watch the", line2: "Official Trailer", desc: "Step into the Spider-Verse — experience the Brand New Day trailer.", action: "trailer" },
-  { icon: "/assets/icon-conversation.png", line1: "Join the", line2: "Conversation", desc: "Discuss theories, easter eggs, and all things Spider-Man." },
-  { icon: "/assets/icon-track.png", line1: "Track", line2: "Spider-Man", desc: "Follow Spider-Man's latest sightings with Spidey Tracker." },
+  { icon: "/assets/icon-spider-id.png", line1: "Discover Your", line2: "Spider Identity", desc: "Answer a few questions to unlock your unique Spider World Avatar.", action: "identity" },
+  { icon: "/assets/icon-find-spider.png", line1: "Find Your", line2: "Spider Twins", desc: "Meet fans around the world who share your Spider identity.", action: "twins" },
+  { icon: "/assets/icon-message.png", line1: "Leave a Message", line2: "For MJ", desc: "Share your thoughts and messages for MJ with the community.", action: "mjwall" },
+  { icon: "/assets/icon-trailer.svg", line1: "Watch the", line2: "Official Trailer", desc: "Step into the Spider World — experience the Brand New Day trailer.", action: "trailer" },
+  { icon: "/assets/icon-conversation.png", line1: "Join the", line2: "Conversation", desc: "Discuss theories, easter eggs, and all things Spider-Man.", action: "forum" },
+  { icon: "/assets/icon-track.png", line1: "Track", line2: "Spider-Man", desc: "Follow Spider-Man's latest sightings with Spidey Tracker.", action: "tracker" },
 ];
 
-const projX = (lon) => ((lon + 180) / 360 * 100).toFixed(1) + "%";
-const projY = (lat) => (10 + (78 - lat) / 136 * 80).toFixed(1) + "%";
+const projX = (lon) => (((lon + 180) / 360) * 100).toFixed(1) + "%";
+const projY = (lat) => (10 + ((78 - lat) / 136) * 80).toFixed(1) + "%";
 const MAP_CHIPS = [
-  ["New York", "USA", "us", -74, 40.7, true], ["Los Angeles", "USA", "us", -118.2, 34, false],
-  ["Mexico City", "Mexico", null, -99.1, 19.4, false], ["São Paulo", "Brazil", "br", -46.6, -23.5, true],
-  ["Buenos Aires", "Argentina", null, -58.4, -34.6, false], ["London", "UK", "uk", -0.1, 51.5, true],
-  ["Moscow", "Russia", null, 37.6, 55.8, false], ["Lagos", "Nigeria", "ng", 3.4, 6.5, true],
-  ["Cairo", "Egypt", null, 31.2, 30, false], ["Dubai", "UAE", null, 55.3, 25.2, false],
-  ["Mumbai", "India", "in", 72.8, 19.1, true], ["Beijing", "China", null, 116.4, 39.9, false],
-  ["Tokyo", "Japan", "jp", 139.7, 35.7, true], ["Singapore", "Singapore", null, 103.8, 1.35, false],
+  ["New York", "USA", "us", -74, 40.7, true],
+  ["Los Angeles", "USA", "us", -118.2, 34, false],
+  ["Mexico City", "Mexico", null, -99.1, 19.4, false],
+  ["São Paulo", "Brazil", "br", -46.6, -23.5, true],
+  ["Buenos Aires", "Argentina", null, -58.4, -34.6, false],
+  ["London", "UK", "uk", -0.1, 51.5, true],
+  ["Moscow", "Russia", null, 37.6, 55.8, false],
+  ["Lagos", "Nigeria", "ng", 3.4, 6.5, true],
+  ["Cairo", "Egypt", null, 31.2, 30, false],
+  ["Dubai", "UAE", null, 55.3, 25.2, false],
+  ["Mumbai", "India", "in", 72.8, 19.1, true],
+  ["Beijing", "China", null, 116.4, 39.9, false],
+  ["Tokyo", "Japan", "jp", 139.7, 35.7, true],
+  ["Singapore", "Singapore", null, 103.8, 1.35, false],
   ["Sydney", "Australia", "au", 151.2, -33.9, true],
 ].map(([city, country, fk, lon, lat, labeled]) => ({
-  city, country, labeled: !!labeled, flagCode: fk, x: projX(lon), y: projY(lat),
+  city,
+  country,
+  labeled: !!labeled,
+  flagCode: fk,
+  x: projX(lon),
+  y: projY(lat),
 }));
 
 /* twins roster: stylized mini-flags exist for a handful of countries — map the
    free-text users.country (geo-ip names) onto them; DotMarker covers the rest */
 const FLAG_BY_COUNTRY = {
-  india: "in", "united states": "us", usa: "us", "united states of america": "us",
-  "united kingdom": "uk", uk: "uk", england: "uk", "great britain": "uk",
-  japan: "jp", brazil: "br", "south africa": "za", nigeria: "ng", australia: "au",
+  india: "in",
+  "united states": "us",
+  usa: "us",
+  "united states of america": "us",
+  "united kingdom": "uk",
+  uk: "uk",
+  england: "uk",
+  "great britain": "uk",
+  japan: "jp",
+  brazil: "br",
+  "south africa": "za",
+  nigeria: "ng",
+  australia: "au",
 };
 const countryFlag = (c) => (c ? FLAG_BY_COUNTRY[String(c).trim().toLowerCase()] || null : null);
 const TWIN_PAGE = 5; // roster rows revealed per scroll step
@@ -60,7 +82,7 @@ const RAIL_SECTIONS = [
   { key: "identity", label: "Find Your Identity" },
   { key: "livingweb", label: "The Living Web" },
   { key: "mjwall", label: "MJ Wall" },
-  { key: "feed", label: "Spider-Verse Feed" },
+  { key: "feed", label: "Spider World Feed" },
   { key: "tracker", label: "Spidey Tracker" },
   { key: "footer", label: "Official Trailer" },
 ];
@@ -161,7 +183,7 @@ export default function Home() {
     const scrollCur = { v: 0 };
     let raf = null;
     let reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let mjTopCache = 0;      // document-space top of the MJ section (re-measured on resize)
+    let mjTopCache = 0; // document-space top of the MJ section (re-measured on resize)
     let entrySettled = false; // stop re-writing the bg filter once the entrance is done
 
     const sfx = createSfx();
@@ -174,7 +196,9 @@ export default function Home() {
         cur.mx += (tgt.mx - cur.mx) * 0.08;
         cur.my += (tgt.my - cur.my) * 0.08;
         scrollCur.v += (scrollTgt.v - scrollCur.v) * 0.12;
-        const mx = cur.mx, my = cur.my, sy = scrollCur.v;
+        const mx = cur.mx,
+          my = cur.my,
+          sy = scrollCur.v;
 
         const eRaw = Math.min(1, Math.max(0, (performance.now() - entryStart) / entryMs));
         const e = 1 - Math.pow(1 - eRaw, 3);
@@ -206,11 +230,8 @@ export default function Home() {
           logoRef.current.style.transform = `translate3d(${(-mx * 14).toFixed(2)}px, ${(-my * 8).toFixed(2)}px, 0)`;
         }
 
-        const entryRunning = (performance.now() - entryStart) < entryMs + 50;
-        const moving = entryRunning
-          || Math.abs(tgt.mx - cur.mx) > 0.001
-          || Math.abs(tgt.my - cur.my) > 0.001
-          || Math.abs(scrollTgt.v - scrollCur.v) > 0.2;
+        const entryRunning = performance.now() - entryStart < entryMs + 50;
+        const moving = entryRunning || Math.abs(tgt.mx - cur.mx) > 0.001 || Math.abs(tgt.my - cur.my) > 0.001 || Math.abs(scrollTgt.v - scrollCur.v) > 0.2;
         raf = moving ? requestAnimationFrame(tick) : null;
       };
       raf = requestAnimationFrame(tick);
@@ -218,18 +239,29 @@ export default function Home() {
 
     /* ---- pointer / scroll / key / resize ---- */
     const onMove = (ev) => {
-      const w = window.innerWidth, h = window.innerHeight;
+      const w = window.innerWidth,
+        h = window.innerHeight;
       tgt.mx = (ev.clientX / w) * 2 - 1;
       tgt.my = (ev.clientY / h) * 2 - 1;
       kickRAF();
     };
-    const onLeave = () => { tgt.mx = 0; tgt.my = 0; kickRAF(); };
-    const onScroll = () => { scrollTgt.v = window.scrollY || window.pageYOffset || 0; kickRAF(); };
+    const onLeave = () => {
+      tgt.mx = 0;
+      tgt.my = 0;
+      kickRAF();
+    };
+    const onScroll = () => {
+      scrollTgt.v = window.scrollY || window.pageYOffset || 0;
+      kickRAF();
+    };
     const onKeyDown = (ev) => {
       if (ev.key !== "Escape") return;
       if (trailerOpenRef.current) setTrailerOpen(false);
       if (mobileMenuOpenRef.current) setMobileMenuOpen(false);
-      if (walkOpenRef.current) { sfx.stopHum(); setWalkOpen(false); }
+      if (walkOpenRef.current) {
+        sfx.stopHum();
+        setWalkOpen(false);
+      }
     };
     const onResize = () => {
       const desktop = window.innerWidth >= 760;
@@ -277,19 +309,22 @@ export default function Home() {
     if (!("IntersectionObserver" in window)) {
       groups.forEach((g) => g.classList.add("in"));
     } else {
-      revealObs = new IntersectionObserver((entries) => {
-        entries.forEach((en) => {
-          const el = en.target;
-          if (en.isIntersecting && en.intersectionRatio > 0.4) {
-            // add() is a no-op while already "in" — crossing the 1.0 threshold
-            // right after 0.4 must not restart the animation mid-play. Leaving
-            // (below) removes the class, which re-arms the replay on re-entry.
-            el.classList.add("in");
-          } else {
-            el.classList.remove("in");
-          }
-        });
-      }, { threshold: [0, 0.4, 1] });
+      revealObs = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((en) => {
+            const el = en.target;
+            if (en.isIntersecting && en.intersectionRatio > 0.4) {
+              // add() is a no-op while already "in" — crossing the 1.0 threshold
+              // right after 0.4 must not restart the animation mid-play. Leaving
+              // (below) removes the class, which re-arms the replay on re-entry.
+              el.classList.add("in");
+            } else {
+              el.classList.remove("in");
+            }
+          });
+        },
+        { threshold: [0, 0.4, 1] },
+      );
       groups.forEach((g) => revealObs.observe(g));
     }
     revealObsRef.current = revealObs;
@@ -298,15 +333,26 @@ export default function Home() {
     let sectionObs = null;
     if ("IntersectionObserver" in window) {
       const ratios = new Map();
-      sectionObs = new IntersectionObserver((entries) => {
-        entries.forEach((en) => ratios.set(en.target.getAttribute("data-page"), en.intersectionRatio));
-        // a section can leave the DOM entirely (identity hides on login) — its
-        // stale ratio must not keep winning the vote
-        ratios.forEach((_, k) => { if (!document.querySelector(`[data-page="${k}"]`)) ratios.delete(k); });
-        let best = null, bestR = 0;
-        ratios.forEach((r, k) => { if (r > bestR) { bestR = r; best = k; } });
-        if (best && bestR > 0.4) setActiveSection((prev) => (prev === best ? prev : best));
-      }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
+      sectionObs = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((en) => ratios.set(en.target.getAttribute("data-page"), en.intersectionRatio));
+          // a section can leave the DOM entirely (identity hides on login) — its
+          // stale ratio must not keep winning the vote
+          ratios.forEach((_, k) => {
+            if (!document.querySelector(`[data-page="${k}"]`)) ratios.delete(k);
+          });
+          let best = null,
+            bestR = 0;
+          ratios.forEach((r, k) => {
+            if (r > bestR) {
+              bestR = r;
+              best = k;
+            }
+          });
+          if (best && bestR > 0.4) setActiveSection((prev) => (prev === best ? prev : best));
+        },
+        { threshold: [0, 0.25, 0.5, 0.75, 1] },
+      );
       document.querySelectorAll("[data-page]").forEach((el) => sectionObs.observe(el));
     }
     sectionObsRef.current = sectionObs;
@@ -317,25 +363,32 @@ export default function Home() {
     const spideyInitT = setTimeout(() => {
       const wrap = document.querySelector(".tracker-spidey");
       const sec = document.querySelector("section[data-page='tracker']");
-      if (!wrap || !sec || !("IntersectionObserver" in window)) { if (wrap) wrap.classList.add("play"); return; }
-      spideyObs = new IntersectionObserver((entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting && e.intersectionRatio > 0.35) {
-            wrap.classList.remove("play");
-            void wrap.offsetWidth; // re-arm the swing-in animation
-            wrap.classList.add("play");
-            if (spideyLandT) clearTimeout(spideyLandT);
-            spideyLandT = setTimeout(() => sfx.play("land"), 1950);
-          } else {
-            wrap.classList.remove("play");
-          }
-        });
-      }, { threshold: [0, 0.35, 1] });
+      if (!wrap || !sec || !("IntersectionObserver" in window)) {
+        if (wrap) wrap.classList.add("play");
+        return;
+      }
+      spideyObs = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting && e.intersectionRatio > 0.35) {
+              wrap.classList.remove("play");
+              void wrap.offsetWidth; // re-arm the swing-in animation
+              wrap.classList.add("play");
+              if (spideyLandT) clearTimeout(spideyLandT);
+              spideyLandT = setTimeout(() => sfx.play("land"), 1950);
+            } else {
+              wrap.classList.remove("play");
+            }
+          });
+        },
+        { threshold: [0, 0.35, 1] },
+      );
       spideyObs.observe(sec);
     }, 140);
 
     /* ---- full-section cinematic pager (desktop only; mobile scrolls natively) ---- */
-    let pageIndex = 0, paging = false;
+    let pageIndex = 0,
+      paging = false;
     // Wheel gating by MOMENTUM DECAY, not by a time gap (fullpage.js-style). No
     // single time threshold can separate a fling's inertial tail from a fresh
     // scroll — a too-short gap double-advances on the tail, a too-long one jams
@@ -392,10 +445,13 @@ export default function Home() {
     const revealPage = (el) => {
       if (reduceMotion || !el) return;
       const content = el.querySelector("[data-page-content]") || el;
-      content.animate([
-        { opacity: 0.15, transform: "translateY(36px) scale(0.99)", filter: "blur(5px)" },
-        { opacity: 1, transform: "translateY(0) scale(1)", filter: "blur(0)" },
-      ], { duration: 640, delay: 40, easing: "cubic-bezier(.16,.84,.3,1)", fill: "backwards" });
+      content.animate(
+        [
+          { opacity: 0.15, transform: "translateY(36px) scale(0.99)", filter: "blur(5px)" },
+          { opacity: 1, transform: "translateY(0) scale(1)", filter: "blur(0)" },
+        ],
+        { duration: 640, delay: 40, easing: "cubic-bezier(.16,.84,.3,1)", fill: "backwards" },
+      );
     };
     const transDissolve = (target, done) => {
       revealPage(target);
@@ -404,17 +460,23 @@ export default function Home() {
     };
     const transCamera = (target, done) => {
       const content = target.querySelector("[data-page-content]") || target;
-      content.animate([
-        { transform: "perspective(1400px) rotateX(14deg) translateY(70px) scale(0.94)", opacity: 0.15, filter: "blur(9px)" },
-        { transform: "perspective(1400px) rotateX(0deg) translateY(0) scale(1)", opacity: 1, filter: "blur(0)" },
-      ], { duration: 950, easing: "cubic-bezier(.2,.9,.25,1)", fill: "backwards" });
-      const c1 = 1.20158, c3 = c1 + 1;
+      content.animate(
+        [
+          { transform: "perspective(1400px) rotateX(14deg) translateY(70px) scale(0.94)", opacity: 0.15, filter: "blur(9px)" },
+          { transform: "perspective(1400px) rotateX(0deg) translateY(0) scale(1)", opacity: 1, filter: "blur(0)" },
+        ],
+        { duration: 950, easing: "cubic-bezier(.2,.9,.25,1)", fill: "backwards" },
+      );
+      const c1 = 1.20158,
+        c3 = c1 + 1;
       const ease = (t) => 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
       scrollTween(target, 780, ease, done);
     };
     const transShutter = (target, done) => {
-      const t = barTopRef.current, b = barBottomRef.current;
-      const closeMs = 180, openMs = 260; // snappy blink
+      const t = barTopRef.current,
+        b = barBottomRef.current;
+      const closeMs = 180,
+        openMs = 260; // snappy blink
       const cEase = "cubic-bezier(.5,0,.15,1)";
       if (t && b) {
         t.animate([{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: closeMs, easing: cEase, fill: "forwards" });
@@ -437,7 +499,8 @@ export default function Home() {
     };
     const transIris = (target, done) => {
       const ir = irisRef.current;
-      const closeMs = 440, openMs = 580;
+      const closeMs = 440,
+        openMs = 580;
       const ease = "cubic-bezier(.7,0,.25,1)";
       if (ir) {
         ir.style.display = "block";
@@ -448,7 +511,9 @@ export default function Home() {
         revealPage(target);
         if (ir) {
           const a = ir.animate([{ clipPath: "circle(150% at 50% 50%)" }, { clipPath: "circle(0% at 50% 50%)" }], { duration: openMs, easing: ease, fill: "forwards" });
-          a.onfinish = () => { ir.style.display = "none"; };
+          a.onfinish = () => {
+            ir.style.display = "none";
+          };
         }
         setTimeout(done, openMs);
       }, closeMs + 30);
@@ -459,10 +524,13 @@ export default function Home() {
       setTimeout(() => {
         scrollInstant(target);
         const c = target.querySelector("[data-page-content]") || target;
-        c.animate([
-          { transform: "scale(1.07)", filter: "blur(5px)", opacity: 0.4 },
-          { transform: "scale(1)", filter: "blur(0)", opacity: 1 },
-        ], { duration: 560, easing: "cubic-bezier(.16,.84,.3,1)", fill: "backwards" });
+        c.animate(
+          [
+            { transform: "scale(1.07)", filter: "blur(5px)", opacity: 0.4 },
+            { transform: "scale(1)", filter: "blur(0)", opacity: 1 },
+          ],
+          { duration: 560, easing: "cubic-bezier(.16,.84,.3,1)", fill: "backwards" },
+        );
       }, 170);
       setTimeout(done, 600);
     };
@@ -482,7 +550,10 @@ export default function Home() {
         } else {
           paging = true;
           mobileBlinkBusyRef.current = true;
-          transShutter(targetEl, () => { paging = false; mobileBlinkBusyRef.current = false; });
+          transShutter(targetEl, () => {
+            paging = false;
+            mobileBlinkBusyRef.current = false;
+          });
         }
         return;
       }
@@ -492,7 +563,10 @@ export default function Home() {
       if (paging) return;
       paging = true;
       pageIndex = idx;
-      const done = () => setTimeout(() => { paging = false; }, 60);
+      const done = () =>
+        setTimeout(() => {
+          paging = false;
+        }, 60);
       const style = reduceMotion ? "dissolve" : transStyle;
       if (style === "camera") transCamera(targetEl, done);
       else if (style === "shutter") transShutter(targetEl, done);
@@ -507,7 +581,11 @@ export default function Home() {
     const hashKey = (window.location.hash || "").slice(1);
     if (hashKey) {
       const hashTarget = document.querySelector(`[data-page="${hashKey}"]`);
-      if (hashTarget) setTimeout(() => { scrollInstant(hashTarget); pageIndex = pages().indexOf(hashTarget); }, 60);
+      if (hashTarget)
+        setTimeout(() => {
+          scrollInstant(hashTarget);
+          pageIndex = pages().indexOf(hashTarget);
+        }, 60);
     }
 
     const onWheel = (ev) => {
@@ -541,8 +619,18 @@ export default function Home() {
     };
     const onPagerKey = (ev) => {
       if (!isDesktopRef.current || modalOpen() || paging) return;
-      if (["ArrowDown", "PageDown"].includes(ev.key)) { ev.preventDefault(); const n = nextPageIdx(1); if (n >= 0) goToPage(n); }
-      else if (["ArrowUp", "PageUp"].includes(ev.key)) { ev.preventDefault(); const n = nextPageIdx(-1); if (n >= 0) goToPage(n); }
+      // typing in a field (the MJ composer): arrows move the caret, not the pager
+      const t = ev.target;
+      if (t && (t.tagName === "TEXTAREA" || t.tagName === "INPUT" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      if (["ArrowDown", "PageDown"].includes(ev.key)) {
+        ev.preventDefault();
+        const n = nextPageIdx(1);
+        if (n >= 0) goToPage(n);
+      } else if (["ArrowUp", "PageUp"].includes(ev.key)) {
+        ev.preventDefault();
+        const n = nextPageIdx(-1);
+        if (n >= 0) goToPage(n);
+      }
     };
     /* Phones scroll 100% NATIVELY. The old JS pager (preventDefault + its own
        flip) fought iOS momentum and CSS snap — swipes randomly died in one
@@ -553,7 +641,9 @@ export default function Home() {
        the scroll-spy reaction effect (bars only, no scrolling). Desktop
        touchscreens keep the pager: their wheel path already owns the scroll. */
     let touchStartY = null;
-    const onTouchStart = (ev) => { touchStartY = ev.touches[0].clientY; };
+    const onTouchStart = (ev) => {
+      touchStartY = ev.touches[0].clientY;
+    };
     const onTouchMove = (ev) => {
       if (!isDesktopRef.current) return; // phones: native scroll + CSS snap
       if (modalOpen() || touchStartY == null) return;
@@ -562,12 +652,21 @@ export default function Home() {
       ev.preventDefault();
     };
     const onTouchEnd = (ev) => {
-      if (!isDesktopRef.current) { touchStartY = null; return; }
-      if (modalOpen() || paging || touchStartY == null) { touchStartY = null; return; }
+      if (!isDesktopRef.current) {
+        touchStartY = null;
+        return;
+      }
+      if (modalOpen() || paging || touchStartY == null) {
+        touchStartY = null;
+        return;
+      }
       const endY = (ev.changedTouches && ev.changedTouches[0].clientY) || touchStartY;
       const diff = touchStartY - endY;
       touchStartY = null;
-      if (Math.abs(diff) > 50) { const n = nextPageIdx(diff > 0 ? 1 : -1); if (n >= 0) goToPage(n); }
+      if (Math.abs(diff) > 50) {
+        const n = nextPageIdx(diff > 0 ? 1 : -1);
+        if (n >= 0) goToPage(n);
+      }
     };
 
     /* ---- mobile shutter blink: fire the instant a native swipe crosses into a
@@ -576,7 +675,8 @@ export default function Home() {
        after the snap settles — so driving the blink off it lagged the swipe.
        center-of-viewport flips as soon as you're past halfway, right when a
        shutter should fire. rAF-throttled so it costs one check per frame. ---- */
-    let blinkSection = null, blinkRAF = 0;
+    let blinkSection = null,
+      blinkRAF = 0;
     const nearestSection = () => {
       const mid = (window.innerHeight || 800) / 2;
       const list = pages();
@@ -597,7 +697,8 @@ export default function Home() {
         // first paint arms the tracker; a programmatic goToPage blink (menu taps,
         // hash/rail jumps) already flags mobileBlinkBusyRef so we don't double-fire
         if (first || mobileBlinkBusyRef.current || reduceMotion) return;
-        const t = barTopRef.current, b = barBottomRef.current;
+        const t = barTopRef.current,
+          b = barBottomRef.current;
         if (!t || !b) return;
         const frames = [{ transform: "scaleY(0)" }, { transform: "scaleY(1)", offset: 0.45 }, { transform: "scaleY(0)" }];
         const opts = { duration: 380, easing: "cubic-bezier(.5,0,.15,1)" };
@@ -615,7 +716,10 @@ export default function Home() {
 
     /* ---- typewriter placeholder for the MJ message field ---- */
     const twFull = "Write your message to MJ...";
-    let twI = 0, twDir = 1, twDelay = 600, twTimer = null;
+    let twI = 0,
+      twDir = 1,
+      twDelay = 600,
+      twTimer = null;
     const twTick = () => {
       const el = document.getElementById("mj-textarea");
       if (el) {
@@ -623,9 +727,17 @@ export default function Home() {
           el.setAttribute("placeholder", "");
         } else {
           twI += twDir;
-          if (twI >= twFull.length) { twI = twFull.length; twDir = -1; twDelay = 2000; }
-          else if (twI <= 0) { twI = 0; twDir = 1; twDelay = 1000; }
-          else { twDelay = twDir > 0 ? 70 : 34; }
+          if (twI >= twFull.length) {
+            twI = twFull.length;
+            twDir = -1;
+            twDelay = 2000;
+          } else if (twI <= 0) {
+            twI = 0;
+            twDir = 1;
+            twDelay = 1000;
+          } else {
+            twDelay = twDir > 0 ? 70 : 34;
+          }
           const atFull = twI >= twFull.length;
           el.setAttribute("placeholder", twFull.slice(0, twI) + (twDir > 0 || atFull ? "▌" : ""));
         }
@@ -682,7 +794,9 @@ export default function Home() {
 
   /* the Living Web keeps its revealed (twin) state once the user opens it */
   useEffect(() => {
-    try { if (localStorage.getItem("bnd_twins_revealed") === "1") setTwinMode(true); } catch {}
+    try {
+      if (localStorage.getItem("bnd_twins_revealed") === "1") setTwinMode(true);
+    } catch {}
   }, []);
 
   /* twin roster — the count plus up to 50 random members sharing the avatar */
@@ -692,9 +806,15 @@ export default function Home() {
     setTwinData(null);
     setTwinsVisible(TWIN_PAGE);
     portalApi("/twins")
-      .then((d) => { if (on) setTwinData({ count: d.count || 0, twins: Array.isArray(d.twins) ? d.twins : [] }); })
-      .catch(() => { if (on) setTwinData({ count: 0, twins: [], failed: true }); });
-    return () => { on = false; };
+      .then((d) => {
+        if (on) setTwinData({ count: d.count || 0, twins: Array.isArray(d.twins) ? d.twins : [] });
+      })
+      .catch(() => {
+        if (on) setTwinData({ count: 0, twins: [], failed: true });
+      });
+    return () => {
+      on = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [twinMode, user?.id]);
 
@@ -718,7 +838,9 @@ export default function Home() {
   useEffect(() => {
     const lock = walkOpen || trailerOpen || mobileMenuOpen || authOpen;
     document.documentElement.style.overflow = lock ? "hidden" : "";
-    return () => { document.documentElement.style.overflow = ""; };
+    return () => {
+      document.documentElement.style.overflow = "";
+    };
   }, [walkOpen, trailerOpen, mobileMenuOpen, authOpen]);
 
   /* NOTE: the /stats fetch that fed "you share your identity with N members
@@ -742,14 +864,26 @@ export default function Home() {
   };
   const doNav = (action) => {
     if (action === "trailer") setTrailerOpen(true);
-    else if (action === "mjwall") router.push("/mj-wall"); // MJ Wall detail page
-    else if (action === "tracker") goToSection("tracker"); // Spidey Tracker section
+    else if (action === "mjwall")
+      router.push("/mj-wall"); // MJ Wall detail page
+    else if (action === "tracker")
+      goToSection("tracker"); // Spidey Tracker section
     else router.push("/forum");
   };
 
+  // pending post-send redirect to the wall — cancelled by "Write another" and on unmount
+  const mjRedirectTRef = useRef(null);
+  useEffect(() => () => clearTimeout(mjRedirectTRef.current), []);
+
   const onMjSubmit = async () => {
-    if (!mjMessage.trim()) { mjInputRef.current && mjInputRef.current.focus(); return; }
-    if (!user) { openAuth("login"); return; }
+    if (!mjMessage.trim()) {
+      mjInputRef.current && mjInputRef.current.focus();
+      return;
+    }
+    if (!user) {
+      openAuth("login");
+      return;
+    }
     if (mjSending) return;
     dismissKeyboard(); // retract the mobile keyboard the moment they send
     setMjSending(true);
@@ -760,9 +894,12 @@ export default function Home() {
       sfxRef.current && sfxRef.current.play("click");
       // no local handoff to the wall page — the message is pending moderation
       // and must not show on the wall until an admin approves it
-      setTimeout(() => router.push("/mj-wall"), 1400);
+      mjRedirectTRef.current = setTimeout(() => router.push("/mj-wall"), 1400);
     } catch (err) {
-      if (err.code === "quiz_required") { window.location.href = "/quiz"; return; }
+      if (err.code === "quiz_required") {
+        window.location.href = "/quiz";
+        return;
+      }
       setMjError(err.message || "Couldn't send your message. Try again.");
     } finally {
       setMjSending(false);
@@ -804,10 +941,21 @@ export default function Home() {
     const action = ["trailer", "mjwall", "forum", "tracker"][i];
     const active = !!navSections[i] && navSections[i] === activeSection;
     return {
-      label, locked: false, active,
-      color: active ? "#ff5a6a" : "#fff", cursor: "pointer", title: "",
-      onClick: (e) => { e.preventDefault(); doNav(action); },
-      onMobileClick: (e) => { e.preventDefault(); setMobileMenuOpen(false); doNav(action); },
+      label,
+      locked: false,
+      active,
+      color: active ? "#ff5a6a" : "#fff",
+      cursor: "pointer",
+      title: "",
+      onClick: (e) => {
+        e.preventDefault();
+        doNav(action);
+      },
+      onMobileClick: (e) => {
+        e.preventDefault();
+        setMobileMenuOpen(false);
+        doNav(action);
+      },
     };
   });
 
@@ -820,32 +968,35 @@ export default function Home() {
     vis: walkOpen ? "visible" : "hidden",
     visDelay: walkOpen ? "0s" : "1500ms",
     opacity: walkOpen ? "1" : "0",
-    transform: walkOpen
-      ? "perspective(1600px) rotateX(0deg) translateY(0) scale(1)"
-      : "perspective(1600px) rotateX(22deg) translateY(90px) scale(0.72)",
+    transform: walkOpen ? "perspective(1600px) rotateX(0deg) translateY(0) scale(1)" : "perspective(1600px) rotateX(22deg) translateY(90px) scale(0.72)",
     filter: walkOpen ? "blur(0)" : "blur(14px)",
   };
-  const walkItems = WALK_ITEMS.map((w, i) => ({
+  // Every walkthrough card is a real CTA. Two hide with session state: members
+  // who already have their identity lose "Discover Your Spider Identity", and
+  // members who already revealed their twins lose "Find Your Spider Twins".
+  const walkItems = WALK_ITEMS.filter((w) => !(hideIdentity && w.action === "identity") && !(user && twinMode && w.action === "twins")).map((w, i) => ({
     ...w,
     delay: (walkOpen ? 620 + i * 150 : 0) + "ms",
-    // the trailer card is a real CTA: close the walkthrough, open the lightbox
-    onClick:
-      w.action === "trailer"
-        ? () => {
-            sfxRef.current && sfxRef.current.play("click");
-            sfxRef.current && sfxRef.current.stopHum();
-            setWalkOpen(false);
-            setTrailerOpen(true);
-          }
-        : undefined,
+    onClick: () => {
+      sfxRef.current && sfxRef.current.play("click");
+      sfxRef.current && sfxRef.current.stopHum();
+      setWalkOpen(false);
+      if (w.action === "trailer") setTrailerOpen(true);
+      else if (w.action === "identity") goToForm();
+      else if (w.action === "twins") {
+        if (user) goToSection("livingweb");
+        else openAuth("register");
+      } else doNav(w.action); // mjwall → /mj-wall, forum → /forum, tracker → section
+    },
   }));
 
   const spideyWidth = isDesktop ? "clamp(300px, 32vw, 560px)" : "62vw";
   const logoWidth = isDesktop ? "min(720px, 42vw)" : "82vw";
-  const railSections = RAIL_SECTIONS.filter(
-    (sec) => !(hideIdentity && sec.key === "identity") && !(!showLivingWeb && sec.key === "livingweb")
+  const railSections = RAIL_SECTIONS.filter((sec) => !(hideIdentity && sec.key === "identity") && !(!showLivingWeb && sec.key === "livingweb"));
+  const railIdx = Math.max(
+    0,
+    railSections.findIndex((sec) => sec.key === activeSection),
   );
-  const railIdx = Math.max(0, railSections.findIndex((sec) => sec.key === activeSection));
 
   const onWalkHover = () => sfxRef.current && sfxRef.current.play("hover");
 
@@ -855,7 +1006,6 @@ export default function Home() {
   // section off. clip forbids scrolling entirely.
   return (
     <div ref={stageRef} style={s("position: relative; width: 100%; min-height: 100vh; background: #0a0a0c; overflow-x: clip;")}>
-
       {/* ================= HERO ================= */}
       <div data-page="hero" style={s("position: relative; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always;")}>
         {/* BG LAYER — phones get the dedicated portrait banner (its rooftop
@@ -868,14 +1018,14 @@ export default function Home() {
         <div className="bnd-hero-deco" style={s("position: absolute; top: 4%; left: 19%; width: 520px; height: 520px; z-index: 2; border-radius: 50%; background: radial-gradient(circle, rgba(255,236,200,0.55) 0%, rgba(255,180,90,0.15) 40%, transparent 70%); filter: blur(8px); animation: bnd-glow-breath 4500ms ease-in-out infinite; pointer-events: none;")}></div>
 
         {/* WEB OVERLAY (also on phones — scaled up there so spidey still hangs from it) */}
-        <div className="bnd-hero-deco bnd-hero-web" style={s("position: absolute; top: clamp(40px, 5vh, 70px); left: 50%; transform: translateX(calc(-50% - 13vw)); width: min(1216px, 63vw); z-index: 20; pointer-events: none;")}>
+        <div className="bnd-hero-deco bnd-hero-web" style={s("position: absolute; top: clamp(40px, 7vh, 70px); left: 58%; transform: translateX(calc(-50% - 13vw)); width: min(1216px, 63vw); z-index: 20; pointer-events: none;")}>
           <img src="/assets/web.png" alt="" style={s("width: 100%; height: auto; display: block; filter: blur(1.6px); opacity: 0.65; animation: bnd-spidey-bob 5s ease-in-out infinite; animation-delay: -1s;")} />
         </div>
 
         {/* SPIDEY (also floats on phones — only the glow/web decorations hide there) */}
         <div ref={spideyWrapRef} className="bnd-hero-deco bnd-hero-spidey" style={s("position: absolute; top: clamp(105px, 12vh, 165px); left: 50%; z-index: 15; pointer-events: none; transform: translateX(calc(-50% - 11vw - 10px));")}>
-          <div style={s(`position: relative; width: ${spideyWidth}; aspect-ratio: 588/600; will-change: transform; animation: bnd-spidey-bob 5s ease-in-out infinite; animation-delay: -1s;`)}>
-            <img src="/assets/spiderman.png" alt="Spider-Man" style={s("width: 100%; height: 100%; display: block; filter: drop-shadow(0 30px 50px rgba(0,0,0,0.55)) drop-shadow(0 8px 18px rgba(255,120,40,0.18));")} />
+          <div style={s(`position: relative; width: ${spideyWidth}; aspect-ratio: 636/646; will-change: transform; animation: bnd-spidey-bob 5s ease-in-out infinite; animation-delay: -1s;`)}>
+            <img src="/assets/spiderman-hero.png" alt="Spider-Man" style={s("width: 100%; height: 100%; display: block; filter: drop-shadow(0 30px 50px rgba(0,0,0,0.55)) drop-shadow(0 8px 18px rgba(255,120,40,0.18));")} />
           </div>
         </div>
 
@@ -891,198 +1041,263 @@ export default function Home() {
 
       {/* ================= FIND YOUR IDENTITY ================= */}
       {!hideIdentity && (
-      <section data-page="identity" data-screen-label="Find Your Identity" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background-color: #0a0512; background-image: url('/assets/identity-bg.jpg'); background-size: cover; background-position: center; background-repeat: no-repeat; display: flex; align-items: center; justify-content: center;")}>
-        <div style={s("position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6,3,10,0.5) 0%, rgba(6,3,10,0.2) 30%, rgba(5,3,10,0.36) 62%, rgba(3,2,6,0.72) 100%); pointer-events: none;")}></div>
-        <div style={s("position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 40%, rgba(120,20,34,0.1) 0%, rgba(20,10,30,0.18) 60%, rgba(6,4,14,0.3) 100%); mix-blend-mode: multiply; pointer-events: none;")}></div>
-        <div style={s("position: absolute; top: 0; left: 0; right: 0; height: 46px; background: linear-gradient(180deg, #000 0%, transparent 100%); opacity: 0.85; pointer-events: none; z-index: 4;")}></div>
-        <div style={s("position: absolute; bottom: 0; left: 0; right: 0; height: 46px; background: linear-gradient(0deg, #000 0%, transparent 100%); opacity: 0.7; pointer-events: none; z-index: 4;")}></div>
+        <section
+          data-page="identity"
+          data-screen-label="Find Your Identity"
+          style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background-color: #0a0512; background-image: url('/assets/identity-bg.jpg'); background-size: cover; background-position: center; background-repeat: no-repeat; display: flex; align-items: center; justify-content: center;")}
+        >
+          <div style={s("position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6,3,10,0.5) 0%, rgba(6,3,10,0.2) 30%, rgba(5,3,10,0.36) 62%, rgba(3,2,6,0.72) 100%); pointer-events: none;")}></div>
+          <div style={s("position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 40%, rgba(120,20,34,0.1) 0%, rgba(20,10,30,0.18) 60%, rgba(6,4,14,0.3) 100%); mix-blend-mode: multiply; pointer-events: none;")}></div>
+          <div style={s("position: absolute; top: 0; left: 0; right: 0; height: 46px; background: linear-gradient(180deg, #000 0%, transparent 100%); opacity: 0.85; pointer-events: none; z-index: 4;")}></div>
+          <div style={s("position: absolute; bottom: 0; left: 0; right: 0; height: 46px; background: linear-gradient(0deg, #000 0%, transparent 100%); opacity: 0.7; pointer-events: none; z-index: 4;")}></div>
 
-        <canvas ref={idParticlesRef} style={s("position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0.55;")}></canvas>
+          <canvas ref={idParticlesRef} style={s("position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0.55;")}></canvas>
 
-        {/* AAA HUD frame */}
-        <div style={s("position: absolute; top: clamp(120px, 20vh, 210px); left: 50%; transform: translateX(-50%); width: min(680px, 82vw); bottom: clamp(120px, 20vh, 200px); pointer-events: none; z-index: 5;")}>
-          <span style={s("position: absolute; top: 0; left: 0; width: 38px; height: 38px; border-top: 2px solid rgba(255,60,74,0.7); border-left: 2px solid rgba(255,60,74,0.7);")}></span>
-          <span style={s("position: absolute; top: 0; right: 0; width: 38px; height: 38px; border-top: 2px solid rgba(120,160,255,0.6); border-right: 2px solid rgba(120,160,255,0.6);")}></span>
-          <span style={s("position: absolute; bottom: 0; left: 0; width: 38px; height: 38px; border-bottom: 2px solid rgba(120,160,255,0.6); border-left: 2px solid rgba(120,160,255,0.6);")}></span>
-          <span style={s("position: absolute; bottom: 0; right: 0; width: 38px; height: 38px; border-bottom: 2px solid rgba(255,60,74,0.7); border-right: 2px solid rgba(255,60,74,0.7);")}></span>
-          <span style={s("position: absolute; top: 8px; right: 8px; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.34em; text-transform: uppercase; color: rgba(120,160,255,0.8); text-align: right;")}>Identity Scan // Active</span>
-          {/* full-height track carries the scan travel as a transform (composited);
+          {/* AAA HUD frame */}
+          <div style={s("position: absolute; top: clamp(120px, 20vh, 210px); left: 50%; transform: translateX(-50%); width: min(680px, 82vw); bottom: clamp(120px, 20vh, 200px); pointer-events: none; z-index: 5;")}>
+            <span style={s("position: absolute; top: 0; left: 0; width: 38px; height: 38px; border-top: 2px solid rgba(255,60,74,0.7); border-left: 2px solid rgba(255,60,74,0.7);")}></span>
+            <span style={s("position: absolute; top: 0; right: 0; width: 38px; height: 38px; border-top: 2px solid rgba(120,160,255,0.6); border-right: 2px solid rgba(120,160,255,0.6);")}></span>
+            <span style={s("position: absolute; bottom: 0; left: 0; width: 38px; height: 38px; border-bottom: 2px solid rgba(120,160,255,0.6); border-left: 2px solid rgba(120,160,255,0.6);")}></span>
+            <span style={s("position: absolute; bottom: 0; right: 0; width: 38px; height: 38px; border-bottom: 2px solid rgba(255,60,74,0.7); border-right: 2px solid rgba(255,60,74,0.7);")}></span>
+            <span style={s("position: absolute; top: 8px; right: 8px; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.34em; text-transform: uppercase; color: rgba(120,160,255,0.8); text-align: right;")}>Identity Scan // Active</span>
+            {/* full-height track carries the scan travel as a transform (composited);
               the 2px line keeps only the glitch — animating `top` re-laid-out every frame */}
-          <div style={s("position: absolute; inset: 0; will-change: transform; animation: bnd-id-scan 5.5s cubic-bezier(.5,0,.5,1) infinite;")}>
-            <span style={s("position: absolute; left: 0; right: 0; height: 2px; top: 0; background: linear-gradient(90deg, transparent, rgba(255,60,74,0.9), rgba(120,160,255,0.7), transparent); box-shadow: 0 0 18px rgba(255,60,74,0.6); animation: bnd-id-glitch 0.22s steps(2) infinite;")}></span>
+            <div style={s("position: absolute; inset: 0; will-change: transform; animation: bnd-id-scan 5.5s cubic-bezier(.5,0,.5,1) infinite;")}>
+              <span style={s("position: absolute; left: 0; right: 0; height: 2px; top: 0; background: linear-gradient(90deg, transparent, rgba(255,60,74,0.9), rgba(120,160,255,0.7), transparent); box-shadow: 0 0 18px rgba(255,60,74,0.6); animation: bnd-id-glitch 0.22s steps(2) infinite;")}></span>
+            </div>
           </div>
-        </div>
 
-        <div data-page-content data-reveal className="bnd-reveal" style={s("position: relative; z-index: 6; width: 100%; max-width: 1000px; padding: 0 clamp(24px, 6vw, 80px); display: flex; flex-direction: column; align-items: center; text-align: center;")}>
-          <div className="bnd-line" style={s("animation-delay: 70ms; display: inline-flex; align-items: center; gap: 12px; margin-bottom: clamp(14px, 2.2vh, 22px);")}>
-            <span style={s("width: 40px; height: 1px; background: linear-gradient(90deg, transparent, #ff5a6a);")}></span>
-            <span style={s("font-size: clamp(10px, 1.2vw, 12px); letter-spacing: 0.42em; text-transform: uppercase; color: #ff6b79;")}>Your Story Begins</span>
-            <span style={s("width: 40px; height: 1px; background: linear-gradient(90deg, #ff5a6a, transparent);")}></span>
+          <div data-page-content data-reveal className="bnd-reveal" style={s("position: relative; z-index: 6; width: 100%; max-width: 1000px; padding: 0 clamp(24px, 6vw, 80px); display: flex; flex-direction: column; align-items: center; text-align: center;")}>
+            <div className="bnd-line" style={s("animation-delay: 70ms; display: inline-flex; align-items: center; gap: 12px; margin-bottom: clamp(14px, 2.2vh, 22px);")}>
+              <span style={s("width: 40px; height: 1px; background: linear-gradient(90deg, transparent, #ff5a6a);")}></span>
+              <span style={s("font-size: clamp(10px, 1.2vw, 12px); letter-spacing: 0.42em; text-transform: uppercase; color: #ff6b79;")}>Your Story Begins</span>
+              <span style={s("width: 40px; height: 1px; background: linear-gradient(90deg, #ff5a6a, transparent);")}></span>
+            </div>
+            <h2 className="bnd-head" style={s("animation-delay: 190ms; margin: 0; font-size: clamp(30px, 5.2vw, 70px); line-height: 0.94; font-weight: 500; letter-spacing: 0.005em; color: #fff; text-shadow: 0 6px 40px rgba(0,0,0,0.7), 0 0 70px rgba(214,2,26,0.22); text-wrap: balance;")}>
+              Who Are You <span style={{ color: "#ff2f40" }}>Under the Mask?</span>
+            </h2>
+            <p className="bnd-line" style={s("animation-delay: 430ms; margin: clamp(14px, 2.4vh, 22px) auto clamp(26px, 4vh, 40px); max-width: 560px; font-size: clamp(13px, 1.35vw, 16px); line-height: 1.6; color: rgba(232,232,244,0.82); text-shadow: 0 2px 12px rgba(0,0,0,0.7); text-wrap: pretty;")}>
+              Every Spider-Man carries something different. Answer a few questions and discover the identity that has always been yours.
+            </p>
+            <button
+              onClick={() => {
+                sfxRef.current && sfxRef.current.play("click");
+                goToForm();
+              }}
+              onMouseEnter={onWalkHover}
+              data-web-hover="true"
+              className="bnd-cta bnd-line"
+              style={s("animation-delay: 590ms; position: relative; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}
+            >
+              <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #ff2233 0%, #8b000d 100%); clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px); box-shadow: 0 14px 36px rgba(214,2,26,0.4);")}>
+                <span
+                  className="bnd-cta-inner"
+                  style={s(
+                    "display: block; padding: 14px 38px; background: linear-gradient(180deg, #ff3a4a 0%, #c00014 100%); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); color: #fff; font-family: 'Oswald', 'Acumin Pro', sans-serif; font-weight: 500; font-size: clamp(13px, 1.4vw, 15px); letter-spacing: 0.2em; text-transform: uppercase; text-shadow: 0 1px 4px rgba(0,0,0,0.4);",
+                  )}
+                >
+                  <span className="bnd-cta-sheen"></span>Reveal My Identity
+                </span>
+              </span>
+            </button>
+            <div className="bnd-line" style={s("animation-delay: 700ms; margin-top: clamp(14px, 2.2vh, 20px); display: inline-flex; align-items: center; gap: 7px; font-size: clamp(9px, 1vw, 11px); letter-spacing: 0.16em; text-transform: uppercase; color: rgba(226,226,240,0.5);")}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" strokeLinecap="round" />
+              </svg>
+              Takes less than a minute
+            </div>
           </div>
-          <h2 className="bnd-head" style={s("animation-delay: 190ms; margin: 0; font-size: clamp(30px, 5.2vw, 70px); line-height: 0.94; font-weight: 500; letter-spacing: 0.005em; color: #fff; text-shadow: 0 6px 40px rgba(0,0,0,0.7), 0 0 70px rgba(214,2,26,0.22); text-wrap: balance;")}>Who Are You <span style={{ color: "#ff2f40" }}>Under the Mask?</span></h2>
-          <p className="bnd-line" style={s("animation-delay: 430ms; margin: clamp(14px, 2.4vh, 22px) auto clamp(26px, 4vh, 40px); max-width: 560px; font-size: clamp(13px, 1.35vw, 16px); line-height: 1.6; color: rgba(232,232,244,0.82); text-shadow: 0 2px 12px rgba(0,0,0,0.7); text-wrap: pretty;")}>Every Spider-Man carries something different. Answer a few questions and discover the identity that has always been yours.</p>
-          <button onClick={() => { sfxRef.current && sfxRef.current.play("click"); goToForm(); }} onMouseEnter={onWalkHover} data-web-hover="true" className="bnd-cta bnd-line" style={s("animation-delay: 590ms; position: relative; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
-            <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #ff2233 0%, #8b000d 100%); clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px); box-shadow: 0 14px 36px rgba(214,2,26,0.4);")}>
-              <span className="bnd-cta-inner" style={s("display: block; padding: 14px 38px; background: linear-gradient(180deg, #ff3a4a 0%, #c00014 100%); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); color: #fff; font-family: 'Oswald', 'Acumin Pro', sans-serif; font-weight: 500; font-size: clamp(13px, 1.4vw, 15px); letter-spacing: 0.2em; text-transform: uppercase; text-shadow: 0 1px 4px rgba(0,0,0,0.4);")}><span className="bnd-cta-sheen"></span>Reveal My Identity</span>
-            </span>
-          </button>
-          <div className="bnd-line" style={s("animation-delay: 700ms; margin-top: clamp(14px, 2.2vh, 20px); display: inline-flex; align-items: center; gap: 7px; font-size: clamp(9px, 1vw, 11px); letter-spacing: 0.16em; text-transform: uppercase; color: rgba(226,226,240,0.5);")}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" strokeLinecap="round" /></svg>
-            Takes less than a minute
-          </div>
-        </div>
-      </section>
+        </section>
       )}
 
       {/* ================= THE LIVING WEB (members only) ================= */}
       {showLivingWeb && (
-      <section data-page="livingweb" data-screen-label="The Living Web" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background: radial-gradient(120% 100% at 50% 26%, #0b1226 0%, #070711 55%, #040409 100%);")}>
-        <div className="lw-map" style={s("position: absolute; top: 12%; bottom: 12%; left: 45%; transform: translateX(-50%); width: 84%; z-index: 1;")}>
-          {/* kept well under 1 — at 0.95 the map outshone the chips/header/cards on top */}
-          <canvas ref={globeRef} style={s("position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.5; pointer-events: none;")}></canvas>
-        </div>
-        <div style={s("position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4,4,9,0.9) 0%, rgba(4,4,9,0.35) 26%, transparent 42%, transparent 60%, rgba(4,4,9,0.4) 78%, rgba(4,4,9,0.86) 100%); pointer-events: none;")}></div>
-        <div style={s("position: absolute; inset: 0; background: linear-gradient(180deg, rgba(4,4,9,0.5) 0%, transparent 20%, transparent 62%, rgba(4,4,9,0.9) 100%); pointer-events: none;")}></div>
+        <section data-page="livingweb" data-screen-label="The Living Web" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background: radial-gradient(120% 100% at 50% 26%, #0b1226 0%, #070711 55%, #040409 100%);")}>
+          <div className="lw-map" style={s("position: absolute; top: 12%; bottom: 12%; left: 45%; transform: translateX(-50%); width: 84%; z-index: 1;")}>
+            {/* kept well under 1 — at 0.95 the map outshone the chips/header/cards on top */}
+            <canvas ref={globeRef} style={s("position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.5; pointer-events: none;")}></canvas>
+          </div>
+          <div style={s("position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4,4,9,0.9) 0%, rgba(4,4,9,0.35) 26%, transparent 42%, transparent 60%, rgba(4,4,9,0.4) 78%, rgba(4,4,9,0.86) 100%); pointer-events: none;")}></div>
+          <div style={s("position: absolute; inset: 0; background: linear-gradient(180deg, rgba(4,4,9,0.5) 0%, transparent 20%, transparent 62%, rgba(4,4,9,0.9) 100%); pointer-events: none;")}></div>
 
-        {/* city marker chips */}
-        <div className="lw-map" style={s("position: absolute; top: 12%; bottom: 12%; left: 45%; transform: translateX(-50%); width: 84%; z-index: 3; pointer-events: none;")}>
-          {MAP_CHIPS.map((c, i) => (
-            <div key={i} style={s(`position: absolute; left: ${c.x}; top: ${c.y}; transform: translate(-50%, -50%); pointer-events: none;`)}>
-              {/* twin view: names/flags off the background — every city is a plain ping */}
-              {c.labeled && !(twinMode && user) ? (
-                <div style={s("display: inline-flex; align-items: center; gap: 8px; padding: 6px 11px; border-radius: 9px; background: rgba(10,12,24,0.82); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 6px 18px rgba(0,0,0,0.5); backdrop-filter: blur(4px); white-space: nowrap;")}>
-                  <span style={s("flex-shrink: 0; width: 22px; height: 15px; border-radius: 2px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,0.15);")}><Flag code={c.flagCode} /></span>
-                  <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #fff;")}>{c.country}</span>
-                </div>
-              ) : (
-                <span title={c.city} style={s("display: block; width: 8px; height: 8px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgba(255,114,128,0.8), rgba(214,2,26,0.7)); box-shadow: 0 0 6px 1px rgba(255,60,74,0.28), 0 0 0 1px rgba(255,255,255,0.1);")}></span>
-              )}
-            </div>
-          ))}
-        </div>
+          {/* city marker chips */}
+          <div className="lw-map" style={s("position: absolute; top: 12%; bottom: 12%; left: 45%; transform: translateX(-50%); width: 84%; z-index: 3; pointer-events: none;")}>
+            {MAP_CHIPS.map((c, i) => (
+              <div key={i} style={s(`position: absolute; left: ${c.x}; top: ${c.y}; transform: translate(-50%, -50%); pointer-events: none;`)}>
+                {/* twin view: names/flags off the background — every city is a plain ping */}
+                {c.labeled && !(twinMode && user) ? (
+                  <div style={s("display: inline-flex; align-items: center; gap: 8px; padding: 6px 11px; border-radius: 9px; background: rgba(10,12,24,0.82); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 6px 18px rgba(0,0,0,0.5); backdrop-filter: blur(4px); white-space: nowrap;")}>
+                    <span style={s("flex-shrink: 0; width: 22px; height: 15px; border-radius: 2px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,0.15);")}>
+                      <Flag code={c.flagCode} />
+                    </span>
+                    <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #fff;")}>{c.country}</span>
+                  </div>
+                ) : (
+                  <span title={c.city} style={s("display: block; width: 8px; height: 8px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgba(255,114,128,0.8), rgba(214,2,26,0.7)); box-shadow: 0 0 6px 1px rgba(255,60,74,0.28), 0 0 0 1px rgba(255,255,255,0.1);")}></span>
+                )}
+              </div>
+            ))}
+          </div>
 
-        {!(twinMode && user) && (
-          <>
-            {/* centered header */}
-            <div data-page-content data-reveal className="bnd-reveal" style={s("position: absolute; left: 0; right: 0; bottom: clamp(52px, 9vh, 96px); z-index: 6; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 24px;")}>
-              <h2 className="bnd-head" style={s("animation-delay: 120ms; margin: 0; font-family: 'Oswald', sans-serif; font-style: italic; font-size: clamp(22px, 3.4vw, 46px); line-height: 1; font-weight: 600; letter-spacing: 0.01em; text-transform: uppercase; color: #fff; text-shadow: 0 6px 34px rgba(0,0,0,0.6); white-space: nowrap;")}>The Web grows a little <span style={{ color: "#ff2f40" }}>every second.</span></h2>
-              <p className="bnd-line" style={s("animation-delay: 310ms; margin: 12px 0 0; font-size: clamp(11px, 1.3vw, 15px); line-height: 1.5; color: rgba(226,226,240,0.72); white-space: nowrap;")}>While you were finding your identity, thousands of others were finding theirs too.</p>
-              <button className="bnd-line bnd-cta" onClick={() => { sfxRef.current && sfxRef.current.play("click"); if (!user) { openAuth("register"); return; } setTwinMode(true); try { localStorage.setItem("bnd_twins_revealed", "1"); } catch {} }} onMouseEnter={onWalkHover} data-web-hover="true" style={s("animation-delay: 460ms; margin-top: clamp(16px, 2.4vh, 24px); border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
-                <span style={s("display: block; padding: 2px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);")}>
-                  <span className="bnd-cta-inner" style={s("display: inline-flex; align-items: center; gap: 10px; padding: 13px 30px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: clamp(12px, 1.3vw, 14px); letter-spacing: 0.18em; text-transform: uppercase;")}><span className="bnd-cta-sheen"></span>Find your Web Twins <span style={{ fontSize: "15px" }}>→</span></span>
-                </span>
-              </button>
-            </div>
-          </>
-        )}
+          {!(twinMode && user) && (
+            <>
+              {/* centered header */}
+              <div data-page-content data-reveal className="bnd-reveal" style={s("position: absolute; left: 0; right: 0; bottom: clamp(52px, 9vh, 96px); z-index: 6; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 24px;")}>
+                <h2 className="bnd-head" style={s("animation-delay: 120ms; margin: 0; font-family: 'Oswald', sans-serif; font-style: italic; font-size: clamp(22px, 3.4vw, 46px); line-height: 1; font-weight: 600; letter-spacing: 0.01em; text-transform: uppercase; color: #fff; text-shadow: 0 6px 34px rgba(0,0,0,0.6); white-space: nowrap;")}>
+                  The Web grows a little <span style={{ color: "#ff2f40" }}>every second.</span>
+                </h2>
+                <p className="bnd-line" style={s("animation-delay: 310ms; margin: 12px 0 0; font-size: clamp(11px, 1.3vw, 15px); line-height: 1.5; color: rgba(226,226,240,0.72); white-space: nowrap;")}>
+                  While you were finding your identity, thousands of others were finding theirs too.
+                </p>
+                <button
+                  className="bnd-line bnd-cta"
+                  onClick={() => {
+                    sfxRef.current && sfxRef.current.play("click");
+                    if (!user) {
+                      openAuth("register");
+                      return;
+                    }
+                    setTwinMode(true);
+                    try {
+                      localStorage.setItem("bnd_twins_revealed", "1");
+                    } catch {}
+                  }}
+                  onMouseEnter={onWalkHover}
+                  data-web-hover="true"
+                  style={s("animation-delay: 460ms; margin-top: clamp(16px, 2.4vh, 24px); border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}
+                >
+                  <span style={s("display: block; padding: 2px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);")}>
+                    <span
+                      className="bnd-cta-inner"
+                      style={s("display: inline-flex; align-items: center; gap: 10px; padding: 13px 30px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: clamp(12px, 1.3vw, 14px); letter-spacing: 0.18em; text-transform: uppercase;")}
+                    >
+                      <span className="bnd-cta-sheen"></span>Find your Web Twins <span style={{ fontSize: "15px" }}>→</span>
+                    </span>
+                  </span>
+                </button>
+              </div>
+            </>
+          )}
 
-        {/* TWIN MODE — members only. Left: your assigned collectible card with
+          {/* TWIN MODE — members only. Left: your assigned collectible card with
             the Spidey Code above it (same treatment as the quiz reveal).
             Right: the live twins roster — how many members share the identity,
             a scroll-paginated random 50 of them, and the retake-quiz CTA. */}
-        {twinMode && user && (
-          <div className="bnd-reveal in" style={s(`position: absolute; inset: 0; z-index: 7; box-sizing: border-box; padding: ${isDesktop ? "clamp(76px, 11vh, 110px) clamp(24px, 5vw, 70px) clamp(22px, 4vh, 36px)" : "64px 18px 14px"}; display: flex; align-items: center; justify-content: center;`)}>
-            <div style={s(`width: 100%; max-width: 1100px; display: flex; flex-direction: ${isDesktop ? "row" : "column"}; align-items: center; justify-content: center; gap: ${isDesktop ? "clamp(40px, 6vw, 96px)" : "16px"};`)}>
+          {twinMode && user && (
+            <div className="bnd-reveal in" style={s(`position: absolute; inset: 0; z-index: 7; box-sizing: border-box; padding: ${isDesktop ? "clamp(76px, 11vh, 110px) clamp(24px, 5vw, 70px) clamp(22px, 4vh, 36px)" : "64px 18px 14px"}; display: flex; align-items: center; justify-content: center;`)}>
+              <div style={s(`width: 100%; max-width: 1100px; display: flex; flex-direction: ${isDesktop ? "row" : "column"}; align-items: center; justify-content: center; gap: ${isDesktop ? "clamp(40px, 6vw, 96px)" : "16px"};`)}>
+                {/* ---- your identity: Spidey Code over the collectible card ---- */}
+                <div style={s("flex-shrink: 0; display: flex; flex-direction: column; align-items: center; min-width: 0;")}>
+                  <div className="bnd-line" style={s(`animation-delay: 80ms; display: inline-flex; align-items: center; gap: 10px; margin-bottom: ${isDesktop ? "clamp(14px, 2.2vh, 22px)" : "10px"}; flex-wrap: wrap; justify-content: center;`)}>
+                    <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, transparent, ${heroColor})` }}></span>
+                    <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: rgba(255,255,255,0.5);")}>Spidey Code</span>
+                    <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, fontWeight: 600, letterSpacing: "0.2em", color: heroColor, textShadow: `0 0 12px ${heroGlow}` }}>{user.spideyCode || "—"}</span>
+                    <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, ${heroColor}, transparent)` }}></span>
+                  </div>
 
-              {/* ---- your identity: Spidey Code over the collectible card ---- */}
-              <div style={s("flex-shrink: 0; display: flex; flex-direction: column; align-items: center; min-width: 0;")}>
-                <div className="bnd-line" style={s(`animation-delay: 80ms; display: inline-flex; align-items: center; gap: 10px; margin-bottom: ${isDesktop ? "clamp(14px, 2.2vh, 22px)" : "10px"}; flex-wrap: wrap; justify-content: center;`)}>
-                  <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, transparent, ${heroColor})` }}></span>
-                  <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: rgba(255,255,255,0.5);")}>Spidey Code</span>
-                  <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, fontWeight: 600, letterSpacing: "0.2em", color: heroColor, textShadow: `0 0 12px ${heroGlow}` }}>{user.spideyCode || "—"}</span>
-                  <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, ${heroColor}, transparent)` }}></span>
+                  {user.avatar?.card ? (
+                    /* the assigned collectible card, with the reveal-screen effect
+                     (entry punch, ambient glow, float, pointer tilt + glare) */
+                    <div style={s("perspective: 1200px; animation: ri-card-in 1s cubic-bezier(.16,.84,.3,1) both;")}>
+                      <div ref={twinTiltRef} onMouseMove={onTwinTilt} onMouseLeave={onTwinTiltOut} style={s("position: relative; display: inline-block; will-change: transform; transition: transform .3s cubic-bezier(.16,.84,.3,1);")}>
+                        <div style={{ position: "absolute", inset: "-6% -6% -2%", borderRadius: 22, background: `radial-gradient(circle at 50% 40%, ${heroGlow} 0%, transparent 68%)`, filter: "blur(22px)", animation: "ri-pulse-glow 4.5s ease-in-out infinite", pointerEvents: "none" }}></div>
+                        <img src={user.avatar.card} alt={user.avatar.name} style={s(`position: relative; display: block; height: ${isDesktop ? "min(46vh, 440px)" : "min(22vh, 190px)"}; max-width: 80vw; width: auto; filter: drop-shadow(0 30px 60px rgba(0,0,0,0.6)); animation: ri-card-float 6s ease-in-out infinite;`)} />
+                        <div ref={twinGlareRef} style={s("position: absolute; inset: 0; border-radius: 18px; background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.28), transparent 45%); opacity: 0; pointer-events: none; transition: opacity .3s ease;")}></div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* emblem fallback while this identity has no card art yet */
+                    <div style={s(`position: relative; width: ${isDesktop ? "clamp(120px, 18vh, 170px)" : "clamp(90px, 14vh, 130px)"}; height: ${isDesktop ? "clamp(120px, 18vh, 170px)" : "clamp(90px, 14vh, 130px)"};`)}>
+                      <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid ${heroColor}`, opacity: 0.4, animation: "ri-ring 2.4s ease-out infinite" }}></span>
+                      <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid ${heroColor}`, opacity: 0.4, animation: "ri-ring 2.4s ease-out infinite 1.2s" }}></span>
+                      <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "radial-gradient(circle at 50% 42%, rgba(30,12,20,0.9), rgba(8,6,14,0.95))", display: "flex", alignItems: "center", justifyContent: "center", "--gl": heroGlow, animation: "ri-emblem 3.4s ease-in-out infinite" }}>
+                        <svg viewBox="0 0 100 100" style={{ width: "58%", height: "58%" }} fill="none" stroke={heroColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <ellipse cx="50" cy="44" rx="9" ry="12" />
+                          <path d="M50 32V16M42 36 22 26M58 36l20-10M43 52 27 66M57 52l16 14M50 56v20" />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {user.avatar?.card ? (
-                  /* the assigned collectible card, with the reveal-screen effect
-                     (entry punch, ambient glow, float, pointer tilt + glare) */
-                  <div style={s("perspective: 1200px; animation: ri-card-in 1s cubic-bezier(.16,.84,.3,1) both;")}>
-                    <div ref={twinTiltRef} onMouseMove={onTwinTilt} onMouseLeave={onTwinTiltOut} style={s("position: relative; display: inline-block; will-change: transform; transition: transform .3s cubic-bezier(.16,.84,.3,1);")}>
-                      <div style={{ position: "absolute", inset: "-6% -6% -2%", borderRadius: 22, background: `radial-gradient(circle at 50% 40%, ${heroGlow} 0%, transparent 68%)`, filter: "blur(22px)", animation: "ri-pulse-glow 4.5s ease-in-out infinite", pointerEvents: "none" }}></div>
-                      <img src={user.avatar.card} alt={user.avatar.name} style={s(`position: relative; display: block; height: ${isDesktop ? "min(46vh, 440px)" : "min(22vh, 190px)"}; max-width: 80vw; width: auto; filter: drop-shadow(0 30px 60px rgba(0,0,0,0.6)); animation: ri-card-float 6s ease-in-out infinite;`)} />
-                      <div ref={twinGlareRef} style={s("position: absolute; inset: 0; border-radius: 18px; background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.28), transparent 45%); opacity: 0; pointer-events: none; transition: opacity .3s ease;")}></div>
-                    </div>
-                  </div>
-                ) : (
-                  /* emblem fallback while this identity has no card art yet */
-                  <div style={s(`position: relative; width: ${isDesktop ? "clamp(120px, 18vh, 170px)" : "clamp(90px, 14vh, 130px)"}; height: ${isDesktop ? "clamp(120px, 18vh, 170px)" : "clamp(90px, 14vh, 130px)"};`)}>
-                    <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid ${heroColor}`, opacity: 0.4, animation: "ri-ring 2.4s ease-out infinite" }}></span>
-                    <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid ${heroColor}`, opacity: 0.4, animation: "ri-ring 2.4s ease-out infinite 1.2s" }}></span>
-                    <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "radial-gradient(circle at 50% 42%, rgba(30,12,20,0.9), rgba(8,6,14,0.95))", display: "flex", alignItems: "center", justifyContent: "center", "--gl": heroGlow, animation: "ri-emblem 3.4s ease-in-out infinite" }}>
-                      <svg viewBox="0 0 100 100" style={{ width: "58%", height: "58%" }} fill="none" stroke={heroColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="50" cy="44" rx="9" ry="12" /><path d="M50 32V16M42 36 22 26M58 36l20-10M43 52 27 66M57 52l16 14M50 56v20" /></svg>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* ---- the twins roster ---- */}
-              <div className="bnd-line" style={s(`animation-delay: 260ms; width: ${isDesktop ? "min(440px, 44vw)" : "min(440px, 100%)"}; min-width: 0;`)}>
-                <div style={{ padding: 1, background: `linear-gradient(160deg, ${heroGlow}, rgba(255,255,255,0.09) 55%, rgba(255,255,255,0.04))`, clipPath: "polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px)", boxShadow: "0 24px 60px rgba(0,0,0,0.45)" }}>
-                  <div style={s(`background: linear-gradient(165deg, rgba(13,13,24,0.92), rgba(7,7,14,0.95)); clip-path: polygon(17px 0, 100% 0, 100% calc(100% - 17px), calc(100% - 17px) 100%, 0 100%, 0 17px); padding: ${isDesktop ? "20px 22px 16px" : "14px 14px 12px"}; backdrop-filter: blur(6px);`)}>
-
-                    {/* live eyebrow */}
-                    <div style={s("display: inline-flex; align-items: center; gap: 8px; margin-bottom: 10px;")}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: heroColor, boxShadow: `0 0 8px ${heroGlow}`, animation: "bnd-blip 2s ease-in-out infinite" }}></span>
-                      <span style={s("font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.5);")}>The Living Web · Matches</span>
-                    </div>
-
-                    {/* the count — the headline of the reveal */}
-                    <div style={s("display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;")}>
-                      <span style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 600, fontSize: isDesktop ? 46 : 34, lineHeight: 1, color: heroColor, textShadow: `0 0 24px ${heroGlow}` }}>{twinData ? twinData.count : "—"}</span>
-                      <span style={s("font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #fff;")}>Web Twin{twinData && twinData.count === 1 ? "" : "s"} found</span>
-                    </div>
-                    <p style={s(`margin: 8px 0 0; font-size: ${isDesktop ? "13.5px" : "12.5px"}; line-height: 1.55; color: rgba(226,226,240,0.66); text-wrap: pretty;`)}>Members around the world who unmasked as <span style={{ color: heroColor, fontWeight: 600 }}>{user.avatar?.name || "your identity"}</span> — the same Spider as you.</p>
-
-                    {/* roster — 5 rows tall, scrolling reveals 5 more at a time */}
-                    {!twinData ? (
-                      <div style={s("padding: 24px 0 16px; display: flex; align-items: center; gap: 10px; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.26em; text-transform: uppercase; color: rgba(255,255,255,0.5);")}>
-                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: heroColor, boxShadow: `0 0 8px ${heroGlow}`, animation: "bnd-blip 1.2s ease-in-out infinite" }}></span>
-                        Searching the Web…
+                {/* ---- the twins roster ---- */}
+                <div className="bnd-line" style={s(`animation-delay: 260ms; width: ${isDesktop ? "min(440px, 44vw)" : "min(440px, 100%)"}; min-width: 0;`)}>
+                  <div style={{ padding: 1, background: `linear-gradient(160deg, ${heroGlow}, rgba(255,255,255,0.09) 55%, rgba(255,255,255,0.04))`, clipPath: "polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px)", boxShadow: "0 24px 60px rgba(0,0,0,0.45)" }}>
+                    <div style={s(`background: linear-gradient(165deg, rgba(13,13,24,0.92), rgba(7,7,14,0.95)); clip-path: polygon(17px 0, 100% 0, 100% calc(100% - 17px), calc(100% - 17px) 100%, 0 100%, 0 17px); padding: ${isDesktop ? "20px 22px 16px" : "14px 14px 12px"}; backdrop-filter: blur(6px);`)}>
+                      {/* live eyebrow */}
+                      <div style={s("display: inline-flex; align-items: center; gap: 8px; margin-bottom: 10px;")}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: heroColor, boxShadow: `0 0 8px ${heroGlow}`, animation: "bnd-blip 2s ease-in-out infinite" }}></span>
+                        <span style={s("font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.5);")}>The Living Web · Matches</span>
                       </div>
-                    ) : twinData.twins.length === 0 ? (
-                      <p style={s("margin: 16px 0 12px; font-size: 13.5px; line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>
-                        {twinData.failed ? "The Web glitched — try again in a moment." : "You're the first of your kind. Every legend starts alone — twins will appear as more fans unmask."}
+
+                      {/* the count — the headline of the reveal */}
+                      <div style={s("display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;")}>
+                        <span style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 600, fontSize: isDesktop ? 46 : 34, lineHeight: 1, color: heroColor, textShadow: `0 0 24px ${heroGlow}` }}>{twinData ? twinData.count : "—"}</span>
+                        <span style={s("font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #fff;")}>Web Twin{twinData && twinData.count === 1 ? "" : "s"} found</span>
+                      </div>
+                      <p style={s(`margin: 8px 0 0; font-size: ${isDesktop ? "13.5px" : "12.5px"}; line-height: 1.55; color: rgba(226,226,240,0.66); text-wrap: pretty;`)}>
+                        Members around the world who unmasked as <span style={{ color: heroColor, fontWeight: 600 }}>{user.avatar?.name || "your identity"}</span> — the same Spider as you.
                       </p>
-                    ) : (
-                      <div data-scrollable="true" onScroll={onTwinsScroll} style={s(`margin-top: 14px; max-height: ${isDesktop ? "min(300px, 34vh)" : "min(24vh, 210px)"}; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px;`)}>
-                        {twinData.twins.slice(0, twinsVisible).map((t, i) => {
-                          const fc = countryFlag(t.country);
-                          return (
-                            <div key={`${t.username}-${i}`} className="lw-twin-row" style={{ animationDelay: `${(i % TWIN_PAGE) * 70}ms`, display: "flex", alignItems: "center", gap: 11, padding: "9px 12px", marginBottom: 8, background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10 }}>
-                              <span style={{ flexShrink: 0, width: 30, height: 30, borderRadius: "50%", background: `linear-gradient(180deg, ${heroGlow}, rgba(10,8,16,0.9))`, border: `1px solid ${heroColor}66`, color: "#fff", fontFamily: "'Oswald', sans-serif", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", textTransform: "uppercase" }}>{t.username[0]}</span>
-                              <span style={s("flex: 1; min-width: 0; font-size: 14px; color: rgba(255,255,255,0.92); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;")}>u/{t.username}</span>
-                              <span style={s("flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; max-width: 46%;")}>
-                                <span style={s("flex-shrink: 0; width: 20px; height: 13px; border-radius: 2px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,0.14);")}>{fc ? <Flag code={fc} /> : <DotMarker />}</span>
-                                <span style={s("font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;")}>{t.country || "-"}</span>
-                              </span>
-                            </div>
-                          );
-                        })}
-                        {twinsVisible < twinData.twins.length && (
-                          <div style={s("padding: 2px 0 8px; text-align: center; font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.26em; text-transform: uppercase; color: rgba(255,255,255,0.38);")}>Scroll for more ↓</div>
-                        )}
-                      </div>
-                    )}
 
-                    {/* footer: shown-of counter + retake CTA */}
-                    <div style={s("margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;")}>
-                      {twinData && twinData.twins.length > 0 && (
-                        <span style={s("font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.45);")}>
-                          {Math.min(twinsVisible, twinData.twins.length)} of {twinData.twins.length} shown{twinData.count > twinData.twins.length ? ` · ${twinData.count} total` : ""}
-                        </span>
+                      {/* roster — 5 rows tall, scrolling reveals 5 more at a time */}
+                      {!twinData ? (
+                        <div style={s("padding: 24px 0 16px; display: flex; align-items: center; gap: 10px; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.26em; text-transform: uppercase; color: rgba(255,255,255,0.5);")}>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: heroColor, boxShadow: `0 0 8px ${heroGlow}`, animation: "bnd-blip 1.2s ease-in-out infinite" }}></span>
+                          Searching the Web…
+                        </div>
+                      ) : twinData.twins.length === 0 ? (
+                        <p style={s("margin: 16px 0 12px; font-size: 13.5px; line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>{twinData.failed ? "The Web glitched — try again in a moment." : "You're the first of your kind. Every legend starts alone — twins will appear as more fans unmask."}</p>
+                      ) : (
+                        <div data-scrollable="true" onScroll={onTwinsScroll} style={s(`margin-top: 14px; max-height: ${isDesktop ? "min(300px, 34vh)" : "min(24vh, 210px)"}; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px;`)}>
+                          {twinData.twins.slice(0, twinsVisible).map((t, i) => {
+                            const fc = countryFlag(t.country);
+                            return (
+                              <div key={`${t.username}-${i}`} className="lw-twin-row" style={{ animationDelay: `${(i % TWIN_PAGE) * 70}ms`, display: "flex", alignItems: "center", gap: 11, padding: "9px 12px", marginBottom: 8, background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10 }}>
+                                <span style={{ flexShrink: 0, width: 30, height: 30, borderRadius: "50%", background: `linear-gradient(180deg, ${heroGlow}, rgba(10,8,16,0.9))`, border: `1px solid ${heroColor}66`, color: "#fff", fontFamily: "'Oswald', sans-serif", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", textTransform: "uppercase" }}>{t.username[0]}</span>
+                                <span style={s("flex: 1; min-width: 0; font-size: 14px; color: rgba(255,255,255,0.92); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;")}>u/{t.username}</span>
+                                <span style={s("flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; max-width: 46%;")}>
+                                  <span style={s("flex-shrink: 0; width: 20px; height: 13px; border-radius: 2px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,0.14);")}>{fc ? <Flag code={fc} /> : <DotMarker />}</span>
+                                  <span style={s("font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;")}>{t.country || "-"}</span>
+                                </span>
+                              </div>
+                            );
+                          })}
+                          {twinsVisible < twinData.twins.length && <div style={s("padding: 2px 0 8px; text-align: center; font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.26em; text-transform: uppercase; color: rgba(255,255,255,0.38);")}>Scroll for more ↓</div>}
+                        </div>
                       )}
-                      <button onClick={() => { sfxRef.current && sfxRef.current.play("click"); router.push("/quiz?retake=1"); }} data-web-hover="true" className="bnd-cta" style={s("margin-left: auto; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
-                        <span className="bnd-cta-inner" style={s("display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;")}><span className="bnd-cta-sheen"></span>↻ Retake Identity Quiz</span>
-                      </button>
-                    </div>
 
+                      {/* footer: shown-of counter + retake CTA */}
+                      <div style={s("margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;")}>
+                        {twinData && twinData.twins.length > 0 && (
+                          <span style={s("font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.45);")}>
+                            {Math.min(twinsVisible, twinData.twins.length)} of {twinData.twins.length} shown{twinData.count > twinData.twins.length ? ` · ${twinData.count} total` : ""}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => {
+                            sfxRef.current && sfxRef.current.play("click");
+                            router.push("/quiz?retake=1");
+                          }}
+                          data-web-hover="true"
+                          className="bnd-cta"
+                          style={s("margin-left: auto; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}
+                        >
+                          <span
+                            className="bnd-cta-inner"
+                            style={s("display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;")}
+                          >
+                            <span className="bnd-cta-sheen"></span>↻ Retake Identity Quiz
+                          </span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-      </section>
+          )}
+        </section>
       )}
 
       {/* ================= MJ WALL ================= */}
@@ -1095,8 +1310,12 @@ export default function Home() {
               <span style={s("width: 42px; height: 2px; background: linear-gradient(90deg, #ff1f33, transparent);")}></span>
               <span style={s("font-size: 12px; letter-spacing: 0.36em; text-transform: uppercase; color: #ff5a6a;")}>The MJ Wall</span>
             </div>
-            <h2 className="bnd-head" style={s("animation-delay: 180ms; margin: 0; font-size: clamp(30px, 4.4vw, 56px); line-height: 1.02; font-weight: 700; letter-spacing: -0.01em; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,0.6); text-wrap: balance;")}>MJ forgot the best part of her story. <span style={{ color: "#ff4655" }}>Let's remind her!</span></h2>
-            <p className="bnd-line" style={s("animation-delay: 410ms; margin: 18px 0 0; font-size: clamp(14px, 1.5vw, 17px); line-height: 1.6; color: rgba(255,255,255,0.82); text-shadow: 0 2px 10px rgba(0,0,0,0.6); text-wrap: pretty;")}>If you could remind MJ of one thing about Peter, what would it be?</p>
+            <h2 className="bnd-head" style={s("animation-delay: 180ms; margin: 0; font-size: clamp(30px, 4.4vw, 56px); line-height: 1.02; font-weight: 700; letter-spacing: -0.01em; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,0.6); text-wrap: balance;")}>
+              MJ forgot the best part of her story. <span style={{ color: "#ff4655" }}>Let's remind her!</span>
+            </h2>
+            <p className="bnd-line" style={s("animation-delay: 410ms; margin: 18px 0 0; font-size: clamp(14px, 1.5vw, 17px); line-height: 1.6; color: rgba(255,255,255,0.82); text-shadow: 0 2px 10px rgba(0,0,0,0.6); text-wrap: pretty;")}>
+              If you could remind MJ of one thing about Peter, what would it be?
+            </p>
 
             {mjSent ? (
               <div style={s("margin-top: 28px; display: flex; flex-direction: column; align-items: flex-start; gap: 16px; animation: bnd-word-rise 500ms cubic-bezier(.2,.7,.2,1) both;")}>
@@ -1105,7 +1324,17 @@ export default function Home() {
                   Sent!
                 </div>
                 <p style={s("margin: 0; font-size: 14px; color: rgba(255,255,255,0.72); text-shadow: 0 2px 8px rgba(0,0,0,0.6);")}>Your memory joins the wall once approved.</p>
-                <button onClick={() => { setMjSent(false); setMjMessage(""); setTimeout(() => mjInputRef.current && mjInputRef.current.focus(), 60); }} style={s("background: transparent; border: 0; color: #ff5a6a; font: inherit; letter-spacing: 0.18em; text-transform: uppercase; font-size: 12px; cursor: pointer; padding: 4px 0;")}>Write another ›</button>
+                <button
+                  onClick={() => {
+                    clearTimeout(mjRedirectTRef.current);
+                    setMjSent(false);
+                    setMjMessage("");
+                    setTimeout(() => mjInputRef.current && mjInputRef.current.focus(), 60);
+                  }}
+                  style={s("background: transparent; border: 0; color: #ff5a6a; font: inherit; letter-spacing: 0.18em; text-transform: uppercase; font-size: 12px; cursor: pointer; padding: 4px 0;")}
+                >
+                  Write another ›
+                </button>
               </div>
             ) : (
               <div id="mj-composer" style={s("margin-top: 28px;")}>
@@ -1113,6 +1342,7 @@ export default function Home() {
                   <textarea
                     ref={mjInputRef}
                     id="mj-textarea"
+                    data-scrollable="true"
                     value={mjMessage}
                     onChange={(e) => setMjMessage(e.target.value.slice(0, 280))}
                     maxLength={280}
@@ -1126,7 +1356,9 @@ export default function Home() {
                       <span style={s("display: block; padding: 15px 34px; background: linear-gradient(180deg, #ffd23f 0%, #f7a91d 100%); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #6b2a00; font-weight: 700; font-size: 14px; letter-spacing: 0.24em; text-transform: uppercase; text-shadow: 0 1px 0 rgba(255,255,255,0.35);")}>Add to the wall</span>
                     </span>
                   </button>
-                  <Link href="/mj-wall" data-web-hover="true" className="link-hover-red" style={s("display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(255,255,255,0.85); text-decoration: none; text-shadow: 0 2px 8px rgba(0,0,0,0.6); transition: color 200ms ease;")}>View all messages <span style={{ fontSize: "15px" }}>›</span></Link>
+                  <Link href="/mj-wall" data-web-hover="true" className="link-hover-red" style={s("display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(255,255,255,0.85); text-decoration: none; text-shadow: 0 2px 8px rgba(0,0,0,0.6); transition: color 200ms ease;")}>
+                    View all messages <span style={{ fontSize: "15px" }}>›</span>
+                  </Link>
                 </div>
                 {mjError && <p style={s("font-size: 12px; color: #ff6b79; margin-top: 4px; text-shadow: 0 2px 8px rgba(0,0,0,0.6);")}>{mjError}</p>}
               </div>
@@ -1135,8 +1367,12 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ================= SPIDER-VERSE FEED ================= */}
-      <section data-page="feed" data-screen-label="Spider-Verse Feed" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background-color: #050308; background-image: radial-gradient(90% 90% at 50% 52%, rgba(5,3,8,0.35) 0%, rgba(5,3,8,0.7) 55%, rgba(4,2,6,0.9) 100%), url('/assets/forum-bg.jpg'); background-size: cover, cover; background-position: center, center; display: flex;")}>
+      {/* ================= SPIDER WORLD FEED ================= */}
+      <section
+        data-page="feed"
+        data-screen-label="Spider World Feed"
+        style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background-color: #050308; background-image: radial-gradient(90% 90% at 50% 52%, rgba(5,3,8,0.35) 0%, rgba(5,3,8,0.7) 55%, rgba(4,2,6,0.9) 100%), url('/assets/forum-bg.jpg'); background-size: cover, cover; background-position: center, center; display: flex;")}
+      >
         <img src="/assets/web.png" alt="" style={s("position: absolute; top: -10%; left: -8%; width: min(680px, 46vw); opacity: 0.06; mix-blend-mode: screen; pointer-events: none;")} />
 
         {/* Marvel-style ambient FX layer */}
@@ -1158,32 +1394,58 @@ export default function Home() {
         <div data-page-content data-reveal className="bnd-reveal" style={s("position: relative; z-index: 4; width: 100%; max-width: 820px; margin: 0 auto; box-sizing: border-box; padding: clamp(78px, 12vh, 118px) clamp(24px, 5vw, 80px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 0;")}>
           <div className="bnd-line" style={s("animation-delay: 70ms; display: inline-flex; align-items: center; gap: 10px; margin-bottom: 16px;")}>
             <span style={s("width: 42px; height: 2px; background: linear-gradient(90deg, transparent, #ff2f40);")}></span>
-            <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: #ff5a6a;")}>Spider-Verse Feed</span>
+            <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: #ff5a6a;")}>Spider World Feed</span>
             <span style={s("width: 42px; height: 2px; background: linear-gradient(90deg, #ff2f40, transparent);")}></span>
           </div>
-          <h2 className="bnd-head" style={s("animation-delay: 170ms; margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(30px, 5vw, 66px); line-height: 0.98; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,0.6);")}>This is what the Web <span style={{ color: "#ff2f40" }}>actually looks like.</span></h2>
-          <p className="bnd-line" style={s("animation-delay: 340ms; margin: 18px auto 0; max-width: 600px; font-size: clamp(14px, 1.5vw, 17px); line-height: 1.6; color: rgba(226,226,240,0.74); text-wrap: pretty;")}>Real people, real identities, real stories — an entire community living under the mask. Step inside and add your voice.</p>
+          <h2 className="bnd-head" style={s("animation-delay: 170ms; margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(30px, 5vw, 66px); line-height: 0.98; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,0.6);")}>
+            This is what the Web <span style={{ color: "#ff2f40" }}>actually looks like.</span>
+          </h2>
+          <p className="bnd-line" style={s("animation-delay: 340ms; margin: 18px auto 0; max-width: 600px; font-size: clamp(14px, 1.5vw, 17px); line-height: 1.6; color: rgba(226,226,240,0.74); text-wrap: pretty;")}>
+            Real people, real identities, real stories — an entire community living under the mask. Step inside and add your voice.
+          </p>
           <Link href="/forum" data-web-hover="true" className="bnd-line bnd-cta" style={s("animation-delay: 470ms; margin-top: clamp(28px, 4.5vh, 44px); text-decoration: none; border: 0; padding: 0; background: transparent; cursor: pointer;")}>
             <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);")}>
-              <span className="bnd-cta-inner" style={s("display: inline-flex; align-items: center; gap: 12px; padding: 16px 44px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 15px; letter-spacing: 0.2em; text-transform: uppercase;")}><span className="bnd-cta-sheen"></span>Enter the Forum <span style={{ fontSize: "17px" }}>→</span></span>
+              <span
+                className="bnd-cta-inner"
+                style={s("display: inline-flex; align-items: center; gap: 12px; padding: 16px 44px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 15px; letter-spacing: 0.2em; text-transform: uppercase;")}
+              >
+                <span className="bnd-cta-sheen"></span>Enter the Forum <span style={{ fontSize: "17px" }}>→</span>
+              </span>
             </span>
           </Link>
         </div>
       </section>
 
       {/* ================= SPIDEY TRACKER ================= */}
-      <section data-page="tracker" data-screen-label="Spidey Tracker" style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background-color: #0a1330; background-image: radial-gradient(120% 100% at 22% 30%, rgba(6,10,22,0.35) 0%, rgba(5,8,20,0.72) 60%, rgba(4,6,14,0.9) 100%), url('/assets/tracker-map-bg.jpg'); background-size: cover, cover; background-position: center, center; display: flex; align-items: center;")}>
+      <section
+        data-page="tracker"
+        data-screen-label="Spidey Tracker"
+        style={s(
+          "position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background-color: #0a1330; background-image: radial-gradient(120% 100% at 22% 30%, rgba(6,10,22,0.35) 0%, rgba(5,8,20,0.72) 60%, rgba(4,6,14,0.9) 100%), url('/assets/tracker-map-bg.jpg'); background-size: cover, cover; background-position: center, center; display: flex; align-items: center;",
+        )}
+      >
         <img src="/assets/web.png" alt="" style={s("position: absolute; bottom: -14%; right: -8%; width: min(640px, 42vw); opacity: 0.05; mix-blend-mode: screen; pointer-events: none;")} />
         <div id="tracker-inner" data-page-content data-reveal className="bnd-reveal" style={s("position: relative; z-index: 4; width: 100%; max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: clamp(78px, 12vh, 120px) clamp(24px, 5vw, 80px) clamp(40px, 7vh, 70px); display: flex; align-items: center; justify-content: space-between; gap: clamp(30px, 5vw, 70px); flex-wrap: wrap;")}>
           {/* on phones #tracker-copy dissolves (display: contents) so the radar can
               slot between the copy and the CTA — see the tracker mobile CSS */}
           <div id="tracker-copy" style={s("flex: 1; min-width: 300px; max-width: 560px;")}>
             <img src="/assets/tracker-logo.png" alt="Spidey Tracker" className="bnd-line" style={s("animation-delay: 70ms; display: block; width: clamp(240px, 26vw, 360px); height: auto; margin-bottom: 22px; filter: drop-shadow(0 6px 20px rgba(0,0,0,0.5));")} />
-            <h2 className="bnd-head" style={s("animation-delay: 180ms; margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(24px, 3.4vw, 46px); line-height: 1.02; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 34px rgba(0,0,0,0.6);")}>You don't have to look far…<br /><span style={{ color: "#ff2f40" }}>he might already be around the corner.</span></h2>
-            <p className="bnd-line" style={s("animation-delay: 370ms; margin: 20px 0 0; font-size: clamp(14px, 1.5vw, 18px); line-height: 1.6; color: rgba(226,226,240,0.74); text-wrap: pretty;")}>Somewhere, he has already left a mark.</p>
+            <h2 className="bnd-head" style={s("animation-delay: 180ms; margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(24px, 3.4vw, 46px); line-height: 1.02; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 34px rgba(0,0,0,0.6);")}>
+              You don't have to look far…
+              <br />
+              <span style={{ color: "#ff2f40" }}>he might already be around the corner.</span>
+            </h2>
+            <p className="bnd-line" style={s("animation-delay: 370ms; margin: 20px 0 0; font-size: clamp(14px, 1.5vw, 18px); line-height: 1.6; color: rgba(226,226,240,0.74); text-wrap: pretty;")}>
+              Somewhere, he has already left a mark.
+            </p>
             <a id="tracker-cta" href="https://spideytracker.net/intl/in/" target="_blank" rel="noopener noreferrer" onMouseEnter={onWalkHover} data-web-hover="true" className="bnd-line bnd-cta" style={s("animation-delay: 500ms; display: inline-block; margin-top: clamp(26px, 4vh, 40px); text-decoration: none; border: 0; padding: 0; background: transparent; cursor: pointer;")}>
               <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);")}>
-                <span className="bnd-cta-inner" style={s("display: inline-flex; align-items: center; gap: 12px; padding: 15px 40px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 15px; letter-spacing: 0.2em; text-transform: uppercase;")}><span className="bnd-cta-sheen"></span>Open Spidey Tracker <span style={{ fontSize: "17px", lineHeight: 1 }}>↗</span></span>
+                <span
+                  className="bnd-cta-inner"
+                  style={s("display: inline-flex; align-items: center; gap: 12px; padding: 15px 40px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 15px; letter-spacing: 0.2em; text-transform: uppercase;")}
+                >
+                  <span className="bnd-cta-sheen"></span>Open Spidey Tracker <span style={{ fontSize: "17px", lineHeight: 1 }}>↗</span>
+                </span>
               </span>
             </a>
           </div>
@@ -1235,20 +1497,43 @@ export default function Home() {
               <span style={s("width: 42px; height: 2px; background: linear-gradient(90deg, transparent, #ff2f40);")}></span>
               <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: #ff5a6a;")}>Official Trailer</span>
             </div>
-            <h2 className="bnd-head" style={s("animation-delay: 170ms; margin: 0 0 18px; font-family: 'Oswald', sans-serif; font-size: clamp(28px, 4vw, 52px); line-height: 1.02; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,0.6);")}>Every Brand New Day<br /><span style={{ color: "#ff2f40" }}>starts here.</span></h2>
-            <p className="bnd-line" style={s("animation-delay: 310ms; margin: 0 0 clamp(24px, 4vh, 38px); font-size: clamp(14px, 1.5vw, 17px); line-height: 1.6; color: rgba(226,226,240,0.72); max-width: 460px;")}>Watch the official trailer and step into the Spider-Verse. In cinemas July 30.</p>
+            <h2 className="bnd-head" style={s("animation-delay: 170ms; margin: 0 0 18px; font-family: 'Oswald', sans-serif; font-size: clamp(28px, 4vw, 52px); line-height: 1.02; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,0.6);")}>
+              Every Brand New Day
+              <br />
+              <span style={{ color: "#ff2f40" }}>starts here.</span>
+            </h2>
+            <p className="bnd-line" style={s("animation-delay: 310ms; margin: 0 0 clamp(24px, 4vh, 38px); font-size: clamp(14px, 1.5vw, 17px); line-height: 1.6; color: rgba(226,226,240,0.72); max-width: 460px;")}>
+              Watch the official trailer and step into the Spider World. In cinemas July 30.
+            </p>
           </div>
 
           {/* right large thumbnail */}
-          <button onClick={() => { sfxRef.current && sfxRef.current.play("click"); setTrailerOpen(true); }} onMouseEnter={onWalkHover} data-web-hover="true" className="bnd-line trailer-card" style={s("animation-delay: 370ms; flex: 0 1 400px; min-width: 260px; max-width: 400px; position: relative; border: 0; padding: 2px; background: linear-gradient(150deg, rgba(255,40,60,0.6), rgba(31,76,214,0.45)); clip-path: polygon(22px 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%, 0 22px); cursor: pointer; transition: transform 340ms cubic-bezier(.16,.84,.3,1), box-shadow 340ms ease;")}>
+          <button
+            onClick={() => {
+              sfxRef.current && sfxRef.current.play("click");
+              setTrailerOpen(true);
+            }}
+            onMouseEnter={onWalkHover}
+            data-web-hover="true"
+            className="bnd-line trailer-card"
+            style={s(
+              "animation-delay: 370ms; flex: 0 1 400px; min-width: 260px; max-width: 400px; position: relative; border: 0; padding: 2px; background: linear-gradient(150deg, rgba(255,40,60,0.6), rgba(31,76,214,0.45)); clip-path: polygon(22px 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%, 0 22px); cursor: pointer; transition: transform 340ms cubic-bezier(.16,.84,.3,1), box-shadow 340ms ease;",
+            )}
+          >
             <div style={s("position: relative; aspect-ratio: 16/9; overflow: hidden; clip-path: polygon(21px 0, 100% 0, 100% calc(100% - 21px), calc(100% - 21px) 100%, 0 100%, 0 21px); background: #0a0713;")}>
               <img src="/assets/trailer-thumb-62bIsvRcPv0.jpg" alt="Spider-Man: Brand New Day — Official Trailer" style={s("position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;")} />
               <div style={s("position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(120,20,30,0.25) 0%, rgba(6,4,12,0.55) 100%); pointer-events: none;")}></div>
-              <span style={s("position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: clamp(68px, 8vw, 96px); height: clamp(68px, 8vw, 96px); border-radius: 50%; border: 2px solid rgba(255,60,74,0.9); background: rgba(20,6,10,0.4); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 30px rgba(255,60,74,0.5), inset 0 0 20px rgba(255,60,74,0.2); pointer-events: none;")}>
+              <span
+                style={s(
+                  "position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: clamp(68px, 8vw, 96px); height: clamp(68px, 8vw, 96px); border-radius: 50%; border: 2px solid rgba(255,60,74,0.9); background: rgba(20,6,10,0.4); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 30px rgba(255,60,74,0.5), inset 0 0 20px rgba(255,60,74,0.2); pointer-events: none;",
+                )}
+              >
                 <span style={s("position: absolute; inset: -9px; border-radius: 50%; border: 2px solid rgba(255,60,74,0.4); animation: bnd-radar-ring 2.8s ease-out infinite;")}></span>
                 {/* the glyph's bbox (x 5–21) already sits +1 right of the viewBox
                     center — that IS the optical nudge; extra margin skewed it */}
-                <svg width="30%" height="30%" viewBox="0 0 24 24" fill="#fff" style={s("filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));")}><path d="M5 3l16 9-16 9z" /></svg>
+                <svg width="30%" height="30%" viewBox="0 0 24 24" fill="#fff" style={s("filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));")}>
+                  <path d="M5 3l16 9-16 9z" />
+                </svg>
               </span>
             </div>
           </button>
@@ -1257,21 +1542,47 @@ export default function Home() {
         {/* footer columns */}
         <div style={s("position: relative; z-index: 2; width: 100%; border-top: 1px solid rgba(255,255,255,0.08);")}>
           <div style={s("max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: clamp(34px, 5vh, 56px) clamp(24px, 5vw, 80px) clamp(20px, 3vh, 32px); display: grid; grid-template-columns: 1.4fr 1fr; gap: clamp(24px, 6vw, 90px); align-items: start;")} className="footer-cols">
-
             {/* about + social */}
             <div>
-              <h4 style={s("margin: 0 0 16px; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; color: #ff5a6a;")}>About the Movie <span style={{ color: "#ff2f40" }}>•</span></h4>
-              <p style={s("margin: 0 0 24px; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.62); max-width: 320px;")}>Anyone can wear the mask. Step into the Spider-Verse and find your place in the Web.</p>
+              <h4 style={s("margin: 0 0 16px; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; color: #ff5a6a;")}>
+                About the Movie <span style={{ color: "#ff2f40" }}>•</span>
+              </h4>
+              <p style={s("margin: 0 0 24px; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.62); max-width: 320px;")}>Anyone can wear the mask. Step into the Spider World and find your place in the Web.</p>
               <div style={s("display: flex; gap: 10px;")}>
                 {[
                   ["X", <path key="p" d="M18.9 2H22l-7.3 8.3L23 22h-6.8l-5-6.6L5.5 22H2.4l7.8-8.9L1.5 2h6.9l4.6 6.1L18.9 2zm-2.4 18h1.9L7.6 4H5.6l10.9 16z" />],
-                  ["Instagram", <g key="g"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" strokeWidth="2" /><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="2" /><circle cx="17.5" cy="6.5" r="1.3" /></g>],
-                  ["YouTube", <g key="g"><path d="M22 8.2a3 3 0 00-2.1-2.1C18 5.6 12 5.6 12 5.6s-6 0-7.9.5A3 3 0 002 8.2 31 31 0 001.6 12 31 31 0 002 15.8a3 3 0 002.1 2.1c1.9.5 7.9.5 7.9.5s6 0 7.9-.5a3 3 0 002.1-2.1c.3-1.9.4-3.8.4-3.8s0-1.9-.4-3.8z" /><path d="M10 15l5-3-5-3v6z" fill="#0b0510" /></g>],
+                  [
+                    "Instagram",
+                    <g key="g">
+                      <rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" strokeWidth="2" />
+                      <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
+                      <circle cx="17.5" cy="6.5" r="1.3" />
+                    </g>,
+                  ],
+                  [
+                    "YouTube",
+                    <g key="g">
+                      <path d="M22 8.2a3 3 0 00-2.1-2.1C18 5.6 12 5.6 12 5.6s-6 0-7.9.5A3 3 0 002 8.2 31 31 0 001.6 12 31 31 0 002 15.8a3 3 0 002.1 2.1c1.9.5 7.9.5 7.9.5s6 0 7.9-.5a3 3 0 002.1-2.1c.3-1.9.4-3.8.4-3.8s0-1.9-.4-3.8z" />
+                      <path d="M10 15l5-3-5-3v6z" fill="#0b0510" />
+                    </g>,
+                  ],
                   ["TikTok", <path key="p" d="M16.5 3c.3 2.1 1.5 3.6 3.5 3.9v2.7c-1.2 0-2.4-.4-3.5-1.1v5.9c0 3.1-2.3 5.6-5.4 5.6S5.7 17.5 5.7 14.4c0-3 2.2-5.4 5.2-5.5v2.8c-1.4.1-2.4 1.2-2.4 2.7 0 1.5 1.1 2.7 2.6 2.7s2.6-1.2 2.6-2.9V3h2.8z" />],
                   ["Facebook", <path key="p" d="M22 12a10 10 0 10-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.2c-1.2 0-1.6.8-1.6 1.5V12h2.7l-.4 2.9h-2.3v7A10 10 0 0022 12z" />],
                 ].map(([name, icon]) => (
-                  <a key={name} href="#" onClick={(e) => e.preventDefault()} aria-label={name} data-web-hover="true" className="footer-social" style={s("width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); transition: background .2s ease, border-color .2s ease, color .2s ease;")}>
-                    <span style={s("width: 18px; height: 18px; display: block;")}><svg viewBox="0 0 24 24" fill="currentColor" style={{ width: "100%", height: "100%", display: "block" }}>{icon}</svg></span>
+                  <a
+                    key={name}
+                    href="#"
+                    onClick={(e) => e.preventDefault()}
+                    aria-label={name}
+                    data-web-hover="true"
+                    className="footer-social"
+                    style={s("width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); transition: background .2s ease, border-color .2s ease, color .2s ease;")}
+                  >
+                    <span style={s("width: 18px; height: 18px; display: block;")}>
+                      <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: "100%", height: "100%", display: "block" }}>
+                        {icon}
+                      </svg>
+                    </span>
                   </a>
                 ))}
               </div>
@@ -1279,25 +1590,65 @@ export default function Home() {
 
             {/* explore */}
             <div>
-              <h4 style={s("margin: 0 0 16px; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; color: #ff5a6a;")}>Explore <span style={{ color: "#ff2f40" }}>•</span></h4>
+              <h4 style={s("margin: 0 0 16px; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; color: #ff5a6a;")}>
+                Explore <span style={{ color: "#ff2f40" }}>•</span>
+              </h4>
               <div style={s("display: flex; flex-direction: column; gap: 4px; max-width: 220px;")}>
-                <a href="#" onClick={(e) => { e.preventDefault(); setTrailerOpen(true); }} data-web-hover="true" className="footer-link" style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}><span>Trailer</span><span style={s("color: #ff2f40; font-size: 15px;")}>›</span></a>
-                <Link href="/mj-wall" data-web-hover="true" className="footer-link" style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}><span>MJ Wall</span><span style={s("color: #ff2f40; font-size: 15px;")}>›</span></Link>
-                <a href="#" onClick={(e) => { e.preventDefault(); goToForm(); }} data-web-hover="true" className="footer-link" style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}><span>Fan Hub</span><span style={s("color: #ff2f40; font-size: 15px;")}>›</span></a>
-                <Link href="/forum" data-web-hover="true" className="footer-link" style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}><span>Forum</span><span style={s("color: #ff2f40; font-size: 15px;")}>›</span></Link>
-                <a href="https://spideytracker.net/intl/in/" target="_blank" rel="noopener noreferrer" data-web-hover="true" className="footer-link" style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}><span>Spidey Tracker</span><span style={s("color: #ff2f40; font-size: 15px;")}>›</span></a>
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setTrailerOpen(true);
+                  }}
+                  data-web-hover="true"
+                  className="footer-link"
+                  style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}
+                >
+                  <span>Trailer</span>
+                  <span style={s("color: #ff2f40; font-size: 15px;")}>›</span>
+                </a>
+                <Link href="/mj-wall" data-web-hover="true" className="footer-link" style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}>
+                  <span>MJ Wall</span>
+                  <span style={s("color: #ff2f40; font-size: 15px;")}>›</span>
+                </Link>
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    goToForm();
+                  }}
+                  data-web-hover="true"
+                  className="footer-link"
+                  style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}
+                >
+                  <span>Fan Hub</span>
+                  <span style={s("color: #ff2f40; font-size: 15px;")}>›</span>
+                </a>
+                <Link href="/forum" data-web-hover="true" className="footer-link" style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}>
+                  <span>Forum</span>
+                  <span style={s("color: #ff2f40; font-size: 15px;")}>›</span>
+                </Link>
+                <a href="https://spideytracker.net/intl/in/" target="_blank" rel="noopener noreferrer" data-web-hover="true" className="footer-link" style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}>
+                  <span>Spidey Tracker</span>
+                  <span style={s("color: #ff2f40; font-size: 15px;")}>›</span>
+                </a>
               </div>
             </div>
-
           </div>
 
           {/* bottom bar */}
           <div style={s("max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: 18px clamp(24px, 5vw, 80px) clamp(22px, 3vh, 34px); border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;")}>
             <div style={s("font-size: 11.5px; letter-spacing: 0.05em; color: rgba(255,255,255,0.4);")}>© 2026 Columbia Pictures Industries, Inc. All rights reserved. &nbsp;·&nbsp; This film is not yet rated.</div>
             <div style={s("display: flex; gap: 24px; flex-wrap: wrap;")}>
-              <a href="#" onClick={(e) => e.preventDefault()} data-web-hover="true" className="footer-link" style={s("text-decoration: none; font-size: 11.5px; letter-spacing: 0.06em; color: rgba(255,255,255,0.5); transition: color .2s ease;")}>Privacy Policy</a>
-              <a href="#" onClick={(e) => e.preventDefault()} data-web-hover="true" className="footer-link" style={s("text-decoration: none; font-size: 11.5px; letter-spacing: 0.06em; color: rgba(255,255,255,0.5); transition: color .2s ease;")}>Terms of Use</a>
-              <a href="#" onClick={(e) => e.preventDefault()} data-web-hover="true" className="footer-link" style={s("text-decoration: none; font-size: 11.5px; letter-spacing: 0.06em; color: rgba(255,255,255,0.5); transition: color .2s ease;")}>Cookie Settings</a>
+              <a href="#" onClick={(e) => e.preventDefault()} data-web-hover="true" className="footer-link" style={s("text-decoration: none; font-size: 11.5px; letter-spacing: 0.06em; color: rgba(255,255,255,0.5); transition: color .2s ease;")}>
+                Privacy Policy
+              </a>
+              <a href="#" onClick={(e) => e.preventDefault()} data-web-hover="true" className="footer-link" style={s("text-decoration: none; font-size: 11.5px; letter-spacing: 0.06em; color: rgba(255,255,255,0.5); transition: color .2s ease;")}>
+                Terms of Use
+              </a>
+              <a href="#" onClick={(e) => e.preventDefault()} data-web-hover="true" className="footer-link" style={s("text-decoration: none; font-size: 11.5px; letter-spacing: 0.06em; color: rgba(255,255,255,0.5); transition: color .2s ease;")}>
+                Cookie Settings
+              </a>
             </div>
           </div>
         </div>
@@ -1317,7 +1668,10 @@ export default function Home() {
             {railSections.map((sec, i) => (
               <button
                 key={sec.key}
-                onClick={() => { sfxRef.current && sfxRef.current.play("click"); goToSection(sec.key); }}
+                onClick={() => {
+                  sfxRef.current && sfxRef.current.play("click");
+                  goToSection(sec.key);
+                }}
                 data-web-hover="true"
                 className="bnd-rail-item"
                 aria-label={sec.label}
@@ -1325,7 +1679,12 @@ export default function Home() {
                 style={s("position: relative; width: 32px; height: 34px; border: 0; padding: 0; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center;")}
               >
                 <span className="bnd-rail-dot" style={s(`width: 7px; height: 7px; border-radius: 50%; background: ${i === railIdx ? "transparent" : "rgba(255,255,255,0.3)"}; box-shadow: ${i === railIdx ? "none" : "0 0 0 1px rgba(255,255,255,0.1)"};`)}></span>
-                <span className="bnd-rail-label" style={s("position: absolute; right: 100%; margin-right: 12px; top: 50%; white-space: nowrap; font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255,255,255,0.82); background: rgba(8,8,14,0.75); border: 1px solid rgba(255,255,255,0.1); padding: 5px 11px; border-radius: 6px; backdrop-filter: blur(4px); pointer-events: none;")}>{sec.label}</span>
+                <span
+                  className="bnd-rail-label"
+                  style={s("position: absolute; right: 100%; margin-right: 12px; top: 50%; white-space: nowrap; font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255,255,255,0.82); background: rgba(8,8,14,0.75); border: 1px solid rgba(255,255,255,0.1); padding: 5px 11px; border-radius: 6px; backdrop-filter: blur(4px); pointer-events: none;")}
+                >
+                  {sec.label}
+                </span>
               </button>
             ))}
           </div>
@@ -1333,10 +1692,16 @@ export default function Home() {
       )}
 
       {/* HERO SCROLL HINT — subtle "there's more below" cue, shown on the hero
-          only (fades out once you leave it). Mobile: bottom-centre inside the
-          safe area. Desktop: docked on the right, in the web-rail column. */}
-      <div aria-hidden="true" className="bnd-scrollhint" style={{ position: "fixed", zIndex: 30, left: "50%", bottom: "calc(31px + env(safe-area-inset-bottom, 0px))", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: "7px", pointerEvents: "none", opacity: (activeSection === "hero" && !walkOpen && !trailerOpen && !authOpen && !mobileMenuOpen) ? 1 : 0, transition: "opacity 450ms ease", willChange: "opacity" }}>
-        <span className="bnd-scrollhint-mouse"><span className="bnd-scrollhint-dot"></span></span>
+          only (fades out once you leave it). Desktop only, docked on the right
+          in the web-rail column — globals.css hides it under 760px. */}
+      <div
+        aria-hidden="true"
+        className="bnd-scrollhint"
+        style={{ position: "fixed", zIndex: 30, left: "50%", bottom: "calc(31px + env(safe-area-inset-bottom, 0px))", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: "7px", pointerEvents: "none", opacity: activeSection === "hero" && !walkOpen && !trailerOpen && !authOpen && !mobileMenuOpen ? 1 : 0, transition: "opacity 450ms ease", willChange: "opacity" }}
+      >
+        <span className="bnd-scrollhint-mouse">
+          <span className="bnd-scrollhint-dot"></span>
+        </span>
       </div>
 
       {/* CINEMATIC TRANSITION OVERLAY */}
@@ -1354,23 +1719,39 @@ export default function Home() {
         isDesktop={isDesktop}
         mobileMenuVisible={!isDesktop && mobileMenuOpen}
         navItems={navItems}
-        onGoHome={() => goToPageRef.current(0)}
+        onGoHome={() => {
+          dismissKeyboard();
+          setMobileMenuOpen(false);
+          goToPageRef.current(0);
+        }}
         onGetStarted={goToForm}
-        onToggleMobileMenu={() => setMobileMenuOpen((v) => !v)}
-        onMobileSwingIn={() => { setMobileMenuOpen(false); goToForm(); }}
+        onToggleMobileMenu={() => {
+          dismissKeyboard();
+          setMobileMenuOpen((v) => !v);
+        }}
+        onMobileSwingIn={() => {
+          setMobileMenuOpen(false);
+          goToForm();
+        }}
       />
 
       <WalkthroughModal
         walk={walkVis}
         items={walkItems}
-        onClose={() => { sfxRef.current && sfxRef.current.stopHum(); setWalkOpen(false); }}
-        onJoin={() => { sfxRef.current && sfxRef.current.play("click"); sfxRef.current && sfxRef.current.stopHum(); setWalkOpen(false); goToForm(); }}
+        onClose={() => {
+          sfxRef.current && sfxRef.current.stopHum();
+          setWalkOpen(false);
+        }}
+        onJoin={() => {
+          sfxRef.current && sfxRef.current.play("click");
+          sfxRef.current && sfxRef.current.stopHum();
+          setWalkOpen(false);
+          goToForm();
+        }}
         onHover={onWalkHover}
       />
 
-      {trailerOpen && (
-        <TrailerModal onClose={() => setTrailerOpen(false)} onStopProp={(e) => e.stopPropagation()} />
-      )}
+      {trailerOpen && <TrailerModal onClose={() => setTrailerOpen(false)} onStopProp={(e) => e.stopPropagation()} />}
     </div>
   );
 }

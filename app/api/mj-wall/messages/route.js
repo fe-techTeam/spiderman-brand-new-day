@@ -2,6 +2,7 @@ import { query } from "@/lib/server/db";
 import { requireUser } from "@/lib/server/auth";
 import { decodeCursor, encodeCursor } from "@/lib/server/forum";
 import { vString } from "@/lib/server/validate";
+import { containsProfanity, profanityResponse } from "@/lib/server/profanity";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { postingBlockedResponse } from "@/lib/server/moderation";
 
@@ -53,6 +54,7 @@ export async function POST(request) {
   const body = await request.json().catch(() => ({}));
   const text = vString(body.body, { min: 2, max: 280 });
   if (!text) return Response.json({ error: "Message must be 2–280 characters" }, { status: 400 });
+  if (containsProfanity(text)) return profanityResponse("message");
 
   const result = await query("INSERT INTO mj_messages (user_id, body) VALUES (?, ?)", [gate.user.id, text]);
   return Response.json(

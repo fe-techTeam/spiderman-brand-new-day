@@ -118,17 +118,30 @@ export default function Nav({
           </div>
         )}
 
-        {/* MOBILE: hamburger */}
+        {/* MOBILE: hamburger — morphs into an X while the menu is open */}
         {!isDesktop && (
-          <button onClick={onToggleMobileMenu} aria-label="Menu" style={s("border: 0; background: rgba(8,8,12,0.4); width: 46px; height: 46px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 0 1px rgba(255,255,255,0.08);")}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+          <button onClick={onToggleMobileMenu} aria-label={mobileMenuVisible ? "Close menu" : "Menu"} aria-expanded={mobileMenuVisible} style={s("border: 0; background: rgba(8,8,12,0.4); width: 46px; height: 46px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 0 1px rgba(255,255,255,0.08);")}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round">
+              {/* lines sit 5 units apart; with fill-box origins the outer pair
+                  translates onto the middle line and rotates into an X */}
+              <path d="M4 7h16" style={{ transformBox: "fill-box", transformOrigin: "center", transition: "transform 260ms cubic-bezier(.2,.7,.2,1)", transform: mobileMenuVisible ? "translateY(5px) rotate(45deg)" : "none" }} />
+              <path d="M4 12h16" style={{ transformBox: "fill-box", transformOrigin: "center", transition: "transform 200ms ease, opacity 160ms ease", opacity: mobileMenuVisible ? 0 : 1, transform: mobileMenuVisible ? "scaleX(0.3)" : "none" }} />
+              <path d="M4 17h16" style={{ transformBox: "fill-box", transformOrigin: "center", transition: "transform 260ms cubic-bezier(.2,.7,.2,1)", transform: mobileMenuVisible ? "translateY(-5px) rotate(-45deg)" : "none" }} />
+            </svg>
           </button>
         )}
       </nav>
 
+      {/* MOBILE MENU BACKDROP — dims + blurs the page behind the menu so its
+          items read clearly; sits under the nav (z 50) so the logo and the
+          hamburger-X stay crisp and tappable. Tapping it closes the menu. */}
+      {mobileMenuVisible && (
+        <div onClick={onToggleMobileMenu} style={s("position: fixed; inset: 0; z-index: 45; background: rgba(0,0,0,0.4); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: bnd-overlay-fade 240ms ease both;")}></div>
+      )}
+
       {/* MOBILE MENU DROPDOWN */}
       {mobileMenuVisible && (
-        <div style={s("position: fixed; top: clamp(66px, 9vh, 86px); left: 12px; right: 12px; z-index: 55; border-radius: 16px; background: linear-gradient(160deg, #14204d 0%, #0b1440 58%, #2a0710 100%); box-shadow: 0 26px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1) inset; padding: 10px 12px 14px; animation: bnd-menu-drop 260ms cubic-bezier(.2,.7,.2,1) both;")}>
+        <div style={s("position: fixed; top: calc(clamp(66px, 9vh, 86px) + 15px); left: 12px; right: 12px; z-index: 55; border-radius: 16px; background: linear-gradient(160deg, #14204d 0%, #0b1440 58%, #2a0710 100%); box-shadow: 0 26px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1) inset; padding: 10px 12px 14px; animation: bnd-menu-drop 260ms cubic-bezier(.2,.7,.2,1) both;")}>
           {navItems.map((item) => (
             <a
               key={item.label}

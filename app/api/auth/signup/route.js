@@ -1,6 +1,7 @@
 import { query } from "@/lib/server/db";
 import { createUserSession, hashPassword } from "@/lib/server/auth";
 import { vEmail, vPassword, vUsername } from "@/lib/server/validate";
+import { containsProfanity } from "@/lib/server/profanity";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { DEFAULT_COUNTRY_ISO, findCountry } from "@/lib/geo";
 import { countryFromRequest, logIpEvent } from "@/lib/server/geo-ip";
@@ -22,6 +23,7 @@ export async function POST(request) {
     else fields.mobile = "Enter your number without the country code (6–12 digits)";
   }
   if (!username) fields.username = "3–30 characters: letters, numbers, underscores";
+  else if (containsProfanity(username)) fields.username = "That username isn't allowed — pick another";
   if (!email) fields.email = "Enter a valid email";
   if (!password) fields.password = "8+ characters with at least one letter and one number";
   if (Object.keys(fields).length) {

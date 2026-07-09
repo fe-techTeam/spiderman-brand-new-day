@@ -1,6 +1,7 @@
 import { query } from "@/lib/server/db";
 import { requireUser } from "@/lib/server/auth";
 import { vString } from "@/lib/server/validate";
+import { containsProfanity, profanityResponse } from "@/lib/server/profanity";
 
 async function meDTO(userId) {
   const [row] = await query(
@@ -69,6 +70,7 @@ export async function PATCH(request) {
     args.push(v);
   }
   if (!sets.length) return Response.json({ error: "Nothing to update" }, { status: 400 });
+  if (containsProfanity(body.state, body.country, body.tagline)) return profanityResponse("profile");
 
   args.push(gate.user.id);
   await query(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`, args);

@@ -19,7 +19,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ARG DEPLOYMENT_ID
 ENV DEPLOYMENT_ID=$DEPLOYMENT_ID
 # next build needs no DB or secrets: every page is a client shell and the
-# mysql2 pool is lazy (verified — the build never opens a connection).
+# mysql2 pool is lazy (verified — the build never opens a connection). The
+# npm prebuild hook (migrations) is for bare-metal builds; here there is no DB
+# at image-build time, so opt out — migrations run at container boot instead.
+ENV SKIP_DB_MIGRATE=1
 RUN npm run build
 
 FROM node:22-alpine AS runner

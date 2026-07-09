@@ -3,6 +3,7 @@ import { verifyUserSession, requireUser } from "@/lib/server/auth";
 import { decodeCursor, encodeCursor, hotScore, mediaForPosts, postDTO } from "@/lib/server/forum";
 import { saveUpload } from "@/lib/server/uploads";
 import { vEnum, vId, vString } from "@/lib/server/validate";
+import { containsProfanity, profanityResponse } from "@/lib/server/profanity";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { postingBlockedResponse } from "@/lib/server/moderation";
 
@@ -122,6 +123,7 @@ export async function POST(request) {
   if (!title || !text) {
     return Response.json({ error: "Title (3+ chars) and body are required" }, { status: 400 });
   }
+  if (containsProfanity(title, text)) return profanityResponse("post");
   if (communityId) {
     const [c] = await query("SELECT id FROM communities WHERE id = ? AND is_active = 1", [communityId]);
     if (!c) return Response.json({ error: "Unknown community" }, { status: 400 });

@@ -134,6 +134,16 @@ html.bnd-snap input, html.bnd-snap textarea, html.bnd-snap [contenteditable="tru
   from { opacity: 0; transform: translateY(-10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes bnd-overlay-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+/* While a text field has focus on touch devices, InputScrollLock adds this
+   class to <html> so the keyboard can't drag the page around mid-typing
+   (worst on the MJ Wall's snap section). Scroll returns on blur — tapping
+   out or the keyboard's Done. Touch scrolling is also intercepted in JS:
+   iOS ignores overflow:hidden for touch-drags. */
+html.bnd-kb-lock, html.bnd-kb-lock body { overflow: hidden !important; }
 @keyframes bnd-spidey-bob {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   50%      { transform: translateY(-14px) rotate(-0.8deg); }
@@ -242,8 +252,11 @@ html.bnd-snap input, html.bnd-snap textarea, html.bnd-snap [contenteditable="tru
   50%      { opacity: 0.65; }
 }
 /* ===== Hero scroll hint: mouse outline + a travelling dot ===== */
-/* Positioned bottom-centre by default (mobile); the desktop rule below docks it
-   into the right-hand web-rail column. Only rendered on the landing hero. */
+/* Desktop-only, docked into the right-hand web-rail column (the rule below).
+   Hidden on phones — swipe + the section pager already cue the scroll there. */
+@media (max-width: 759.98px) {
+  .bnd-scrollhint { display: none !important; }
+}
 .bnd-scrollhint-mouse {
   display: block; width: 22px; height: 34px; position: relative;
   border: 1.5px solid rgba(255,255,255,0.5); border-radius: 12px;
@@ -281,7 +294,7 @@ html.bnd-snap input, html.bnd-snap textarea, html.bnd-snap [contenteditable="tru
 @keyframes bnd-radar-ring { 0% { transform: scale(0.2); opacity: 0.9; } 100% { transform: scale(1); opacity: 0; } }
 @keyframes bnd-blip { 0%, 100% { opacity: 0.25; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.25); } }
 
-/* ===== Spider-Verse Feed ambient FX ===== */
+/* ===== Spider World Feed ambient FX ===== */
 @keyframes bnd-forum-glow { 0%, 100% { opacity: 0.22; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.12); } }
 @keyframes bnd-mote { 0% { transform: translateY(30px) scale(0.5); opacity: 0; } 14% { opacity: 0.9; } 80% { opacity: 0.6; } 100% { transform: translateY(-140px) scale(1); opacity: 0; } }
 @keyframes bnd-forum-scan { 0% { transform: translateY(-30%); opacity: 0; } 8% { opacity: 0.5; } 50% { opacity: 0.5; } 92% { opacity: 0; } 100% { transform: translateY(130%); opacity: 0; } }
@@ -318,14 +331,20 @@ html.bnd-snap input, html.bnd-snap textarea, html.bnd-snap [contenteditable="tru
   #mj-actions a { font-size: 11px !important; letter-spacing: 0.12em !important; white-space: nowrap; }
 }
 
+/* Desktop hero: the web graphic rides 10px higher (design feedback) */
+@media (min-width: 761px) {
+  .bnd-hero-web { margin-top: -10px; }
+}
+
 /* ===== Landing mobile: safe viewport + calmer CTAs ===== */
 @media (max-width: 760px) {
   /* the portrait hero banner carries its own flare, so the desktop sun glow
      hides — but spidey and the web he hangs from stay (user feedback) */
   .bnd-hero-deco:not(.bnd-hero-spidey):not(.bnd-hero-web) { display: none !important; }
   /* the desktop 63vw web reads tiny on portrait — scale it past the edges so
-     spidey (centered at -11vw) still hangs from its middle like on desktop */
-  .bnd-hero-web { width: 115vw !important; }
+     spidey (centered at -11vw) still hangs from its middle like on desktop;
+     nudged 8px down / 2px right (design feedback) */
+  .bnd-hero-web { width: 115vw !important; margin-top: 8px; margin-left: 2px; }
   /* the hero logo rides ~15% higher so the banner art breathes below it
      (nudged 50px back down per design feedback) */
   .bnd-hero-stack { bottom: calc(clamp(40px, 7vh, 96px) + 15svh - 50px) !important; }
@@ -506,7 +525,7 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
 .lw-ghost:hover { border-color: rgba(255,60,74,0.65) !important; color: #fff !important; background: rgba(255,40,60,0.1) !important; transform: translateY(-2px); }
 
 /* ============================================================
-   FORUM page styles (Spider-Verse Forum.dc.html <style> block)
+   FORUM page styles (Spider World Forum.dc.html <style> block)
    ============================================================ */
 * { scrollbar-width: thin; scrollbar-color: rgba(255,60,74,0.5) transparent; }
 @keyframes fm-rise { from { opacity: 0; transform: translateY(22px) scale(1.03); filter: blur(6px); } to { opacity: 1; transform: none; filter: blur(0); } }

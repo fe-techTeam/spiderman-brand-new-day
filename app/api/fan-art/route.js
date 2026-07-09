@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/server/auth";
 import { decodeCursor, encodeCursor } from "@/lib/server/forum";
 import { saveImageUpload } from "@/lib/server/uploads";
 import { vString } from "@/lib/server/validate";
+import { containsProfanity, profanityResponse } from "@/lib/server/profanity";
 import { rateLimit } from "@/lib/server/rate-limit";
 
 // Public gallery — approved fan art only.
@@ -57,6 +58,7 @@ export async function POST(request) {
   const title = vString(form.get("title"), { min: 2, max: 200 });
   const description = form.get("description") ? vString(form.get("description"), { max: 500 }) : null;
   if (!title) return Response.json({ error: "Title must be 2–200 characters" }, { status: 400 });
+  if (containsProfanity(title, description)) return profanityResponse("submission");
 
   let saved;
   try {
