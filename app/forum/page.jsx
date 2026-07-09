@@ -11,6 +11,7 @@ import ReportControl from "@/components/forum/ReportControl";
 import EmptyState from "@/components/forum/EmptyState";
 import { useSession } from "@/components/auth/SessionProvider";
 import { portalApi } from "@/lib/portal/api";
+import { dismissKeyboard } from "@/lib/dismissKeyboard";
 import { relTime, fmtCount } from "@/lib/time";
 
 const RULES = [
@@ -160,6 +161,7 @@ export default function Forum() {
   const submitCreate = async () => {
     if (!user) { openAuth("login"); return; }
     if (submitting) return;
+    dismissKeyboard(); // hide the mobile keyboard as the post is created
     setSubmitting(true);
     setCreateError("");
     try {

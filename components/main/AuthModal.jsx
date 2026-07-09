@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { s } from "@/lib/style";
 import { portalApi } from "@/lib/portal/api";
+import { dismissKeyboard } from "@/lib/dismissKeyboard";
 
 // Register / Login popup rendered globally by SessionProvider. Calls the real
 // auth APIs; per-field validation errors from err.fields render under the
@@ -97,6 +98,7 @@ export default function AuthModal({ initialMode = "register", onClose, onAuthed 
     setSubmitting(true);
     setFieldErrors({});
     setError("");
+    dismissKeyboard(); // drop the keyboard once the form is validated & sending
     try {
       if (isForgot) {
         const data = await portalApi("/auth/forgot-password", { method: "POST", body: { email: form.email } });

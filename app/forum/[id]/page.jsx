@@ -11,6 +11,7 @@ import ReportControl from "@/components/forum/ReportControl";
 import ForumGate from "@/components/forum/ForumGate";
 import { useSession } from "@/components/auth/SessionProvider";
 import { portalApi } from "@/lib/portal/api";
+import { dismissKeyboard } from "@/lib/dismissKeyboard";
 import { relTime, fmtCount } from "@/lib/time";
 
 const mentionOf = (author) => "@" + String(author).replace(/^u\//, "");
@@ -233,6 +234,7 @@ export default function ForumPost() {
     if (!user) return openAuth("login");
     if (submitting.current) return;
     submitting.current = true;
+    dismissKeyboard(); // hide the mobile keyboard once the comment is on its way
     setTopErr("");
     try {
       const { comment } = await portalApi(`/forum/posts/${id}/comments`, { method: "POST", body: { body: text } });
@@ -259,6 +261,7 @@ export default function ForumPost() {
     if (!user) return openAuth("login");
     if (submitting.current) return;
     submitting.current = true;
+    dismissKeyboard(); // hide the mobile keyboard once the reply is on its way
     setReplyErr("");
     try {
       const { reply } = await portalApi(`/forum/comments/${rootId}/replies`, { method: "POST", body: { body: text } });

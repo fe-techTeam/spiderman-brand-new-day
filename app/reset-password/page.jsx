@@ -7,6 +7,7 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { s } from "@/lib/style";
 import { portalApi } from "@/lib/portal/api";
+import { dismissKeyboard } from "@/lib/dismissKeyboard";
 import { useSession } from "@/components/auth/SessionProvider";
 
 const FIELD = "width: 100%; box-sizing: border-box; border: 0; outline: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); border-radius: 9px; padding: 13px 15px; color: #fff; font-family: inherit; font-size: 15px;";
@@ -29,6 +30,7 @@ function ResetForm() {
     setError("");
     if (password !== confirm) { setError("Passwords don't match"); return; }
     setSubmitting(true);
+    dismissKeyboard(); // hide the mobile keyboard once the reset is submitted
     try {
       const data = await portalApi("/auth/reset-password", { method: "POST", body: { token, password } });
       setMessage(data.message || "Password updated — log in with your new password.");
