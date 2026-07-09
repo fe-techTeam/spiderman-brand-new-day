@@ -8,7 +8,7 @@
 // Hovering a column holds it. Cards expand into a modal, and the composer
 // posts to the real API.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { s } from "@/lib/style";
 import { useSession } from "@/components/auth/SessionProvider";
@@ -68,6 +68,29 @@ export default function MjWallPage() {
   const [ncol, setNcol] = useState(4);
   const inputRef = useRef(null);
   const spotRef = useRef(null);
+  const viewportRef = useRef(null);       // the clipped wall viewport (scrub surface)
+  const loopRefs = useRef([]);            // each column's doubled-content loop element
+  const hoverColRef = useRef(-1);         // column the pointer is holding (auto-drift paused)
+  const manualUntilRef = useRef(0);       // auto-drift stays paused until this timestamp
+  const selectedRef = useRef(null);       // modal open → hold the whole wall
+
+  // keep the motion RAF's view of "is the modal open" fresh without resubscribing
+  useEffect(() => { selectedRef.current = selected; }, [selected]);
+
+  /* deal the cards round-robin into the drifting columns. Sparse walls repeat
+     their entries until every column holds enough cards for a seamless loop —
+     the wall must never look empty */
+  const MIN_PER_COL = 6;
+  const cols = useMemo(() => {
+    let deck = messages;
+    if (messages.length && messages.length < ncol * MIN_PER_COL) {
+      const reps = Math.ceil((ncol * MIN_PER_COL) / messages.length);
+      deck = Array.from({ length: reps }, () => messages).flat();
+    }
+    const c = Array.from({ length: ncol }, () => []);
+    deck.forEach((m, i) => c[i % ncol].push({ ...m, idx: i }));
+    return c;
+  }, [messages, ncol]);
 
   /* live messages — only admin-approved ones ever render on the wall (the
      latest page; the looping columns repeat entries, so one page is plenty) */
@@ -109,6 +132,75 @@ export default function MjWallPage() {
     };
   }, []);
 
+  /* Wall motion — auto-drift AND manual scrubbing driven by one RAF (replaces
+     the pure-CSS column loops). Even columns drift up, odd drift down as before,
+     but wheel/touch now let the user grab the wall and scroll it themselves:
+     auto-drift pauses while they scrub and for ~1.4s after. Each column's
+     content is doubled, so positions wrap seamlessly in either direction. */
+  useEffect(() => {
+    const loops = loopRefs.current.slice(0, ncol).filter(Boolean);
+    if (!loops.length) return;
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const wrap = (p, h) => { while (p <= -h) p += h; while (p > 0) p -= h; return p; };
+    // per column: measured one-copy height, drift velocity (px/s), live position
+    const st = loops.map((el, ci) => {
+      const copyH = (el.firstElementChild && el.firstElementChild.offsetHeight) || el.offsetHeight / 2 || 1;
+      const len = cols[ci] ? cols[ci].length : 1;
+      const dur = Math.max(30, len * 6 + ci * 4); // seconds per copy — matches the old CSS timing
+      const dir = ci % 2 === 0 ? -1 : 1;           // even: up, odd: down
+      return { el, copyH, vel: (copyH / dur) * dir, pos: dir < 0 ? 0 : -copyH };
+    });
+    const paint = (c) => { c.el.style.transform = `translate3d(0, ${c.pos.toFixed(2)}px, 0)`; };
+    st.forEach((c) => { c.pos = wrap(c.pos, c.copyH); paint(c); });
+
+    let raf = null, last = performance.now();
+    const tick = (now) => {
+      const dt = Math.min(0.05, (now - last) / 1000); // clamp so a tab-stall doesn't jump the wall
+      last = now;
+      const held = selectedRef.current || now < manualUntilRef.current;
+      st.forEach((c, ci) => {
+        if (!held && !reduce && hoverColRef.current !== ci) c.pos = wrap(c.pos + c.vel * dt, c.copyH);
+        paint(c);
+      });
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    // manual scrub — one delta moves every column, so the wall scrolls as a unit
+    const nudge = (dy) => {
+      manualUntilRef.current = performance.now() + 1400;
+      st.forEach((c) => { c.pos = wrap(c.pos - dy, c.copyH); paint(c); });
+    };
+    const vp = viewportRef.current;
+    const onWheel = (e) => { e.preventDefault(); nudge(e.deltaY); };
+    let touchY = null;
+    const onTouchStart = (e) => { touchY = e.touches[0].clientY; manualUntilRef.current = performance.now() + 1400; };
+    const onTouchMove = (e) => {
+      if (touchY == null) return;
+      const y = e.touches[0].clientY;
+      const dy = touchY - y; // finger up → wall scrolls up
+      touchY = y;
+      e.preventDefault();
+      nudge(dy);
+    };
+    const onTouchEnd = () => { touchY = null; manualUntilRef.current = performance.now() + 1400; };
+    if (vp) {
+      vp.addEventListener("wheel", onWheel, { passive: false });
+      vp.addEventListener("touchstart", onTouchStart, { passive: true });
+      vp.addEventListener("touchmove", onTouchMove, { passive: false });
+      vp.addEventListener("touchend", onTouchEnd, { passive: true });
+    }
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      if (vp) {
+        vp.removeEventListener("wheel", onWheel);
+        vp.removeEventListener("touchstart", onTouchStart);
+        vp.removeEventListener("touchmove", onTouchMove);
+        vp.removeEventListener("touchend", onTouchEnd);
+      }
+    };
+  }, [cols, ncol]);
+
   const post = async () => {
     const t = draft.trim().slice(0, MSG_MAX);
     if (!t) { inputRef.current && inputRef.current.focus(); return; }
@@ -129,18 +221,6 @@ export default function MjWallPage() {
       setSending(false);
     }
   };
-
-  /* deal the cards round-robin into the drifting columns. Sparse walls repeat
-     their entries until every column holds enough cards for a seamless loop —
-     the wall must never look empty */
-  const MIN_PER_COL = 6;
-  let deck = messages;
-  if (messages.length && messages.length < ncol * MIN_PER_COL) {
-    const reps = Math.ceil((ncol * MIN_PER_COL) / messages.length);
-    deck = Array.from({ length: reps }, () => messages).flat();
-  }
-  const cols = Array.from({ length: ncol }, () => []);
-  deck.forEach((m, i) => cols[i % ncol].push({ ...m, idx: i }));
 
   const cardBody = (m) => (
     <div style={{ background: m.bg, clipPath: "polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px)", padding: "15px 16px" }}>
@@ -208,17 +288,16 @@ export default function MjWallPage() {
         <p style={s("margin: 12px auto 0; max-width: 540px; font-size: clamp(13px, 1.4vw, 15px); line-height: 1.55; color: rgba(226,226,240,0.66); animation: mjw-rise 1s ease .3s both;")}>Memories of Peter, flowing in from every corner of the Web.</p>
       </div>
 
-      {/* THE LIVING WALL — every column loops on its own (its content renders
-          twice for a seamless wrap): odd columns drift up, even columns drift
-          down. Hovering a column holds it still; the modal holds them all. */}
-      <div className={`mjw-viewport${selected ? " mjw-hold" : ""}`} style={{ position: "relative", zIndex: 10, flex: 1, minHeight: 0, width: "100%", maxWidth: "1380px", margin: "0 auto", boxSizing: "border-box", padding: "0 clamp(14px, 3vw, 40px)", overflow: "hidden" }}>
+      {/* THE LIVING WALL — every column loops on its own (content renders twice
+          for a seamless wrap): even columns drift up, odd columns drift down.
+          Scroll or swipe anywhere on the wall to take control and browse it
+          yourself; hovering a column holds it; the modal holds them all. */}
+      <div ref={viewportRef} className={`mjw-viewport${selected ? " mjw-hold" : ""}`} style={{ position: "relative", zIndex: 10, flex: 1, minHeight: 0, width: "100%", maxWidth: "1380px", margin: "0 auto", boxSizing: "border-box", padding: "0 clamp(14px, 3vw, 40px)", overflow: "hidden", touchAction: "none" }}>
         <div style={s("display: flex; gap: clamp(12px, 1.4vw, 20px); justify-content: center; align-items: stretch; height: 100%;")}>
           {cols.map((col, ci) => {
-            const drift = ci % 2 === 0 ? "mjw-loop-up" : "mjw-loop-down";
-            const dur = Math.max(30, col.length * 6 + ci * 4); // ~constant px/s, slightly desynced per column
             return (
-              <div key={ci} className="mjw-col" style={s("flex: 1 1 0; min-width: 0; max-width: 320px; height: 100%; overflow: hidden;")}>
-                <div className="mjw-col-loop" style={{ animation: `${drift} ${dur}s linear infinite` }}>
+              <div key={ci} className="mjw-col" onMouseEnter={() => (hoverColRef.current = ci)} onMouseLeave={() => (hoverColRef.current = -1)} style={s("flex: 1 1 0; min-width: 0; max-width: 320px; height: 100%; overflow: hidden;")}>
+                <div ref={(el) => (loopRefs.current[ci] = el)} className="mjw-col-loop">
                   {[0, 1].map((copy) => (
                     <div key={copy} aria-hidden={copy === 1 || undefined} style={s("display: flex; flex-direction: column;")}>
                       {col.map((m) => (

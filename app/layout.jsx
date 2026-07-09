@@ -1,6 +1,7 @@
 import "./globals.css";
 import SessionProvider from "@/components/auth/SessionProvider";
 import CursorFx from "@/components/CursorFx";
+import MusicPlayer from "@/components/main/MusicPlayer";
 
 const SITE_URL = "https://spidermania.in";
 const SITE_NAME = "Spider-Man: Brand New Day";
@@ -60,6 +61,9 @@ export default function RootLayout({ children }) {
       <body>
         <SessionProvider>{children}</SessionProvider>
         <CursorFx />
+        {/* Mounted at the root so the score keeps playing across every route
+            (landing → onboarding → forum → MJ wall) instead of restarting. */}
+        <MusicPlayer />
       </body>
     </html>
   );

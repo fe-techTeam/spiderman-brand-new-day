@@ -15,7 +15,7 @@ import { useSession } from "@/components/auth/SessionProvider";
 import Nav from "@/components/main/Nav";
 import WalkthroughModal from "@/components/main/WalkthroughModal";
 import TrailerModal from "@/components/main/TrailerModal";
-import MusicPlayer from "@/components/main/MusicPlayer";
+// MusicPlayer is mounted once in the root layout so it persists across routes.
 
 /* ---------------------------------------------------------------- static data */
 
@@ -125,6 +125,30 @@ export default function Home() {
   mobileMenuOpenRef.current = mobileMenuOpen;
   twinModeRef.current = twinMode;
   authOpenRef.current = authOpen;
+
+  /* Scroll-snap + smooth-scroll are landing-page mechanics — turn them on for
+     <html> only while this page is mounted, so they never bleed onto the Forum,
+     MJ Wall, quiz, etc. (a mandatory-snap <html> made those routes open a
+     snap-point down). */
+  useEffect(() => {
+    document.documentElement.classList.add("bnd-snap");
+    return () => document.documentElement.classList.remove("bnd-snap");
+  }, []);
+
+  /* Mobile: black out every landing section except the active one. A 100vh snap
+     that lands a few px off (viewport height varies with the mobile toolbar)
+     used to show a sliver of the neighbouring section; the veil hides it and
+     clears as you blink into each section. CSS gates the veil to <=900px, so
+     desktop (exact JS pager) is untouched. */
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const cur = activeSection || "hero";
+    stage.querySelectorAll("[data-page]").forEach((el) => {
+      el.classList.toggle("bnd-sec-on", el.getAttribute("data-page") === cur);
+    });
+    stage.classList.add("bnd-veil-ready"); // arm veils only after the first paint
+  }, [activeSection, hideIdentity, showLivingWeb]);
 
   /* ============================================================ mount effect */
   useEffect(() => {
@@ -917,8 +941,6 @@ export default function Home() {
             a scroll-paginated random 50 of them, and the retake-quiz CTA. */}
         {twinMode && user && (
           <div className="bnd-reveal in" style={s(`position: absolute; inset: 0; z-index: 7; box-sizing: border-box; padding: ${isDesktop ? "clamp(76px, 11vh, 110px) clamp(24px, 5vw, 70px) clamp(22px, 4vh, 36px)" : "64px 18px 14px"}; display: flex; align-items: center; justify-content: center;`)}>
-            <button onClick={() => setTwinMode(false)} data-web-hover="true" style={s(`position: absolute; top: ${isDesktop ? "clamp(84px, 12vh, 118px)" : "58px"}; left: ${isDesktop ? "clamp(24px, 5vw, 70px)" : "18px"}; z-index: 2; display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 0; color: rgba(255,255,255,0.7); font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer;`)}>‹ Back to the Web</button>
-
             <div style={s(`width: 100%; max-width: 1100px; display: flex; flex-direction: ${isDesktop ? "row" : "column"}; align-items: center; justify-content: center; gap: ${isDesktop ? "clamp(40px, 6vw, 96px)" : "16px"};`)}>
 
               {/* ---- your identity: Spidey Code over the collectible card ---- */}
@@ -1008,7 +1030,9 @@ export default function Home() {
                           {Math.min(twinsVisible, twinData.twins.length)} of {twinData.twins.length} shown{twinData.count > twinData.twins.length ? ` · ${twinData.count} total` : ""}
                         </span>
                       )}
-                      <button onClick={() => { sfxRef.current && sfxRef.current.play("click"); router.push("/quiz?retake=1"); }} data-web-hover="true" className="lw-ghost" style={s("margin-left: auto; display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.03); border-radius: 9px; padding: 9px 16px; color: rgba(255,255,255,0.85); font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer;")}>↻ Retake Identity Quiz</button>
+                      <button onClick={() => { sfxRef.current && sfxRef.current.play("click"); router.push("/quiz?retake=1"); }} data-web-hover="true" className="bnd-cta" style={s("margin-left: auto; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
+                        <span className="bnd-cta-inner" style={s("display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;")}><span className="bnd-cta-sheen"></span>↻ Retake Identity Quiz</span>
+                      </button>
                     </div>
 
                   </div>
@@ -1265,6 +1289,13 @@ export default function Home() {
         </nav>
       )}
 
+      {/* HERO SCROLL HINT — subtle "there's more below" cue, shown on the hero
+          only (fades out once you leave it). Mobile: bottom-centre inside the
+          safe area. Desktop: docked on the right, in the web-rail column. */}
+      <div aria-hidden="true" className="bnd-scrollhint" style={{ position: "fixed", zIndex: 30, left: "50%", bottom: "calc(16px + env(safe-area-inset-bottom, 0px))", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: "7px", pointerEvents: "none", opacity: (activeSection === "hero" && !walkOpen && !trailerOpen && !authOpen && !mobileMenuOpen) ? 1 : 0, transition: "opacity 450ms ease", willChange: "opacity" }}>
+        <span className="bnd-scrollhint-mouse"><span className="bnd-scrollhint-dot"></span></span>
+      </div>
+
       {/* CINEMATIC TRANSITION OVERLAY */}
       <div style={s("position: fixed; inset: 0; z-index: 95; pointer-events: none;")}>
         <div ref={barTopRef} style={s("position: absolute; top: 0; left: 0; right: 0; height: 51vh; background: linear-gradient(180deg, #050507 0%, #0b0b12 100%); transform: scaleY(0); transform-origin: top; box-shadow: 0 3px 0 rgba(255,31,51,0.55); will-change: transform;")}></div>
@@ -1297,8 +1328,6 @@ export default function Home() {
       {trailerOpen && (
         <TrailerModal onClose={() => setTrailerOpen(false)} onStopProp={(e) => e.stopPropagation()} />
       )}
-
-      <MusicPlayer onSfx={() => sfxRef.current && sfxRef.current.play("click")} />
     </div>
   );
 }
