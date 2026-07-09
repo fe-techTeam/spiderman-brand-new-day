@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "postbuild": "rm -rf .next/standalone/.next/static .next/standalone/public && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public",
+    "start": "node .next/standalone/server.js",
     "lint": "eslint",
     "db:migrate": "node scripts/migrate.js",
     "db:seed-admin": "node scripts/seed-admin.js",
