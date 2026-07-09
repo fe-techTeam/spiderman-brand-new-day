@@ -1292,7 +1292,7 @@ export default function Home() {
       {/* HERO SCROLL HINT — subtle "there's more below" cue, shown on the hero
           only (fades out once you leave it). Mobile: bottom-centre inside the
           safe area. Desktop: docked on the right, in the web-rail column. */}
-      <div aria-hidden="true" className="bnd-scrollhint" style={{ position: "fixed", zIndex: 30, left: "50%", bottom: "calc(16px + env(safe-area-inset-bottom, 0px))", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: "7px", pointerEvents: "none", opacity: (activeSection === "hero" && !walkOpen && !trailerOpen && !authOpen && !mobileMenuOpen) ? 1 : 0, transition: "opacity 450ms ease", willChange: "opacity" }}>
+      <div aria-hidden="true" className="bnd-scrollhint" style={{ position: "fixed", zIndex: 30, left: "50%", bottom: "calc(31px + env(safe-area-inset-bottom, 0px))", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: "7px", pointerEvents: "none", opacity: (activeSection === "hero" && !walkOpen && !trailerOpen && !authOpen && !mobileMenuOpen) ? 1 : 0, transition: "opacity 450ms ease", willChange: "opacity" }}>
         <span className="bnd-scrollhint-mouse"><span className="bnd-scrollhint-dot"></span></span>
       </div>
 

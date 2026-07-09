@@ -43,7 +43,7 @@ function NotificationBell() {
       {open && (
         <>
           <div onClick={() => setOpen(false)} style={s("position: fixed; inset: 0; z-index: 44;")}></div>
-          <div style={s("position: absolute; top: calc(100% + 10px); right: 0; z-index: 45; width: min(340px, 88vw); background: linear-gradient(160deg, rgba(18,14,22,0.98), rgba(9,8,14,0.99)); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; box-shadow: 0 26px 60px rgba(0,0,0,0.6); overflow: hidden; animation: bnd-menu-drop 220ms cubic-bezier(.2,.7,.2,1) both;")}>
+          <div className="fm-notif-panel" style={s("position: absolute; top: calc(100% + 10px); right: 0; z-index: 45; width: min(340px, 88vw); background: linear-gradient(160deg, rgba(18,14,22,0.98), rgba(9,8,14,0.99)); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; box-shadow: 0 26px 60px rgba(0,0,0,0.6); overflow: hidden; animation: bnd-menu-drop 220ms cubic-bezier(.2,.7,.2,1) both;")}>
             <div style={s("padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: #fff;")}>Notifications</div>
             {notifs.length === 0 ? (
               <div style={s("padding: 22px 16px; text-align: center; font-size: 13px; color: rgba(255,255,255,0.5);")}>You&apos;re all caught up.</div>

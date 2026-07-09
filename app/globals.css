@@ -582,6 +582,21 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
   .fm-gate { align-items: flex-start !important; padding-top: clamp(24px, 9vh, 64px) !important; }
 }
 
+/* Notifications panel on phones: by default it's anchored right:0 to the bell,
+   which sits ~68px in from the right edge (avatar + gap + header padding), so its
+   left edge ran off the left of the viewport where html/body overflow-x:clip
+   shaved it. Re-anchor to the viewport just under the sticky header so the whole
+   panel stays visible. (width kept a hair narrow so the left margin never clips.) */
+@media (max-width: 560px) {
+  .fm-notif-panel {
+    position: fixed !important;
+    top: 66px !important;
+    right: 12px !important;
+    left: auto !important;
+    width: min(340px, calc(100vw - 48px)) !important;
+  }
+}
+
 /* Pulsing red dot on the notifications bell when there are unread items */
 @keyframes bnd-notif-pulse {
   0%, 100% { box-shadow: 0 0 0 2px #0c0a12, 0 0 0 0 rgba(255,58,74,0.55); }
