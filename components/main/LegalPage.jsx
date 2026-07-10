@@ -18,30 +18,6 @@ export function LegalText({ children }) {
   return <p style={s("margin: 0 0 14px; font-size: 14.5px; line-height: 1.75; color: rgba(226,226,240,0.72);")}>{children}</p>;
 }
 
-// Permanent skeleton shown while the final legal copy is pending — mimics a
-// few heading + paragraph sections with the .legal-skel shimmer (globals.css).
-export function LegalSkeleton() {
-  const bar = (width, height, marginBottom) => s(`width: ${width}; height: ${height}px; margin-bottom: ${marginBottom}px;`);
-  const sections = [
-    ["38%", ["100%", "96%", "99%", "62%"]],
-    ["30%", ["100%", "97%", "88%"]],
-    ["44%", ["99%", "100%", "95%", "98%", "45%"]],
-    ["34%", ["100%", "93%", "70%"]],
-  ];
-  return (
-    <div aria-hidden="true">
-      {sections.map(([head, lines], i) => (
-        <div key={i} style={s("margin: 0 0 clamp(30px, 4.5vh, 44px);")}>
-          <div className="legal-skel" style={bar(head, 18, 16)}></div>
-          {lines.map((w, j) => (
-            <div key={j} className="legal-skel" style={bar(w, 13, 10)}></div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function LegalList({ items }) {
   return (
     <ul style={s("margin: 0 0 14px; padding-left: 20px; display: flex; flex-direction: column; gap: 8px;")}>
@@ -52,7 +28,7 @@ export function LegalList({ items }) {
   );
 }
 
-export default function LegalPage({ title, lastUpdated, children }) {
+export default function LegalPage({ title, effectiveDate, children }) {
   return (
     <div style={s("min-height: 100vh; background: linear-gradient(180deg, #0b0510 0%, #07060c 100%); color: #fff;")}>
       <div style={s("max-width: 820px; margin: 0 auto; box-sizing: border-box; padding: clamp(28px, 6vh, 64px) clamp(20px, 5vw, 40px) clamp(48px, 8vh, 90px);")}>
@@ -68,7 +44,7 @@ export default function LegalPage({ title, lastUpdated, children }) {
             <span style={s("font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.34em; text-transform: uppercase; color: #ff6b79;")}>Legal</span>
           </div>
           <h1 style={s("margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(28px, 5vw, 44px); line-height: 1.05; font-weight: 600; font-style: italic; text-transform: uppercase; color: #fff;")}>{title}</h1>
-          {lastUpdated && <p style={s("margin: 14px 0 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.4);")}>Last updated: {lastUpdated}</p>}
+          {effectiveDate && <p style={s("margin: 14px 0 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.4);")}>Effective Date: {effectiveDate}</p>}
         </div>
 
         {children}

@@ -1742,6 +1742,14 @@ export default function Home() {
           {/* bottom bar */}
           <div style={s("max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: 18px clamp(24px, 5vw, 80px) clamp(22px, 3vh, 34px); border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;")}>
             <div style={s("font-size: 11.5px; letter-spacing: 0.05em; color: rgba(255,255,255,0.4);")}>© 2026 Columbia Pictures Industries, Inc. All rights reserved. &nbsp;·&nbsp; This film is not yet rated.</div>
+            <div style={s("display: flex; gap: 24px; flex-wrap: wrap;")}>
+              <Link href="/privacy-policy" data-web-hover="true" className="footer-link" style={s("text-decoration: none; font-size: 11.5px; letter-spacing: 0.06em; color: rgba(255,255,255,0.5); transition: color .2s ease;")}>
+                Privacy Policy
+              </Link>
+              <Link href="/terms-of-use" data-web-hover="true" className="footer-link" style={s("text-decoration: none; font-size: 11.5px; letter-spacing: 0.06em; color: rgba(255,255,255,0.5); transition: color .2s ease;")}>
+                Terms of Use
+              </Link>
+            </div>
           </div>
         </div>
       </footer>
