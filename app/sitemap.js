@@ -7,5 +7,7 @@ export default function sitemap() {
     { url: `${SITE_URL}/mj-wall`, changeFrequency: "daily", priority: 0.8 },
     { url: `${SITE_URL}/fan-art`, changeFrequency: "daily", priority: 0.6 },
     { url: `${SITE_URL}/quiz`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${SITE_URL}/privacy-policy`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE_URL}/terms-of-use`, changeFrequency: "yearly", priority: 0.3 },
   ];
 }
