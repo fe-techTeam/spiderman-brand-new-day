@@ -34,6 +34,27 @@ html, body {
      would break sticky. Vertical scroll stays on the document/window. */
   overflow-x: clip !important;
 }
+html {
+  /* iOS/Android inflate text when a phone rotates to landscape ("font boosting"),
+     which re-wraps the carefully sized cinematic type — pin it */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* kill the grey/blue rectangle Android + old iOS flash on every tap — the
+     site has its own hover/press feedback (CursorFx ping, :active scales) */
+  -webkit-tap-highlight-color: transparent;
+}
+/* Double-tapping a button/link must never zoom the page (rapid taps on quiz
+   options / vote arrows tripped this). `manipulation` drops the 300ms
+   double-tap-zoom gesture on controls only — pinch-zoom stays available
+   everywhere for accessibility. */
+a, button, input, select, textarea, summary, [role="button"] { touch-action: manipulation; }
+/* Edge ships its own password-reveal eye — hide it so it can't double up with
+   the site's PasswordField / PasswordInput toggles */
+input[type="password"]::-ms-reveal { display: none; }
+/* Landing page: an upward swipe while sitting at the top of the hero is a snap
+   gesture, not a reload request — block Chrome/Android pull-to-refresh (and
+   overscroll glow) while the snap experience is mounted. */
+html.bnd-snap, html.bnd-snap body { overscroll-behavior-y: contain; }
 /* Snap stays on for mobile too: sections align themselves with native scroll
    physics (areas taller than the viewport still scroll freely inside), and the
    landing page blinks the film shutter when a swipe lands on a new section.
@@ -65,9 +86,11 @@ html.bnd-snap input, html.bnd-snap textarea, html.bnd-snap [contenteditable="tru
 /* iOS Safari zooms the whole page when a focused input's font-size is < 16px,
    then leaves the layout shoved sideways. Several forms (auth modal 15px, forum
    comment/reply 13.5–14px, reset-password, fan-art) tripped this. Floor every
-   text control at 16px on phones — desktop keeps the designed sizes. (The MJ
-   composer already did this locally; this generalises it to the whole app.) */
-@media (max-width: 760px) {
+   text control at 16px on touch devices — desktop keeps the designed sizes.
+   (The MJ composer already did this locally; this generalises it to the whole
+   app.) The pointer:coarse arm covers LANDSCAPE phones/tablets, whose width
+   clears 760px but which zoom on focus all the same. */
+@media (max-width: 760px), (pointer: coarse) {
   input, textarea, select {
     font-size: 16px !important;
   }
@@ -312,10 +335,19 @@ html.bnd-kb-lock, html.bnd-kb-lock body { overflow: hidden !important; }
 
 #mj-textarea::placeholder { color: rgba(255,255,255,0.85); text-shadow: 0 0 8px rgba(255,255,255,0.7), 0 0 18px rgba(255,255,255,0.4); opacity: 1; }
 
+/* ===== Identity ("Who are you under the mask?") mobile ===== */
+@media (max-width: 760px) {
+  /* dedicated portrait crop of the who-are-you art (desktop art is 2.5:1 and
+     cover-crops to just a red blur on tall screens) */
+  section[data-page="identity"] { background-image: url('/assets/who-are-you-mobile.png') !important; }
+}
+
 /* ===== MJ Wall mobile ===== */
 @media (max-width: 760px) {
-  /* dedicated portrait art on phones (mask + MJ reflection, vertical crop) */
-  #mj-wall-section { height: auto !important; min-height: 100svh !important; background-image: url('/assets/mj-bg-mobile.jpg') !important; background-position: center top !important; align-items: flex-end !important; }
+  /* dedicated portrait art on phones (mask + MJ reflection, vertical crop).
+     min-height uses the same dvh fallback chain as the section rule below so
+     the art covers the true viewport in every toolbar state / browser. */
+  #mj-wall-section { height: auto !important; min-height: 100vh !important; min-height: calc(var(--bnd-vh, 1vh) * 100) !important; min-height: 100dvh !important; background-image: url('/assets/mj-bg-mobile.jpg') !important; background-position: center top !important; align-items: flex-end !important; }
   #mj-scrim { background: linear-gradient(180deg, rgba(8,10,26,0) 30%, rgba(8,10,26,0.55) 55%, rgba(8,10,26,0.92) 100%) !important; }
   /* the whole prompt (label → actions row) must fit one screenful: 30vh of
      art above, tightened rhythm below (40vh left the actions under the fold) */
@@ -351,8 +383,8 @@ html.bnd-kb-lock, html.bnd-kb-lock body { overflow: hidden !important; }
      hides — but the spidey+web art stays (user feedback) */
   .bnd-hero-deco:not(.bnd-hero-spidey) { display: none !important; }
   /* the hero logo rides ~15% higher so the banner art breathes below it
-     (nudged 60px back down per design feedback) */
-  .bnd-hero-stack { bottom: calc(clamp(40px, 7vh, 96px) + 15svh - 60px) !important; }
+     (nudged 80px back down per design feedback — was 60px) */
+  .bnd-hero-stack { bottom: calc(clamp(40px, 7vh, 96px) + 15svh - 80px) !important; }
   /* keep the navbar (logo + hamburger) inside the notch-safe zone */
   .bnd-nav { padding-top: calc(34px + env(safe-area-inset-top, 0px)) !important; }
   /* music player: half size, docked in the navbar beside the hamburger
@@ -369,25 +401,43 @@ html.bnd-kb-lock, html.bnd-kb-lock body { overflow: hidden !important; }
   .bnd-music .bnd-eq-bar { width: 2px !important; }
   .bnd-music-mute { width: 26px !important; height: 26px !important; }
   .bnd-music-mute svg { width: 12px; height: 12px; }
-  /* 100vh hides the section bottom behind the iOS URL bar — svh is the small
-     viewport, so bottom-anchored content (hero logo, Living Web header,
-     tracker CTA) stays fully on screen. MJ Wall + footer grow with content
-     (their own rules above/below), so they are exempt. */
-  [data-page]:not([data-page="footer"]):not([data-page="mjwall"]):not([data-page="tracker"]) { height: 100svh !important; }
-  /* tracker stacks logo→copy→radar→CTA on phones — let it grow past 100svh on
-     small screens instead of clipping the CTA under overflow:hidden */
-  section[data-page="tracker"] { height: auto !important; min-height: 100svh !important; }
+  /* Sections must fill the REAL viewport at every moment or the background art
+     stops short of the screen edge. Every fixed unit fails somewhere: 100vh is
+     the LARGE viewport (bottom hides behind the expanded URL bar), 100svh is
+     the SMALL one (a black band appears once the toolbar collapses mid-scroll).
+     100dvh tracks the toolbar live, so backgrounds cover 100% in both states —
+     bottom-anchored content (hero logo, Living Web header) rides the true
+     bottom edge. Fallback chain for browsers without dvh (pre-2022): a JS-set
+     --bnd-vh (measured in layout.jsx, updates on resize) → plain 100vh.
+     MJ Wall + footer grow with content (their own rules above/below). */
+  [data-page]:not([data-page="footer"]):not([data-page="mjwall"]):not([data-page="tracker"]) {
+    height: 100vh !important;
+    height: calc(var(--bnd-vh, 1vh) * 100) !important;
+    height: 100dvh !important;
+  }
+  /* tracker stacks logo→copy→radar→CTA on phones — let it grow past one screen
+     on small displays instead of clipping the CTA under overflow:hidden */
+  section[data-page="tracker"] {
+    height: auto !important;
+    min-height: 100vh !important;
+    min-height: calc(var(--bnd-vh, 1vh) * 100) !important;
+    min-height: 100dvh !important;
+  }
   footer[data-page="footer"] {
     height: auto !important;
-    min-height: 100svh !important;
+    min-height: 100vh !important;
+    min-height: calc(var(--bnd-vh, 1vh) * 100) !important;
+    min-height: 100dvh !important;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  /* Section veil: black out every section except the active one so a 100svh snap
-     that lands a hair off (the mobile toolbar changes the real viewport height)
-     never shows a sliver of the neighbour. It clears as you blink into each
-     section. Driven by the .bnd-veil-ready / .bnd-sec-on classes set in
-     app/page.jsx; z-index 40 sits above section content (max 22) but below the
-     fixed rail (44) / nav (50) / shutter (95), so the persistent UI stays put. */
+  /* Section veil: black out every section except the active one so a snap that
+     lands a hair off never shows a sliver of the neighbour. Sections are 100dvh
+     (above) so they cover the settled viewport exactly, but dvh only updates in
+     steps while the toolbar ANIMATES — the veil hides those transient frames.
+     It clears as you blink into each section. Driven by the .bnd-veil-ready /
+     .bnd-sec-on classes set in app/page.jsx; z-index 40 sits above section
+     content (max 22) but below the fixed rail (44) / nav (50) / shutter (95),
+     so the persistent UI stays put. */
   .bnd-veil-ready [data-page]::after {
     content: "";
     position: absolute;
@@ -505,7 +555,6 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
 @keyframes mjw-float { 0%, 100% { opacity: 0; transform: translateY(20px); } 15% { opacity: .8; } 85% { opacity: .5; } 100% { transform: translateY(-120px); } }
 @keyframes mjw-ray { 0%, 100% { opacity: .1; transform: translateX(-8%); } 50% { opacity: .26; transform: translateX(8%); } }
 @keyframes mjw-flicker { 0%, 100% { opacity: .05; } 50% { opacity: .11; } }
-@keyframes mjw-heartbeat { 0%, 100% { opacity: .18; transform: translate(-50%, -50%) scale(1); } 50% { opacity: .4; transform: translate(-50%, -50%) scale(1.14); } }
 @media (max-width: 760px) {
   .mjw-cta > span > span { padding: 10px 18px !important; font-size: 12px !important; }
 }
@@ -513,8 +562,8 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
 
 /* ---- living wall columns: seamless vertical loops ---- */
 /* the page never scrolls — the columns do (dvh keeps the composer above the
-   iOS toolbar; vh is the fallback) */
-.mjw-page { height: 100vh; height: 100dvh; }
+   iOS toolbar; the JS-measured --bnd-vh then plain vh are the fallbacks) */
+.mjw-page { height: 100vh; height: calc(var(--bnd-vh, 1vh) * 100); height: 100dvh; }
 /* soft fade where cards enter/leave at the top and bottom edges */
 .mjw-viewport {
   -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 52px, #000 calc(100% - 56px), transparent 100%);
@@ -576,13 +625,15 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
 .bnd-pop-item:hover { background: rgba(255,40,60,0.12) !important; }
 
 /* ===== Walkthrough modal: responsive card grid + scroll on phones ===== */
+/* max-height falls back vh → dvh as separate declarations (NOT min(dvh, vh):
+   a browser without dvh drops the whole min() and the panel loses its cap) */
 @media (max-width: 760px) {
-  .walk-panel { max-height: min(88dvh, 88vh); overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
+  .walk-panel { max-height: 88vh; max-height: 88dvh; overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
   .walk-grid { grid-template-columns: repeat(2, 1fr) !important; }
 }
 @media (max-width: 540px) {
   .walk-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
-  .walk-panel { max-height: 92dvh; }
+  .walk-panel { max-height: 92vh; max-height: 92dvh; }
   .walk-head { padding: 24px 18px 0 !important; }
   .walk-head h2 { font-size: 19px !important; }
   .walk-head p { font-size: 12px !important; line-height: 1.45 !important; margin-top: 8px !important; }

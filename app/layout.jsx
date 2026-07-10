@@ -58,6 +58,18 @@ export default function RootLayout({ children }) {
           href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
+        {/* Viewport-height shim for browsers WITHOUT dvh units (pre-2022 Safari/
+            Chrome/WebViews): measures the real visible height into --bnd-vh,
+            which the full-screen section rules in globals.css fall back to
+            (height: calc(var(--bnd-vh) * 100)). Modern browsers bail on the
+            first line and use 100dvh natively. Inline + blocking so the first
+            paint on old browsers already has the correct height. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){if(window.CSS&&CSS.supports&&CSS.supports('height','100dvh'))return;var d=document.documentElement;function set(){if(d.classList.contains('bnd-kb-lock'))return;var h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight;d.style.setProperty('--bnd-vh',h*0.01+'px')}set();window.addEventListener('resize',set);window.addEventListener('orientationchange',set)})();",
+          }}
+        />
       </head>
       <body>
         <SessionProvider>{children}</SessionProvider>
