@@ -9,6 +9,7 @@ import { s } from "@/lib/style";
 import { portalApi } from "@/lib/portal/api";
 import { dismissKeyboard } from "@/lib/dismissKeyboard";
 import { useSession } from "@/components/auth/SessionProvider";
+import PasswordField from "@/components/main/PasswordField";
 
 const FIELD = "width: 100%; box-sizing: border-box; border: 0; outline: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); border-radius: 9px; padding: 13px 15px; color: #fff; font-family: inherit; font-size: 15px;";
 const LABEL = "display: block; margin-bottom: 6px; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.55);";
@@ -75,11 +76,11 @@ function ResetForm() {
           <>
             <div style={s("margin-bottom: 14px;")}>
               <label style={s(LABEL)}>New Password</label>
-              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" autoComplete="new-password" placeholder="••••••••" required style={s(FIELD)} />
+              <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" placeholder="••••••••" required style={s(FIELD)} />
             </div>
             <div style={s("margin-bottom: 22px;")}>
               <label style={s(LABEL)}>Confirm Password</label>
-              <input value={confirm} onChange={(e) => setConfirm(e.target.value)} type="password" autoComplete="new-password" placeholder="••••••••" required style={s(FIELD)} />
+              <PasswordField value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" placeholder="••••••••" required style={s(FIELD)} />
             </div>
 
             {error && <p style={s("margin: 0 0 14px; font-size: 12px; color: #ff6b79;")}>{error}</p>}

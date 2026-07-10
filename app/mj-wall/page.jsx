@@ -256,11 +256,6 @@ export default function MjWallPage() {
         <div style={s("position: absolute; top: -30%; right: 12%; width: 18vw; height: 160%; background: linear-gradient(180deg, rgba(120,150,255,0.13), transparent 70%); transform: rotate(-7deg); filter: blur(26px); animation: mjw-ray 17s ease-in-out infinite 2s;")}></div>
       </div>
 
-      {/* giant heartbeat spider emblem behind the wall */}
-      <div style={s("position: fixed; top: 46%; left: 50%; transform: translate(-50%,-50%); z-index: 0; width: min(72vh, 720px); height: min(72vh, 720px); pointer-events: none; animation: mjw-heartbeat 3.2s ease-in-out infinite;")}>
-        <svg viewBox="0 0 100 100" style={{ width: "100%", height: "100%", opacity: 0.5 }} fill="none" stroke="rgba(255,47,64,0.35)" strokeWidth="0.7" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="50" cy="44" rx="9" ry="12" /><path d="M50 32V16M42 36 22 26M58 36l20-10M43 52 27 66M57 52l16 14M50 56v20" /></svg>
-      </div>
-
       {/* cursor spotlight */}
       <div ref={spotRef} style={s("position: fixed; top: 0; left: 0; z-index: 2; width: 640px; height: 640px; margin: -320px 0 0 -320px; border-radius: 50%; background: radial-gradient(circle, rgba(255,90,110,0.12) 0%, rgba(255,60,74,0.05) 35%, transparent 66%); pointer-events: none; will-change: transform; mix-blend-mode: screen; transition: opacity .4s ease;")}></div>
 

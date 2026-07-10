@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { s } from "@/lib/style";
 import { portalApi } from "@/lib/portal/api";
 import { dismissKeyboard } from "@/lib/dismissKeyboard";
+import PasswordField from "@/components/main/PasswordField";
 
 // Register / Login popup rendered globally by SessionProvider. Calls the real
 // auth APIs; per-field validation errors from err.fields render under the
@@ -211,7 +212,7 @@ export default function AuthModal({ initialMode = "register", onClose, onAuthed 
               )}
               <div style={s("margin-bottom: 22px;")}>
                 <label style={s(LABEL)}>Password</label>
-                <input value={form.password} onChange={set("password")} type="password" autoComplete={isReg ? "new-password" : "current-password"} placeholder="••••••••" required style={s(FIELD)} />
+                <PasswordField value={form.password} onChange={set("password")} autoComplete={isReg ? "new-password" : "current-password"} placeholder="••••••••" required style={s(FIELD)} />
                 {fieldError("password")}
                 {!isReg && (
                   <div style={s("margin-top: 8px; text-align: right;")}>

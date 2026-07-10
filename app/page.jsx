@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import { getImageProps } from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { s } from "@/lib/style";
@@ -75,6 +75,21 @@ const FLAG_BY_COUNTRY = {
 };
 const countryFlag = (c) => (c ? FLAG_BY_COUNTRY[String(c).trim().toLowerCase()] || null : null);
 const TWIN_PAGE = 5; // roster rows revealed per scroll step
+
+/* Hero background: real art direction via <picture>. The old JS swap
+   (isDesktop ? bg : bg-mobile) SSR'd the DESKTOP art to every phone — the heavy
+   wide image downloaded and painted first, then swapped to the portrait banner
+   after hydration (double fetch + a flash of the wrong crop). The browser now
+   picks the source itself on first paint, and re-picks live on rotation.
+   loading=eager + fetchPriority=high stand in for `preload`: a preload link can
+   only carry one srcset, which would force the wrong art onto half the devices. */
+const HERO_BG_COMMON = { alt: "", fill: true, sizes: "100vw", loading: "eager", fetchPriority: "high" };
+const {
+  props: { srcSet: HERO_BG_DESKTOP_SET },
+} = getImageProps({ ...HERO_BG_COMMON, src: "/assets/bg.jpg" });
+const {
+  props: { srcSet: HERO_BG_MOBILE_SET, ...HERO_BG_IMG },
+} = getImageProps({ ...HERO_BG_COMMON, src: "/assets/bg-mobile.jpg" });
 
 /* landing sections in DOM order — drives the right-side web-rail nav */
 const RAIL_SECTIONS = [
@@ -166,6 +181,11 @@ export default function Home() {
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
+    // The veil clears via activeSection, which ONLY the IntersectionObserver
+    // scroll-spy updates — on a browser without IO an armed veil would black
+    // out every section except the hero forever. No IO → no veil (the dvh
+    // section sizing still keeps backgrounds covering on those browsers).
+    if (!("IntersectionObserver" in window)) return;
     const cur = activeSection || "hero";
     stage.querySelectorAll("[data-page]").forEach((el) => {
       el.classList.toggle("bnd-sec-on", el.getAttribute("data-page") === cur);
@@ -198,7 +218,14 @@ export default function Home() {
         scrollCur.v += (scrollTgt.v - scrollCur.v) * 0.12;
         const mx = cur.mx,
           my = cur.my,
-          sy = scrollCur.v;
+          // Scroll parallax is DESKTOP-ONLY (and off for reduced-motion). The
+          // hero bg has no overscan once the entry scale settles at 1, so
+          // shifting it -0.18×scrollY during a native mobile swipe peeled the
+          // art off the section's bottom edge — a black band right where the
+          // next section slides in. Desktop never shows mid-scroll states (the
+          // shutter covers scrollInstant) EXCEPT the reduced-motion dissolve
+          // tween, which parallax must sit out anyway. (mx/my stay 0 on touch.)
+          sy = isDesktopRef.current && !reduceMotion ? scrollCur.v : 0;
 
         const eRaw = Math.min(1, Math.max(0, (performance.now() - entryStart) / entryMs));
         const e = 1 - Math.pow(1 - eRaw, 3);
@@ -442,16 +469,34 @@ export default function Home() {
       // be gliding when the shutter reopens. iOS Safari also runs snap physics
       // on PROGRAMMATIC jumps — with scroll-snap-stop: always it clamps any
       // hop past the adjacent section (menu/logo jumps landed one section over
-      // or reverted) — so snapping is suspended for the hop and restored once
-      // the landing (exactly on a snap point) has painted.
+      // or reverted) — so snapping is suspended for the hop. Restoring it on a
+      // fixed two-frame delay proved TOO EARLY on real phones: WebKit re-ran
+      // the snap from still-in-flight momentum state and yanked the page back
+      // to the origin (nav/logo jumps blinked but never moved). The position is
+      // now re-pinned every frame until it has held the target for two
+      // consecutive frames (20-frame safety valve), and only then does snapping
+      // return — by then the target top IS the nearest snap point, so the
+      // restore has nowhere to fling the page.
       const html = document.documentElement;
       html.style.scrollSnapType = "none";
-      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY, behavior: "instant" });
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
+      const pin = () => window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY, behavior: "instant" });
+      pin();
+      let stuck = 0,
+        frames = 0;
+      const watch = () => {
+        // target can leave the DOM mid-watch (identity section hides on login)
+        if (!target.isConnected) {
           html.style.scrollSnapType = "";
-        })
-      );
+          return;
+        }
+        if (Math.abs(target.getBoundingClientRect().top) > 1) {
+          pin();
+          stuck = 0;
+        } else stuck++;
+        if (stuck >= 2 || ++frames > 20) html.style.scrollSnapType = "";
+        else requestAnimationFrame(watch);
+      };
+      requestAnimationFrame(watch);
       kickRAF();
     };
     const revealPage = (el) => {
@@ -487,8 +532,11 @@ export default function Home() {
     const transShutter = (target, done) => {
       const t = barTopRef.current,
         b = barBottomRef.current;
-      const closeMs = 180,
-        openMs = 260; // snappy blink
+      // phones get a slower, weightier blink (+200ms total per design
+      // feedback — it also buys scrollInstant's pin-watch more cover time);
+      // desktop keeps the snappy timing
+      const closeMs = isDesktopRef.current ? 180 : 280,
+        openMs = isDesktopRef.current ? 260 : 360;
       const cEase = "cubic-bezier(.5,0,.15,1)";
       if (t && b) {
         t.animate([{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: closeMs, easing: cEase, fill: "forwards" });
@@ -556,6 +604,12 @@ export default function Home() {
       // target section (reduced motion falls back to a smooth scroll)
       if (!isDesktopRef.current) {
         if (paging) return;
+        // already sitting exactly on the target: a blink with no movement
+        // reads as a glitchy flicker (tapping the nav logo on the hero did)
+        if (Math.abs(targetEl.getBoundingClientRect().top) < 8) {
+          pageIndex = idx;
+          return;
+        }
         pageIndex = idx;
         if (reduceMotion) {
           // instant, not smooth: kinder to reduced-motion users, and iOS clamps
@@ -731,7 +785,7 @@ export default function Home() {
           b = barBottomRef.current;
         if (!t || !b) return;
         const frames = [{ transform: "scaleY(0)" }, { transform: "scaleY(1)", offset: 0.45 }, { transform: "scaleY(0)" }];
-        const opts = { duration: 380, easing: "cubic-bezier(.5,0,.15,1)" };
+        const opts = { duration: 580, easing: "cubic-bezier(.5,0,.15,1)" }; // +200ms per design feedback (was 380)
         t.animate(frames, opts);
         b.animate(frames, opts);
       });
@@ -1045,7 +1099,11 @@ export default function Home() {
         {/* BG LAYER — phones get the dedicated portrait banner (its rooftop
             figure IS the hero there, so the desktop decorations hide too) */}
         <div ref={bgRef} style={s("position: absolute; inset: 0; z-index: 1; will-change: transform; transform-origin: 50% 15%;")}>
-          <Image src={isDesktop ? "/assets/bg.jpg" : "/assets/bg-mobile.jpg"} alt="" fill preload sizes="100vw" style={{ objectFit: "cover", objectPosition: "50% 0%", userSelect: "none", pointerEvents: "none" }} />
+          {/* 760px matches the isDesktop JS breakpoint */}
+          <picture>
+            <source media="(min-width: 760px)" srcSet={HERO_BG_DESKTOP_SET} />
+            <img {...HERO_BG_IMG} alt="" srcSet={HERO_BG_MOBILE_SET} style={{ ...HERO_BG_IMG.style, objectFit: "cover", objectPosition: "50% 0%", userSelect: "none", pointerEvents: "none" }} />
+          </picture>
         </div>
 
         {/* SUN GLOW (desktop art only — the mobile banner bakes in its own flare) */}
@@ -1076,7 +1134,7 @@ export default function Home() {
         <section
           data-page="identity"
           data-screen-label="Find Your Identity"
-          style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background-color: #0a0512; background-image: url('/assets/identity-bg.jpg'); background-size: cover; background-position: center; background-repeat: no-repeat; display: flex; align-items: center; justify-content: center;")}
+          style={s("position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background-color: #0a0512; background-image: url('/assets/who-are-you-desktop.jpeg'); background-size: cover; background-position: center; background-repeat: no-repeat; display: flex; align-items: center; justify-content: center;")}
         >
           <div style={s("position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6,3,10,0.5) 0%, rgba(6,3,10,0.2) 30%, rgba(5,3,10,0.36) 62%, rgba(3,2,6,0.72) 100%); pointer-events: none;")}></div>
           <div style={s("position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 40%, rgba(120,20,34,0.1) 0%, rgba(20,10,30,0.18) 60%, rgba(6,4,14,0.3) 100%); mix-blend-mode: multiply; pointer-events: none;")}></div>

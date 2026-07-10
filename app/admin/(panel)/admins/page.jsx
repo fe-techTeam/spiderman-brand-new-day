@@ -6,6 +6,7 @@ import { adminApi } from "@/lib/admin/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -246,9 +247,8 @@ export default function AdminAdminsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="new-admin-password">Password</Label>
-              <Input
+              <PasswordInput
                 id="new-admin-password"
-                type="password"
                 value={form.password}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
               />
@@ -297,9 +297,8 @@ export default function AdminAdminsPage() {
           </DialogHeader>
           <div className="space-y-2">
             <Label htmlFor="reset-password">New password</Label>
-            <Input
+            <PasswordInput
               id="reset-password"
-              type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
             />
