@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { query } from "@/lib/server/db";
 import { vEmail } from "@/lib/server/validate";
 import { rateLimit } from "@/lib/server/rate-limit";
-import { isEmailConfigured, sendPasswordResetEmail } from "@/lib/server/email";
+import { emailBaseUrl, isEmailConfigured, sendPasswordResetEmail } from "@/lib/server/email";
 
 // Reset links go out via AWS SES once SES_FROM_EMAIL is configured (see
 // lib/server/email.js). Without it, dev keeps returning the link in the
@@ -29,7 +29,7 @@ export async function POST(request) {
     [user.id, tokenHash]
   );
 
-  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === "production" ? "https://spidermania.in" : "http://localhost:3000")}/reset-password?token=${token}`;
+  const resetUrl = `${emailBaseUrl()}/reset-password?token=${token}`;
   if (isEmailConfigured()) {
     // Still 200 on failure — a send error must not reveal the email exists.
     try {

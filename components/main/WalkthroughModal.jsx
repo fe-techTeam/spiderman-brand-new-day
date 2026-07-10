@@ -5,7 +5,7 @@ import { s } from "@/lib/style";
 
 // The Walkthrough — PS5-HUD-style welcome modal that auto-opens after the
 // hero's cinematic entrance. Ported from the mockup's walkthrough block.
-export default function WalkthroughModal({ walk, items, onClose, onJoin, onHover }) {
+export default function WalkthroughModal({ walk, items, onClose, onJoin, onHover, joinLabel = "Join the Spider World" }) {
   return (
     <div style={s(`position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: clamp(14px, 3vh, 32px); background: rgba(4,6,14,${walk.scrim}); backdrop-filter: blur(${walk.blur}); visibility: ${walk.vis}; transition: background 500ms ease, backdrop-filter 500ms ease, visibility 0s linear ${walk.visDelay}; pointer-events: ${walk.pe};`)}>
       <div style={s(`position: relative; width: min(1000px, 100%); max-height: 94vh; transform-style: preserve-3d; opacity: ${walk.opacity}; transform: ${walk.transform}; filter: ${walk.filter}; transition: opacity 900ms ease, transform 1400ms cubic-bezier(.16,.9,.28,1), filter 1100ms ease;`)}>
@@ -62,7 +62,7 @@ export default function WalkthroughModal({ walk, items, onClose, onJoin, onHover
               <div style={s("margin-top: clamp(16px, 2.4vh, 26px); display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; padding-top: clamp(16px, 2.4vh, 24px); border-top: 1px solid rgba(120,150,220,0.15);")}>
                 <button onClick={onJoin} onMouseEnter={onHover} data-web-hover="true" className="bnd-cta" style={s("position: relative; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit; flex-shrink: 0;")}>
                   <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #ff2233 0%, #8b000d 100%); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); box-shadow: 0 12px 30px rgba(255,34,51,0.35);")}>
-                    <span className="bnd-cta-inner" style={s("display: block; padding: 15px 34px; background: linear-gradient(180deg, #ff3a4a 0%, #c00014 100%); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-weight: 700; font-size: clamp(13px, 1.4vw, 15px); letter-spacing: 0.2em; text-transform: uppercase; text-shadow: 0 1px 3px rgba(0,0,0,0.4);")}><span className="bnd-cta-sheen"></span>Join the Spider World</span>
+                    <span className="bnd-cta-inner" style={s("display: block; padding: 15px 34px; background: linear-gradient(180deg, #ff3a4a 0%, #c00014 100%); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-weight: 700; font-size: clamp(13px, 1.4vw, 15px); letter-spacing: 0.2em; text-transform: uppercase; text-shadow: 0 1px 3px rgba(0,0,0,0.4);")}><span className="bnd-cta-sheen"></span>{joinLabel}</span>
                   </span>
                 </button>
               </div>
