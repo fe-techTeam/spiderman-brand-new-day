@@ -64,6 +64,9 @@ export default function SessionProvider({ children }) {
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
     setUser(null);
+    // signing out from a members area (forum, MJ wall…) lands on the homepage —
+    // a no-op when already there
+    router.push("/");
     router.refresh();
   }, [router]);
 

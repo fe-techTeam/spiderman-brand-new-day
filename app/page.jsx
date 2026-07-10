@@ -173,25 +173,12 @@ export default function Home() {
     return () => document.documentElement.classList.remove("bnd-snap");
   }, []);
 
-  /* Mobile: black out every landing section except the active one. A 100vh snap
-     that lands a few px off (viewport height varies with the mobile toolbar)
-     used to show a sliver of the neighbouring section; the veil hides it and
-     clears as you blink into each section. CSS gates the veil to <=900px, so
-     desktop (exact JS pager) is untouched. */
-  useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    // The veil clears via activeSection, which ONLY the IntersectionObserver
-    // scroll-spy updates — on a browser without IO an armed veil would black
-    // out every section except the hero forever. No IO → no veil (the dvh
-    // section sizing still keeps backgrounds covering on those browsers).
-    if (!("IntersectionObserver" in window)) return;
-    const cur = activeSection || "hero";
-    stage.querySelectorAll("[data-page]").forEach((el) => {
-      el.classList.toggle("bnd-sec-on", el.getAttribute("data-page") === cur);
-    });
-    stage.classList.add("bnd-veil-ready"); // arm veils only after the first paint
-  }, [activeSection, hideIdentity, showLivingWeb]);
+  /* NOTE: the mobile "section veil" (black out every section except the active
+     one) is gone. It existed to hide the sliver of a neighbour that showed when
+     a 100dvh snap rested a few px off — but on iOS the veiled sliver itself
+     read as a black band under the toolbar. Sections are 100lvh on phones now
+     (globals.css): their heights no longer change with the toolbar, so snap
+     offsets never move and there is no sliver to hide. */
 
   /* ============================================================ mount effect */
   useEffect(() => {
@@ -342,10 +329,13 @@ export default function Home() {
             const el = en.target;
             if (en.isIntersecting && en.intersectionRatio > 0.4) {
               // add() is a no-op while already "in" — crossing the 1.0 threshold
-              // right after 0.4 must not restart the animation mid-play. Leaving
-              // (below) removes the class, which re-arms the replay on re-entry.
+              // right after 0.4 must not restart the animation mid-play.
               el.classList.add("in");
-            } else {
+            } else if (!en.isIntersecting) {
+              // re-arm the replay ONLY on a full exit. Removing at the same 0.4
+              // line that adds meant any ratio jitter around the threshold (iOS
+              // recomputes ratios as the toolbar shows/hides) toggled the class
+              // and made the section content flicker up and down mid-scroll.
               el.classList.remove("in");
             }
           });
@@ -479,6 +469,13 @@ export default function Home() {
       // restore has nowhere to fling the page.
       const html = document.documentElement;
       html.style.scrollSnapType = "none";
+      // suspend the CSS smooth-scroll too: belt-and-braces so no engine can
+      // turn a pin into a glide while the watch loop measures "did it hold"
+      html.style.scrollBehavior = "auto";
+      const restore = () => {
+        html.style.scrollSnapType = "";
+        html.style.scrollBehavior = "";
+      };
       const pin = () => window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY, behavior: "instant" });
       pin();
       let stuck = 0,
@@ -486,14 +483,17 @@ export default function Home() {
       const watch = () => {
         // target can leave the DOM mid-watch (identity section hides on login)
         if (!target.isConnected) {
-          html.style.scrollSnapType = "";
+          restore();
           return;
         }
         if (Math.abs(target.getBoundingClientRect().top) > 1) {
           pin();
           stuck = 0;
         } else stuck++;
-        if (stuck >= 2 || ++frames > 20) html.style.scrollSnapType = "";
+        // 60-frame safety valve (~1s): the old 20 ran out mid-toolbar-animation
+        // on iOS, restoring snap while the position was still off — the
+        // mandatory re-snap then yanked the page back to where it came from
+        if (stuck >= 2 || ++frames > 60) restore();
         else requestAnimationFrame(watch);
       };
       requestAnimationFrame(watch);
@@ -543,16 +543,23 @@ export default function Home() {
         b.animate([{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: closeMs, easing: cEase, fill: "forwards" });
       }
       setTimeout(() => {
-        scrollInstant(target);
-        revealPage(target);
+        // a throw in the jump (target unmounting mid-flight, engine quirks)
+        // must never stop the bars from reopening or `done` from running —
+        // `paging` would wedge true and every later nav/menu jump would no-op
+        try {
+          scrollInstant(target);
+          revealPage(target);
+        } catch {}
         if (t && b) {
           t.animate([{ transform: "scaleY(1)" }, { transform: "scaleY(0)" }], { duration: openMs, easing: cEase, fill: "forwards" });
           b.animate([{ transform: "scaleY(1)" }, { transform: "scaleY(0)" }], { duration: openMs, easing: cEase, fill: "forwards" });
         }
         setTimeout(() => {
-          // iOS: momentum/snap physics still running when the blink fired can
-          // drag the page off the target after scrollInstant — re-pin it
-          if (Math.abs(target.getBoundingClientRect().top) > 8) scrollInstant(target);
+          try {
+            // iOS: momentum/snap physics still running when the blink fired can
+            // drag the page off the target after scrollInstant — re-pin it
+            if (Math.abs(target.getBoundingClientRect().top) > 8) scrollInstant(target);
+          } catch {}
           done();
         }, openMs);
       }, closeMs + 30);
@@ -1114,7 +1121,11 @@ export default function Home() {
             so the container runs ~2× the old spidey width to keep him the same
             on-screen size. */}
         <div ref={spideyWrapRef} className="bnd-hero-deco bnd-hero-spidey" style={s(`position: absolute; top: ${spideyTop}; left: 50%; z-index: 15; pointer-events: none; transform: translateX(calc(-50% - 11vw - 10px));`)}>
-          <div style={s(`position: relative; width: ${spideyWidth}; aspect-ratio: 1210/877; will-change: transform; animation: bnd-spidey-bob 5s ease-in-out infinite; animation-delay: -1s;`)}>
+          {/* the isDesktop-driven inline sizes here and on the logo below default
+              to DESKTOP on the server — globals.css !important rules (mobile
+              media query, same values as the JS) keep the first phone paint
+              correct until hydration takes over */}
+          <div className="bnd-hero-spidey-art" style={s(`position: relative; width: ${spideyWidth}; aspect-ratio: 1210/877; will-change: transform; animation: bnd-spidey-bob 5s ease-in-out infinite; animation-delay: -1s;`)}>
             <img src="/assets/spidey-web-hero.png" alt="Spider-Man" style={s("width: 100%; height: 100%; display: block; filter: drop-shadow(0 30px 50px rgba(0,0,0,0.55)) drop-shadow(0 8px 18px rgba(255,120,40,0.18));")} />
           </div>
         </div>
@@ -1122,7 +1133,7 @@ export default function Home() {
         {/* HERO TYPE STACK (logo) */}
         <div ref={heroStackRef} className="bnd-hero-stack" style={s("position: absolute; left: 0; right: 0; bottom: clamp(40px, 7vh, 96px); z-index: 10; display: flex; flex-direction: column; align-items: center; pointer-events: none; will-change: transform;")}>
           <div style={s("position: relative; z-index: 1; width: 100%; display: flex; justify-content: center;")}>
-            <div ref={logoRef} style={s(`position: relative; width: ${logoWidth}; will-change: transform; animation: bnd-logo-punch 1200ms 750ms cubic-bezier(.16,.84,.3,1) both;`)}>
+            <div ref={logoRef} className="bnd-hero-logo" style={s(`position: relative; width: ${logoWidth}; will-change: transform; animation: bnd-logo-punch 1200ms 750ms cubic-bezier(.16,.84,.3,1) both;`)}>
               <img src="/assets/logo.png" alt="Spider-Man: Brand New Day" style={s("width: 100%; height: auto; display: block; filter: drop-shadow(0 12px 28px rgba(0,0,0,0.6)) drop-shadow(0 0 24px rgba(214,2,26,0.25));")} />
             </div>
           </div>
@@ -1744,9 +1755,11 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* ============ WEB RAIL: right-side section nav (desktop only) ============ */}
+      {/* ============ WEB RAIL: right-side section nav (desktop only) ============
+          .bnd-web-rail hides it under 760px so the server HTML (isDesktop
+          defaults true) never flashes the rail on phones before hydration */}
       {isDesktop && (
-        <nav aria-label="Page sections" style={s("position: fixed; right: clamp(12px, 1.8vw, 28px); top: 50%; transform: translateY(-50%); z-index: 44;")}>
+        <nav aria-label="Page sections" className="bnd-web-rail" style={s("position: fixed; right: clamp(12px, 1.8vw, 28px); top: 50%; transform: translateY(-50%); z-index: 44;")}>
           <div style={s("position: relative; display: flex; flex-direction: column; align-items: center;")}>
             {/* web strand */}
             <span aria-hidden="true" style={s("position: absolute; top: 6px; bottom: 6px; left: 50%; width: 1px; margin-left: -0.5px; background: linear-gradient(180deg, transparent, rgba(255,255,255,0.16) 12%, rgba(255,255,255,0.16) 88%, transparent); pointer-events: none;")}></span>
@@ -1806,7 +1819,6 @@ export default function Home() {
 
       {/* NAV + MODALS */}
       <Nav
-        isDesktop={isDesktop}
         mobileMenuVisible={!isDesktop && mobileMenuOpen}
         navItems={navItems}
         onGoHome={() => {
