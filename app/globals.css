@@ -345,13 +345,15 @@ html.bnd-kb-lock, html.bnd-kb-lock body { overflow: hidden !important; }
 /* ===== MJ Wall mobile ===== */
 @media (max-width: 760px) {
   /* dedicated portrait art on phones (mask + MJ reflection, vertical crop).
-     min-height uses the same dvh fallback chain as the section rule below so
-     the art covers the true viewport in every toolbar state / browser. */
-  #mj-wall-section { height: auto !important; min-height: 100vh !important; min-height: calc(var(--bnd-vh, 1vh) * 100) !important; min-height: 100dvh !important; background-image: url('/assets/mj-bg-mobile.jpg') !important; background-position: center top !important; align-items: flex-end !important; }
+     min-height matches the section rule below (100lvh: stable across toolbar
+     states so snap offsets never move, art covers to the screen edge). */
+  #mj-wall-section { height: auto !important; min-height: 100vh !important; min-height: 100lvh !important; background-image: url('/assets/mj-bg-mobile.jpg') !important; background-position: center top !important; align-items: flex-end !important; }
   #mj-scrim { background: linear-gradient(180deg, rgba(8,10,26,0) 30%, rgba(8,10,26,0.55) 55%, rgba(8,10,26,0.92) 100%) !important; }
   /* the whole prompt (label → actions row) must fit one screenful: 30vh of
      art above, tightened rhythm below (40vh left the actions under the fold) */
-  #mj-inner { justify-content: center !important; padding: 30vh 22px 34px !important; transform: none !important; }
+  /* bottom padding clears the home indicator now that the section is lvh-tall
+     (its bottom edge is the physical screen edge, not the visual viewport) */
+  #mj-inner { justify-content: center !important; padding: 30vh 22px calc(34px + env(safe-area-inset-bottom, 0px)) !important; transform: none !important; }
   #mj-prompt { width: 100% !important; text-align: center !important; }
   #mj-prompt .bnd-line[style*="inline-flex"] { justify-content: center !important; margin-bottom: 12px !important; }
   #mj-prompt > p { margin-top: 12px !important; }
@@ -377,14 +379,33 @@ html.bnd-kb-lock, html.bnd-kb-lock body { overflow: hidden !important; }
   .bnd-trailer-close { top: calc(10px + env(safe-area-inset-top, 0px)) !important; right: 12px !important; }
 }
 
+/* ===== Nav + hero: breakpoint-gated FIRST PAINT (no hydration flash) =====
+   The server HTML renders with isDesktop=true (no window to measure), so on
+   phones the page used to paint desktop-sized — full nav menu, web rail, small
+   hero art — then snap into the mobile layout once JS hydrated. These rules
+   mirror the JS breakpoint (>=760 desktop) and its mobile values with
+   !important so the very first phone paint is already correct; after hydration
+   the JS writes the same values, so nothing fights. */
+.bnd-nav-burger { display: none !important; }
+@media (max-width: 759.98px) {
+  .bnd-nav-desktop { display: none !important; }
+  .bnd-nav-burger { display: flex !important; }
+  .bnd-web-rail { display: none !important; }
+  .bnd-hero-spidey { top: clamp(48px, 8vh, 96px) !important; transform: translateX(calc(-50% - 10px)) !important; }
+  .bnd-hero-spidey-art { width: 130vw !important; }
+  .bnd-hero-logo { width: 82vw !important; }
+}
+
 /* ===== Landing mobile: safe viewport + calmer CTAs ===== */
 @media (max-width: 760px) {
   /* the portrait hero banner carries its own flare, so the desktop sun glow
      hides — but the spidey+web art stays (user feedback) */
   .bnd-hero-deco:not(.bnd-hero-spidey) { display: none !important; }
   /* the hero logo rides ~15% higher so the banner art breathes below it
-     (nudged 80px back down per design feedback — was 60px) */
-  .bnd-hero-stack { bottom: calc(clamp(40px, 7vh, 96px) + 15svh - 80px) !important; }
+     (nudged 80px back down per design feedback — was 60px). The safe-area
+     term compensates for the lvh section: its bottom is the PHYSICAL screen
+     edge, so without it the release-date line grazed the expanded URL bar. */
+  .bnd-hero-stack { bottom: calc(clamp(40px, 7vh, 96px) + 15svh - 80px + env(safe-area-inset-bottom, 0px)) !important; }
   /* keep the navbar (logo + hamburger) inside the notch-safe zone */
   .bnd-nav { padding-top: calc(34px + env(safe-area-inset-top, 0px)) !important; }
   /* music player: half size, docked in the navbar beside the hamburger
@@ -401,54 +422,41 @@ html.bnd-kb-lock, html.bnd-kb-lock body { overflow: hidden !important; }
   .bnd-music .bnd-eq-bar { width: 2px !important; }
   .bnd-music-mute { width: 26px !important; height: 26px !important; }
   .bnd-music-mute svg { width: 12px; height: 12px; }
-  /* Sections must fill the REAL viewport at every moment or the background art
-     stops short of the screen edge. Every fixed unit fails somewhere: 100vh is
-     the LARGE viewport (bottom hides behind the expanded URL bar), 100svh is
-     the SMALL one (a black band appears once the toolbar collapses mid-scroll).
-     100dvh tracks the toolbar live, so backgrounds cover 100% in both states —
-     bottom-anchored content (hero logo, Living Web header) rides the true
-     bottom edge. Fallback chain for browsers without dvh (pre-2022): a JS-set
-     --bnd-vh (measured in layout.jsx, updates on resize) → plain 100vh.
-     MJ Wall + footer grow with content (their own rules above/below). */
+  /* Sections must keep a STABLE height while the mobile toolbar animates. The
+     previous 100dvh tracked the toolbar live — but that resized EVERY section
+     on each expand/collapse, which moved every scroll-snap offset mid-scroll:
+     sections bounced/flickered while snapping in (the "Who Are You" jitter),
+     and iOS doesn't reliably re-snap after the resize, so the page could rest
+     a few px off and show a black band above the URL bar. 100lvh is the LARGE
+     viewport: constant across toolbar states, so snap offsets never move and
+     the background art always paints past the collapsed toolbar down to the
+     physical screen edge (viewport-fit=cover). The trade-off — a section's
+     bottom ~80px sits behind the URL bar while it is EXPANDED — is handled by
+     anchoring bottom content with svh / safe-area offsets instead (hero stack
+     rule above, tracker/footer/MJ padding). Fallback: plain 100vh, which iOS
+     already resolves as the large viewport.
+     MJ Wall + footer grow with content (their own rules above/below).
+     NOTE: the old "section veil" (black overlay on every non-active section,
+     .bnd-veil-ready/.bnd-sec-on) lived here — it existed to hide the dvh snap
+     slivers and IS the black band users saw; stable lvh heights removed the
+     sliver, so the veil is gone. */
   [data-page]:not([data-page="footer"]):not([data-page="mjwall"]):not([data-page="tracker"]) {
     height: 100vh !important;
-    height: calc(var(--bnd-vh, 1vh) * 100) !important;
-    height: 100dvh !important;
+    height: 100lvh !important;
   }
   /* tracker stacks logo→copy→radar→CTA on phones — let it grow past one screen
      on small displays instead of clipping the CTA under overflow:hidden */
   section[data-page="tracker"] {
     height: auto !important;
     min-height: 100vh !important;
-    min-height: calc(var(--bnd-vh, 1vh) * 100) !important;
-    min-height: 100dvh !important;
+    min-height: 100lvh !important;
   }
   footer[data-page="footer"] {
     height: auto !important;
     min-height: 100vh !important;
-    min-height: calc(var(--bnd-vh, 1vh) * 100) !important;
-    min-height: 100dvh !important;
+    min-height: 100lvh !important;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  /* Section veil: black out every section except the active one so a snap that
-     lands a hair off never shows a sliver of the neighbour. Sections are 100dvh
-     (above) so they cover the settled viewport exactly, but dvh only updates in
-     steps while the toolbar ANIMATES — the veil hides those transient frames.
-     It clears as you blink into each section. Driven by the .bnd-veil-ready /
-     .bnd-sec-on classes set in app/page.jsx; z-index 40 sits above section
-     content (max 22) but below the fixed rail (44) / nav (50) / shutter (95),
-     so the persistent UI stays put. */
-  .bnd-veil-ready [data-page]::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 40;
-    background: #05040a;
-    opacity: 1;
-    pointer-events: none;
-    transition: opacity .45s ease;
-  }
-  .bnd-veil-ready [data-page].bnd-sec-on::after { opacity: 0; }
   /* the desktop-sized CTAs read huge on phones — one tier down, everywhere */
   .bnd-cta .bnd-cta-inner { padding: 11px 22px !important; font-size: 12px !important; }
   /* MJ "Add to the wall" (landing) — compact so it shares a row with the

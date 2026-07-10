@@ -1,9 +1,19 @@
 "use client";
 
+import { useEffect } from "react";
 import { s } from "@/lib/style";
 
 // Trailer lightbox with a YouTube embed. Ported from the mockup's trailer modal.
 export default function TrailerModal({ onClose, onStopProp }) {
+  // Announce the trailer's lifecycle on window so the MusicPlayer (mounted in a
+  // separate tree, the root layout) can duck the score while the trailer runs.
+  // Hooking mount/unmount here covers every opener — hero card, footer link,
+  // nav and walkthrough actions — without wiring each call site.
+  useEffect(() => {
+    window.dispatchEvent(new Event("bnd:trailer-open"));
+    return () => window.dispatchEvent(new Event("bnd:trailer-close"));
+  }, []);
+
   return (
     <div onClick={onClose} className="bnd-trailer-ovl" style={s("position: fixed; inset: 0; z-index: 100; background: rgba(4,4,10,0.86); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 40px; animation: bnd-word-rise 320ms cubic-bezier(.2,.7,.2,1) both;")}>
       <div onClick={onStopProp} className="bnd-trailer-box" style={s("position: relative; width: min(1200px, 100%); aspect-ratio: 16/9;")}>

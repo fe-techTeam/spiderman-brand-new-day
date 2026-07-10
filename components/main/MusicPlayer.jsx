@@ -30,9 +30,14 @@ export default function MusicPlayer({ onSfx }) {
   const hostRef = useRef(null);
   const specRef = useRef(null);
   const playingRef = useRef(false);
-  playingRef.current = playing;
+  const mutedRef = useRef(true);
+  // mirror playing/muted into refs so window-event handlers read fresh values
+  useEffect(() => { playingRef.current = playing; }, [playing]);
+  useEffect(() => { mutedRef.current = muted; }, [muted]);
   const wantAudibleRef = useRef(false); // user wants sound (armed on first gesture)
   const userMutedRef = useRef(false);   // user explicitly muted — never auto-unmute
+  const trailerOpenRef = useRef(false);        // a TrailerModal is on screen
+  const resumeAfterTrailerRef = useRef(false); // score owes a resume when the trailer closes
 
   /* hidden 1×1 YouTube player — audio only */
   useEffect(() => {
@@ -60,10 +65,16 @@ export default function MusicPlayer({ onSfx }) {
             // the first unmute is instant (no fetch/buffer lag on toggle-on)
             try { e.target.mute(); e.target.playVideo(); } catch {}
             // if the user already interacted before the player finished loading,
-            // honor it and bring the sound in now
+            // honor it and bring the sound in now — unless the trailer is up,
+            // in which case hold the score and owe the resume to trailer-close
             if (wantAudibleRef.current && !userMutedRef.current) {
-              try { e.target.unMute(); } catch {}
-              setMuted(false);
+              if (trailerOpenRef.current) {
+                resumeAfterTrailerRef.current = true;
+                try { e.target.pauseVideo(); } catch {}
+              } else {
+                try { e.target.unMute(); } catch {}
+                setMuted(false);
+              }
             }
           },
           onStateChange: (e) => {
@@ -141,6 +152,39 @@ export default function MusicPlayer({ onSfx }) {
     window.addEventListener("touchstart", makeAudible, { passive: true });
     window.addEventListener("wheel", makeAudible, { passive: true });
     return cleanup;
+  }, []);
+
+  /* Trailer ducking — TrailerModal announces its lifecycle on window. Pause the
+     score only if it is actually audible (a muted or already-paused track has
+     nothing to yield), and on close resume only what we paused ourselves —
+     never overriding an explicit user mute. */
+  useEffect(() => {
+    const onTrailerOpen = () => {
+      trailerOpenRef.current = true;
+      resumeAfterTrailerRef.current = playingRef.current && !mutedRef.current;
+      if (!resumeAfterTrailerRef.current) return;
+      const yt = ytRef.current;
+      if (yt && yt.pauseVideo) { try { yt.pauseVideo(); } catch {} }
+      setPlaying(false);
+    };
+    const onTrailerClose = () => {
+      trailerOpenRef.current = false;
+      if (resumeAfterTrailerRef.current && !userMutedRef.current) {
+        // unMute too: if the player only became ready mid-trailer, the deferred
+        // first-gesture unmute lands here (it's a no-op on the normal path)
+        const yt = ytRef.current;
+        if (yt) { try { yt.unMute(); yt.playVideo(); } catch {} }
+        setMuted(false);
+        setPlaying(true);
+      }
+      resumeAfterTrailerRef.current = false;
+    };
+    window.addEventListener("bnd:trailer-open", onTrailerOpen);
+    window.addEventListener("bnd:trailer-close", onTrailerClose);
+    return () => {
+      window.removeEventListener("bnd:trailer-open", onTrailerOpen);
+      window.removeEventListener("bnd:trailer-close", onTrailerClose);
+    };
   }, []);
 
   /* touch-opened controls close themselves after 2s of no interaction —

@@ -10,7 +10,6 @@ import { useSession } from "@/components/auth/SessionProvider";
 // Logged-in users see a "u/username" chip that opens a small account popup
 // (Forum + Sign out) instead of the SWING IN CTA.
 export default function Nav({
-  isDesktop,
   mobileMenuVisible,
   navItems,
   onGoHome,
@@ -44,9 +43,12 @@ export default function Nav({
           <img src="/assets/nav-logo.png" alt="Spider-Man: Brand New Day" style={s("height: clamp(44px, 4.4vw, 64px); width: auto; display: block; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6));")} />
         </a>
 
-        {/* DESKTOP: menu + SWING IN */}
-        {isDesktop && (
-          <div style={s("display: flex; align-items: center; gap: clamp(20px, 3vw, 44px);")}>
+        {/* DESKTOP: menu + SWING IN. Both nav variants are always in the DOM and
+            CSS picks one by breakpoint (.bnd-nav-desktop / .bnd-nav-burger in
+            globals.css) — gating them on the isDesktop STATE meant the server
+            HTML (which defaults to desktop) showed the full-width menu on phones
+            until hydration measured the window, then snapped into a hamburger. */}
+        <div className="bnd-nav-desktop" style={s("display: flex; align-items: center; gap: clamp(20px, 3vw, 44px);")}>
             <ul style={s("list-style: none; margin: 0; padding: 0; display: flex; gap: clamp(16px, 2.2vw, 28px); align-items: center;")}>
               {navItems.map((item) => (
                 <li key={item.label} style={s("position: relative; display: flex; align-items: center; gap: 6px;")}>
@@ -116,11 +118,9 @@ export default function Nav({
               </button>
             )}
           </div>
-        )}
 
         {/* MOBILE: hamburger — morphs into an X while the menu is open */}
-        {!isDesktop && (
-          <button onClick={onToggleMobileMenu} aria-label={mobileMenuVisible ? "Close menu" : "Menu"} aria-expanded={mobileMenuVisible} style={s("border: 0; background: rgba(8,8,12,0.4); width: 46px; height: 46px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 0 1px rgba(255,255,255,0.08);")}>
+        <button className="bnd-nav-burger" onClick={onToggleMobileMenu} aria-label={mobileMenuVisible ? "Close menu" : "Menu"} aria-expanded={mobileMenuVisible} style={s("border: 0; background: rgba(8,8,12,0.4); width: 46px; height: 46px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 0 1px rgba(255,255,255,0.08);")}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round">
               {/* lines sit 5 units apart; with fill-box origins the outer pair
                   translates onto the middle line and rotates into an X */}
@@ -129,7 +129,6 @@ export default function Nav({
               <path d="M4 17h16" style={{ transformBox: "fill-box", transformOrigin: "center", transition: "transform 260ms cubic-bezier(.2,.7,.2,1)", transform: mobileMenuVisible ? "translateY(-5px) rotate(-45deg)" : "none" }} />
             </svg>
           </button>
-        )}
       </nav>
 
       {/* MOBILE MENU BACKDROP — dims + blurs the page behind the menu so its
