@@ -951,7 +951,7 @@ ADMIN_SEED_PASSWORD=   # required, no default — choose a strong one
 # ── App ───────────────────────────────────────────
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# ── Uploads & storage ─────────────────────────────
+# ── Uploads & storage ────────────────────────────
 MAX_IMAGE_UPLOAD_MB=5
 MAX_VIDEO_UPLOAD_MB=50
 STORAGE_DRIVER=local   # switch to "s3" + fill S3_* → S3 storage, no code change
