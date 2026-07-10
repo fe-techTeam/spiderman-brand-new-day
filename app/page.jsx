@@ -1244,7 +1244,7 @@ export default function Home() {
           {!(twinMode && user) && (
             <>
               {/* centered header */}
-              <div data-page-content data-reveal className="bnd-reveal" style={s("position: absolute; left: 0; right: 0; bottom: clamp(52px, 9vh, 96px); z-index: 6; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 24px;")}>
+              <div data-page-content data-reveal className="bnd-reveal" style={s(`position: absolute; left: 0; right: 0; ${isDesktop ? "bottom: clamp(52px, 9vh, 96px);" : "top: 0; bottom: 0; justify-content: center;"} z-index: 6; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 24px;`)}>
                 <h2 className="bnd-head" style={s("animation-delay: 120ms; margin: 0; font-family: 'Oswald', sans-serif; font-style: italic; font-size: clamp(22px, 3.4vw, 46px); line-height: 1; font-weight: 600; letter-spacing: 0.01em; text-transform: uppercase; color: #fff; text-shadow: 0 6px 34px rgba(0,0,0,0.6); white-space: nowrap;")}>
                   The Web grows a little <span style={{ color: "#ff2f40" }}>every second.</span>
                 </h2>
@@ -1651,9 +1651,10 @@ export default function Home() {
               <p style={s("margin: 0 0 24px; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.62); max-width: 320px;")}>Anyone can wear the mask. Step into the Spider World and find your place in the Web.</p>
               <div style={s("display: flex; gap: 10px;")}>
                 {[
-                  ["X", <path key="p" d="M18.9 2H22l-7.3 8.3L23 22h-6.8l-5-6.6L5.5 22H2.4l7.8-8.9L1.5 2h6.9l4.6 6.1L18.9 2zm-2.4 18h1.9L7.6 4H5.6l10.9 16z" />],
+                  ["X", "https://x.com/sonypicsindia?s=21", <path key="p" d="M18.9 2H22l-7.3 8.3L23 22h-6.8l-5-6.6L5.5 22H2.4l7.8-8.9L1.5 2h6.9l4.6 6.1L18.9 2zm-2.4 18h1.9L7.6 4H5.6l10.9 16z" />],
                   [
                     "Instagram",
+                    "https://www.instagram.com/sonypicturesin?igsh=dXV1enlieG96ZGxk",
                     <g key="g">
                       <rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" strokeWidth="2" />
                       <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -1662,18 +1663,19 @@ export default function Home() {
                   ],
                   [
                     "YouTube",
+                    "https://youtube.com/@sonypicturesindia?si=38mx3EayIsfFU97y",
                     <g key="g">
                       <path d="M22 8.2a3 3 0 00-2.1-2.1C18 5.6 12 5.6 12 5.6s-6 0-7.9.5A3 3 0 002 8.2 31 31 0 001.6 12 31 31 0 002 15.8a3 3 0 002.1 2.1c1.9.5 7.9.5 7.9.5s6 0 7.9-.5a3 3 0 002.1-2.1c.3-1.9.4-3.8.4-3.8s0-1.9-.4-3.8z" />
                       <path d="M10 15l5-3-5-3v6z" fill="#0b0510" />
                     </g>,
                   ],
-                  ["TikTok", <path key="p" d="M16.5 3c.3 2.1 1.5 3.6 3.5 3.9v2.7c-1.2 0-2.4-.4-3.5-1.1v5.9c0 3.1-2.3 5.6-5.4 5.6S5.7 17.5 5.7 14.4c0-3 2.2-5.4 5.2-5.5v2.8c-1.4.1-2.4 1.2-2.4 2.7 0 1.5 1.1 2.7 2.6 2.7s2.6-1.2 2.6-2.9V3h2.8z" />],
-                  ["Facebook", <path key="p" d="M22 12a10 10 0 10-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.2c-1.2 0-1.6.8-1.6 1.5V12h2.7l-.4 2.9h-2.3v7A10 10 0 0022 12z" />],
-                ].map(([name, icon]) => (
+                  ["Facebook", "https://www.facebook.com/sonypicturesofindia?mibextid=wwXIfr&mibextid=wwXIfr", <path key="p" d="M22 12a10 10 0 10-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.2c-1.2 0-1.6.8-1.6 1.5V12h2.7l-.4 2.9h-2.3v7A10 10 0 0022 12z" />],
+                ].map(([name, url, icon]) => (
                   <a
                     key={name}
-                    href="#"
-                    onClick={(e) => e.preventDefault()}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     aria-label={name}
                     data-web-hover="true"
                     className="footer-social"
@@ -1740,17 +1742,6 @@ export default function Home() {
           {/* bottom bar */}
           <div style={s("max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: 18px clamp(24px, 5vw, 80px) clamp(22px, 3vh, 34px); border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;")}>
             <div style={s("font-size: 11.5px; letter-spacing: 0.05em; color: rgba(255,255,255,0.4);")}>© 2026 Columbia Pictures Industries, Inc. All rights reserved. &nbsp;·&nbsp; This film is not yet rated.</div>
-            <div style={s("display: flex; gap: 24px; flex-wrap: wrap;")}>
-              <a href="#" onClick={(e) => e.preventDefault()} data-web-hover="true" className="footer-link" style={s("text-decoration: none; font-size: 11.5px; letter-spacing: 0.06em; color: rgba(255,255,255,0.5); transition: color .2s ease;")}>
-                Privacy Policy
-              </a>
-              <a href="#" onClick={(e) => e.preventDefault()} data-web-hover="true" className="footer-link" style={s("text-decoration: none; font-size: 11.5px; letter-spacing: 0.06em; color: rgba(255,255,255,0.5); transition: color .2s ease;")}>
-                Terms of Use
-              </a>
-              <a href="#" onClick={(e) => e.preventDefault()} data-web-hover="true" className="footer-link" style={s("text-decoration: none; font-size: 11.5px; letter-spacing: 0.06em; color: rgba(255,255,255,0.5); transition: color .2s ease;")}>
-                Cookie Settings
-              </a>
-            </div>
           </div>
         </div>
       </footer>
