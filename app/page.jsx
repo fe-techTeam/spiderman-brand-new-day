@@ -398,6 +398,7 @@ export default function Home() {
     // scrolling keeps advancing (no lag/lockout) yet one fling = one section.
     let wheelSamples = []; // trailing |deltaY| magnitudes
     let wheelLastTs = 0;
+    let wheelBlockUntil = 0; // post-transition cooldown — see onWheel
     const avgTail = (arr, n) => {
       const start = Math.max(0, arr.length - n);
       let sum = 0;
@@ -438,8 +439,19 @@ export default function Home() {
     };
     const scrollInstant = (target) => {
       // must actually be instant: with CSS smooth-scroll the page would still
-      // be gliding when the shutter reopens
+      // be gliding when the shutter reopens. iOS Safari also runs snap physics
+      // on PROGRAMMATIC jumps — with scroll-snap-stop: always it clamps any
+      // hop past the adjacent section (menu/logo jumps landed one section over
+      // or reverted) — so snapping is suspended for the hop and restored once
+      // the landing (exactly on a snap point) has painted.
+      const html = document.documentElement;
+      html.style.scrollSnapType = "none";
       window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY, behavior: "instant" });
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          html.style.scrollSnapType = "";
+        })
+      );
       kickRAF();
     };
     const revealPage = (el) => {
@@ -546,7 +558,9 @@ export default function Home() {
         if (paging) return;
         pageIndex = idx;
         if (reduceMotion) {
-          targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
+          // instant, not smooth: kinder to reduced-motion users, and iOS clamps
+          // multi-section smooth scrolls to one snap stop anyway
+          scrollInstant(targetEl);
         } else {
           paging = true;
           mobileBlinkBusyRef.current = true;
@@ -566,6 +580,12 @@ export default function Home() {
       const done = () =>
         setTimeout(() => {
           paging = false;
+          // Brief wheel cooldown after the transition lands: a flick's inertia
+          // can still read as "not decaying" right here and chain a second
+          // advance. 350ms pushes the check into the tail where the decay
+          // filter catches it; sustained deliberate scrolling just pages a
+          // beat calmer, and keyboard/touch paths don't consult this.
+          wheelBlockUntil = performance.now() + 350;
         }, 60);
       const style = reduceMotion ? "dissolve" : transStyle;
       if (style === "camera") transCamera(targetEl, done);
@@ -602,17 +622,27 @@ export default function Home() {
       wheelLastTs = now;
       wheelSamples.push(Math.abs(ev.deltaY));
       if (wheelSamples.length > 80) wheelSamples.shift(); // bound the buffer
-      if (paging) return; // swallow everything during the ~530ms blink transition
+      if (paging || now < wheelBlockUntil) return; // swallow during the blink + landing cooldown
       // Advance only when the movement is NOT decaying: recent average (last ~10
       // events) at/above the wider window (last ~60). A fresh flick/notch spikes,
       // so recent≥wide → advance; a single fling's tail shrinks, so recent<wide →
       // ignored (kills the double-advance). Sustained fast scrolling keeps
       // recent≈wide → keeps advancing once per transition (kills the lag).
       if (avgTail(wheelSamples, 10) < avgTail(wheelSamples, 60)) return;
-      // A gesture's opening events must show real intent: sub-2px deltas right
+      // The global check misses inertia's EARLY decay right after a transition:
+      // the wide window is dragged down by the gesture's quiet ramp-up, so the
+      // peak-heavy recent still reads "sustained" and chains a second advance.
+      // Compare the last 5 events against the 5 just before them instead —
+      // active input holds level (steady decay runs ~0.47 per 5 events, well
+      // under the 0.85 line; hand wobble stays above it).
+      const older = wheelSamples.slice(-10, -5);
+      if (older.length >= 3 && avgTail(older, 5) * 0.85 > avgTail(wheelSamples, 5)) return;
+      // A gesture's opening events must show real intent: small deltas right
       // after a buffer reset are a momentum tail's last sparse breaths (>200ms
-      // apart), not a new scroll — without this they'd read as a fresh gesture.
-      if (wheelSamples.length <= 3 && Math.abs(ev.deltaY) < 2) return;
+      // apart), not a new scroll — without this they'd read as a fresh gesture
+      // and chain an extra advance. Real gestures clear 8px within 3 events
+      // (a mouse notch is ~120 on its first); tail crumbs stay under it.
+      if (wheelSamples.length <= 3 && Math.abs(ev.deltaY) < 8) return;
       const nxt = nextPageIdx(ev.deltaY > 0 ? 1 : -1);
       if (nxt < 0) return; // nothing above the first / below the last
       goToPage(nxt);
@@ -990,7 +1020,11 @@ export default function Home() {
     },
   }));
 
-  const spideyWidth = isDesktop ? "clamp(300px, 32vw, 560px)" : "62vw";
+  // combined spidey+web art: spidey himself is ~47% of the image width, so
+  // these run ~2× the old spidey-only widths to keep him the same size
+  // (desktop shrunk 10% + raised 35px per design feedback)
+  const spideyWidth = isDesktop ? "clamp(576px, 59.4vw, 1035px)" : "130vw";
+  const spideyTop = isDesktop ? "calc(clamp(48px, 8vh, 96px) - 35px)" : "clamp(48px, 8vh, 96px)";
   const logoWidth = isDesktop ? "min(720px, 42vw)" : "82vw";
   const railSections = RAIL_SECTIONS.filter((sec) => !(hideIdentity && sec.key === "identity") && !(!showLivingWeb && sec.key === "livingweb"));
   const railIdx = Math.max(
@@ -1017,15 +1051,13 @@ export default function Home() {
         {/* SUN GLOW (desktop art only — the mobile banner bakes in its own flare) */}
         <div className="bnd-hero-deco" style={s("position: absolute; top: 4%; left: 19%; width: 520px; height: 520px; z-index: 2; border-radius: 50%; background: radial-gradient(circle, rgba(255,236,200,0.55) 0%, rgba(255,180,90,0.15) 40%, transparent 70%); filter: blur(8px); animation: bnd-glow-breath 4500ms ease-in-out infinite; pointer-events: none;")}></div>
 
-        {/* WEB OVERLAY (also on phones — scaled up there so spidey still hangs from it) */}
-        <div className="bnd-hero-deco bnd-hero-web" style={s("position: absolute; top: clamp(40px, 7vh, 70px); left: 58%; transform: translateX(calc(-50% - 13vw)); width: min(1216px, 63vw); z-index: 20; pointer-events: none;")}>
-          <img src="/assets/web.png" alt="" style={s("width: 100%; height: auto; display: block; filter: blur(1.6px); opacity: 0.65; animation: bnd-spidey-bob 5s ease-in-out infinite; animation-delay: -1s;")} />
-        </div>
-
-        {/* SPIDEY (also floats on phones — only the glow/web decorations hide there) */}
-        <div ref={spideyWrapRef} className="bnd-hero-deco bnd-hero-spidey" style={s("position: absolute; top: clamp(105px, 12vh, 165px); left: 50%; z-index: 15; pointer-events: none; transform: translateX(calc(-50% - 11vw - 10px));")}>
-          <div style={s(`position: relative; width: ${spideyWidth}; aspect-ratio: 636/646; will-change: transform; animation: bnd-spidey-bob 5s ease-in-out infinite; animation-delay: -1s;`)}>
-            <img src="/assets/spiderman-hero.png" alt="Spider-Man" style={s("width: 100%; height: 100%; display: block; filter: drop-shadow(0 30px 50px rgba(0,0,0,0.55)) drop-shadow(0 8px 18px rgba(255,120,40,0.18));")} />
+        {/* SPIDEY + WEB (one combined artwork — also floats on phones; only the
+            glow decoration hides there). Spidey fills ~47% of the art's width,
+            so the container runs ~2× the old spidey width to keep him the same
+            on-screen size. */}
+        <div ref={spideyWrapRef} className="bnd-hero-deco bnd-hero-spidey" style={s(`position: absolute; top: ${spideyTop}; left: 50%; z-index: 15; pointer-events: none; transform: translateX(calc(-50% - 11vw - 10px));`)}>
+          <div style={s(`position: relative; width: ${spideyWidth}; aspect-ratio: 1210/877; will-change: transform; animation: bnd-spidey-bob 5s ease-in-out infinite; animation-delay: -1s;`)}>
+            <img src="/assets/spidey-web-hero.png" alt="Spider-Man" style={s("width: 100%; height: 100%; display: block; filter: drop-shadow(0 30px 50px rgba(0,0,0,0.55)) drop-shadow(0 8px 18px rgba(255,120,40,0.18));")} />
           </div>
         </div>
 
@@ -1738,6 +1770,7 @@ export default function Home() {
       <WalkthroughModal
         walk={walkVis}
         items={walkItems}
+        joinLabel={user ? "Enter Forum" : "Join the Spider World"}
         onClose={() => {
           sfxRef.current && sfxRef.current.stopHum();
           setWalkOpen(false);

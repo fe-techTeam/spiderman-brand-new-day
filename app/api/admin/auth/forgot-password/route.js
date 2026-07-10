@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { query } from "@/lib/server/db";
 import { vEmail } from "@/lib/server/validate";
 import { rateLimit } from "@/lib/server/rate-limit";
-import { isEmailConfigured, sendPasswordResetEmail } from "@/lib/server/email";
+import { emailBaseUrl, isEmailConfigured, sendPasswordResetEmail } from "@/lib/server/email";
 
 // Admin self-service reset — same shape as the portal flow (always 200,
 // hashed single-use token, 30-min expiry) but against admin_users and the
@@ -29,7 +29,7 @@ export async function POST(request) {
     [admin.id, tokenHash]
   );
 
-  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === "production" ? "https://spidermania.in" : "http://localhost:3000")}/admin/reset-password?token=${token}`;
+  const resetUrl = `${emailBaseUrl()}/admin/reset-password?token=${token}`;
   if (isEmailConfigured()) {
     try {
       await sendPasswordResetEmail({ to: email, resetUrl, admin: true });

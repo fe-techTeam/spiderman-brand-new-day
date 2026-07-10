@@ -19,6 +19,13 @@ export default function CursorFx() {
     if (isAdmin) return;
     if (!window.matchMedia || !window.matchMedia("(pointer: fine)").matches) return;
 
+    // warm both cursor images so the first hover swap can't flash the native
+    // fallback while the SVG is still being fetched/decoded
+    for (const src of ["/assets/cursor-spider.svg", "/assets/cursor-spider-red.svg"]) {
+      const img = new Image();
+      img.src = src;
+    }
+
     const wrap = document.createElement("div");
     wrap.className = "bnd-cursor-fx";
     wrap.setAttribute("aria-hidden", "true");
