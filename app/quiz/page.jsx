@@ -14,6 +14,7 @@ import { s } from "@/lib/style";
 import { portalApi } from "@/lib/portal/api";
 import { useSession } from "@/components/auth/SessionProvider";
 import Nav from "@/components/main/Nav";
+import ShareIdentityButton from "@/components/main/ShareIdentityButton";
 
 const EYEBROW = "font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.34em; text-transform: uppercase; color: #ff6b79;";
 const ERR_LINE = "margin: 14px 0 0; font-size: 13px; color: #ff5a6a;";
@@ -359,13 +360,10 @@ export default function QuizPage() {
             </>
           )}
 
-          {/* CTAs: twins + retake (+ forum) */}
+          {/* CTAs: share (the hero action) + twins + retake (+ forum) */}
           <div style={s("display: flex; gap: 14px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: clamp(22px, 3.4vh, 36px);")}>
-            <button onClick={goToTwins} data-web-hover="true" className="ri-cta" style={s("position: relative; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
-              <span style={s("display: block; padding: 2px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);")}>
-                <span style={s("position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 10px; padding: 15px 34px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 14px; letter-spacing: 0.18em; text-transform: uppercase;")}><span className="ri-sheen"></span>Meet Your Web Twins →</span>
-              </span>
-            </button>
+            <ShareIdentityButton avatar={av} spideyCode={reveal.spideyCode} variant="reveal" />
+            <button onClick={goToTwins} data-web-hover="true" className="ri-ghost" style={s("border: 1px solid rgba(255,60,74,0.45); background: transparent; cursor: pointer; padding: 15px 30px; clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #ff8a94; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 14px; letter-spacing: 0.18em; text-transform: uppercase; transition: color .2s ease, border-color .2s ease;")}>Meet Your Web Twins →</button>
             <button onClick={startRetake} data-web-hover="true" className="ri-ghost" style={s("border: 1px solid rgba(255,255,255,0.2); background: transparent; cursor: pointer; padding: 15px 30px; clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: rgba(255,255,255,0.8); font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 14px; letter-spacing: 0.18em; text-transform: uppercase; transition: color .2s ease, border-color .2s ease;")}>Retake</button>
           </div>
           <button onClick={enterForum} disabled={saving} data-web-hover="true" className="link-hover-red" style={s(`margin-top: 20px; ${GHOST_LINK}`)}>{saving ? "Swinging in…" : "Enter the Forum ›"}</button>

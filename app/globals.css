@@ -787,6 +787,8 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
 .ri-sheen { position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.18), transparent); transform: skewX(-18deg); pointer-events: none; }
 @keyframes ri-sheen-go { from { left: -60%; } to { left: 140%; } }
 .ri-ghost:hover { color: #fff !important; border-color: rgba(255,60,74,0.6) !important; }
+/* Share-identity fallback sheet (ShareIdentityButton) option rows */
+.lw-share-row:hover { border-color: rgba(255,60,74,0.5) !important; background: rgba(255,40,60,0.1) !important; }
 @media (max-width: 680px) {
   .ri-progress-wrap { flex-wrap: wrap; justify-content: center; }
   .ri-cta span span { padding: 12px 24px !important; font-size: 12.5px !important; }

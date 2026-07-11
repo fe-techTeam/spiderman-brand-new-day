@@ -37,6 +37,7 @@ export default function AdminDashboardPage() {
   const { counts, latestUsers, identitySpread } = data;
   const kpis = [
     { label: "Total users", value: counts.totalUsers, sub: `+${counts.newUsers7d} this week` },
+    { label: "Identity shares", value: counts.totalShares, sub: `+${counts.newShares7d} this week` },
     { label: "Active posts", value: counts.activePosts, sub: `${counts.activeComments} comments` },
   ];
 

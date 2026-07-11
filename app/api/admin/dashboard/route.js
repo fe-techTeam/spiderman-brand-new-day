@@ -14,7 +14,9 @@ export async function GET() {
       (SELECT COUNT(*) FROM mj_messages WHERE status = 'pending') AS pendingMj,
       (SELECT COUNT(*) FROM fan_art WHERE status = 'pending') AS pendingFanArt,
       (SELECT COUNT(*) FROM reports WHERE status = 'open') AS openReports,
-      (SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL 7 DAY) AS newUsers7d
+      (SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL 7 DAY) AS newUsers7d,
+      (SELECT COUNT(*) FROM shares) AS totalShares,
+      (SELECT COUNT(*) FROM shares WHERE created_at > NOW() - INTERVAL 7 DAY) AS newShares7d
   `);
 
   const latestUsers = await query(`
