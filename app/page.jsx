@@ -14,6 +14,7 @@ import { portalApi } from "@/lib/portal/api";
 import { Flag, DotMarker } from "@/components/Flags";
 import { useSession } from "@/components/auth/SessionProvider";
 import Nav from "@/components/main/Nav";
+import ShareIdentityButton from "@/components/main/ShareIdentityButton";
 import WalkthroughModal from "@/components/main/WalkthroughModal";
 import TrailerModal from "@/components/main/TrailerModal";
 // MusicPlayer is mounted once in the root layout so it persists across routes.
@@ -106,7 +107,7 @@ const RAIL_SECTIONS = [
 
 export default function Home() {
   const router = useRouter();
-  const { user, openAuth, authOpen } = useSession();
+  const { user, loading: sessionLoading, openAuth, authOpen } = useSession();
 
   const [walkOpen, setWalkOpen] = useState(false);
   const [trailerOpen, setTrailerOpen] = useState(false);
@@ -120,6 +121,12 @@ export default function Home() {
   const [twinData, setTwinData] = useState(null); // { count, twins[] } once /api/twins answers
   const [twinsVisible, setTwinsVisible] = useState(TWIN_PAGE);
   const [activeSection, setActiveSection] = useState("hero");
+  // the ShareIdentityButton fallback sheet — tracked like the other popups so
+  // the wheel/key pager and scroll lock pause underneath it
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  // a /#section deep link served either by the mount pass or, for the
+  // session-gated sections (identity/livingweb), by the retry effect below
+  const hashServedRef = useRef(false);
 
   // Logged-in members already picked their identity during onboarding — the
   // "Who Are You Under the Mask?" section only shows for guests / quiz-pending.
@@ -156,6 +163,7 @@ export default function Home() {
   const mobileMenuOpenRef = useRef(false);
   const twinModeRef = useRef(false);
   const authOpenRef = useRef(false);
+  const shareSheetOpenRef = useRef(false);
 
   isDesktopRef.current = isDesktop;
   walkOpenRef.current = walkOpen;
@@ -163,6 +171,7 @@ export default function Home() {
   mobileMenuOpenRef.current = mobileMenuOpen;
   twinModeRef.current = twinMode;
   authOpenRef.current = authOpen;
+  shareSheetOpenRef.current = shareSheetOpen;
 
   /* Scroll-snap + smooth-scroll are landing-page mechanics — turn them on for
      <html> only while this page is mounted, so they never bleed onto the Forum,
@@ -424,7 +433,7 @@ export default function Home() {
     };
     const transStyle = "shutter";
     const pages = () => Array.from(document.querySelectorAll("[data-page]"));
-    const modalOpen = () => trailerOpenRef.current || mobileMenuOpenRef.current || walkOpenRef.current || authOpenRef.current;
+    const modalOpen = () => trailerOpenRef.current || mobileMenuOpenRef.current || walkOpenRef.current || authOpenRef.current || shareSheetOpenRef.current;
     // Pick the next section from the real scroll geometry, not the counter —
     // the counter goes stale if the scroll drifts while a popup is open or
     // after an anchor jump, and a stale counter blinks to the wrong section.
@@ -662,11 +671,13 @@ export default function Home() {
     const hashKey = (window.location.hash || "").slice(1);
     if (hashKey) {
       const hashTarget = document.querySelector(`[data-page="${hashKey}"]`);
-      if (hashTarget)
+      if (hashTarget) {
+        hashServedRef.current = true;
         setTimeout(() => {
           scrollInstant(hashTarget);
           pageIndex = pages().indexOf(hashTarget);
         }, 60);
+      }
     }
 
     const onWheel = (ev) => {
@@ -881,7 +892,33 @@ export default function Home() {
     document.querySelectorAll("[data-reveal]").forEach((el) => revealObsRef.current && revealObsRef.current.observe(el));
     document.querySelectorAll("[data-page]").forEach((el) => sectionObsRef.current && sectionObsRef.current.observe(el));
     window.dispatchEvent(new Event("resize"));
-  }, [hideIdentity, showLivingWeb]);
+    // deep-link retry: a cold /#livingweb (share links) arrives before the
+    // session resolves, so the mount pass finds no such section — jump once
+    // the section it points at actually exists. goToPage silently drops calls
+    // while a transition is mid-flight, so confirm the landing after a beat
+    // and re-issue once. A hash that still matches nothing after the session
+    // settles is disarmed, so a guest holding a members-only #livingweb
+    // doesn't get yanked there by a much-later in-page login.
+    const hashKey = (window.location.hash || "").slice(1);
+    if (!hashKey || hashServedRef.current) return;
+    const findTarget = () => {
+      const list = Array.from(document.querySelectorAll("[data-page]"));
+      return { list, idx: list.findIndex((el) => el.getAttribute("data-page") === hashKey) };
+    };
+    const { idx } = findTarget();
+    if (idx >= 0 && goToPageRef.current) {
+      hashServedRef.current = true;
+      goToPageRef.current(idx);
+      const settle = setTimeout(() => {
+        const again = findTarget();
+        if (again.idx < 0 || !again.list[again.idx].isConnected) return;
+        const top = again.list[again.idx].getBoundingClientRect().top;
+        if (Math.abs(top) > window.innerHeight / 2) goToPageRef.current(again.idx);
+      }, 1000);
+      return () => clearTimeout(settle);
+    }
+    if (!sessionLoading) hashServedRef.current = true; // dead link for this session
+  }, [hideIdentity, showLivingWeb, sessionLoading]);
 
   /* the Living Web keeps its revealed (twin) state once the user opens it */
   useEffect(() => {
@@ -927,12 +964,12 @@ export default function Home() {
      to a halfway point behind the popup and the pager blinks oddly after it
      closes (popups keep their own internal scrolling) */
   useEffect(() => {
-    const lock = walkOpen || trailerOpen || mobileMenuOpen || authOpen;
+    const lock = walkOpen || trailerOpen || mobileMenuOpen || authOpen || shareSheetOpen;
     document.documentElement.style.overflow = lock ? "hidden" : "";
     return () => {
       document.documentElement.style.overflow = "";
     };
-  }, [walkOpen, trailerOpen, mobileMenuOpen, authOpen]);
+  }, [walkOpen, trailerOpen, mobileMenuOpen, authOpen, shareSheetOpen]);
 
   /* NOTE: the /stats fetch that fed "you share your identity with N members
      across M countries" left with the parked twins reveal — it returns when
@@ -1282,22 +1319,15 @@ export default function Home() {
             </>
           )}
 
-          {/* TWIN MODE — members only. Left: your assigned collectible card with
-            the Spidey Code above it (same treatment as the quiz reveal).
-            Right: the live twins roster — how many members share the identity,
-            a scroll-paginated random 50 of them, and the retake-quiz CTA. */}
+          {/* TWIN MODE — members only. Left: your assigned collectible card
+            (same treatment as the quiz reveal). Right: the live twins roster —
+            the Spidey Code, how many members share the identity, a
+            scroll-paginated random 50 of them, and the share/retake CTAs. */}
           {twinMode && user && (
             <div className="bnd-reveal in" style={s(`position: absolute; inset: 0; z-index: 7; box-sizing: border-box; padding: ${isDesktop ? "clamp(76px, 11vh, 110px) clamp(24px, 5vw, 70px) clamp(22px, 4vh, 36px)" : "64px 18px 14px"}; display: flex; align-items: center; justify-content: center;`)}>
               <div style={s(`width: 100%; max-width: 1100px; display: flex; flex-direction: ${isDesktop ? "row" : "column"}; align-items: center; justify-content: center; gap: ${isDesktop ? "clamp(40px, 6vw, 96px)" : "16px"};`)}>
-                {/* ---- your identity: Spidey Code over the collectible card ---- */}
+                {/* ---- your identity: the collectible card ---- */}
                 <div style={s("flex-shrink: 0; display: flex; flex-direction: column; align-items: center; min-width: 0;")}>
-                  <div className="bnd-line" style={s(`animation-delay: 80ms; display: inline-flex; align-items: center; gap: 10px; margin-bottom: ${isDesktop ? "clamp(14px, 2.2vh, 22px)" : "10px"}; flex-wrap: wrap; justify-content: center;`)}>
-                    <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, transparent, ${heroColor})` }}></span>
-                    <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: rgba(255,255,255,0.5);")}>Spidey Code</span>
-                    <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, fontWeight: 600, letterSpacing: "0.2em", color: heroColor, textShadow: `0 0 12px ${heroGlow}` }}>{user.spideyCode || "—"}</span>
-                    <span style={{ width: 26, height: 1, background: `linear-gradient(90deg, ${heroColor}, transparent)` }}></span>
-                  </div>
-
                   {user.avatar?.card ? (
                     /* the assigned collectible card, with the reveal-screen effect
                      (entry punch, ambient glow, float, pointer tilt + glare) */
@@ -1327,10 +1357,17 @@ export default function Home() {
                 <div className="bnd-line" style={s(`animation-delay: 260ms; width: ${isDesktop ? "min(440px, 44vw)" : "min(440px, 100%)"}; min-width: 0;`)}>
                   <div style={{ padding: 1, background: `linear-gradient(160deg, ${heroGlow}, rgba(255,255,255,0.09) 55%, rgba(255,255,255,0.04))`, clipPath: "polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px)", boxShadow: "0 24px 60px rgba(0,0,0,0.45)" }}>
                     <div style={s(`background: linear-gradient(165deg, rgba(13,13,24,0.92), rgba(7,7,14,0.95)); clip-path: polygon(17px 0, 100% 0, 100% calc(100% - 17px), calc(100% - 17px) 100%, 0 100%, 0 17px); padding: ${isDesktop ? "20px 22px 16px" : "14px 14px 12px"}; backdrop-filter: blur(6px);`)}>
-                      {/* live eyebrow */}
-                      <div style={s("display: inline-flex; align-items: center; gap: 8px; margin-bottom: 10px;")}>
-                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: heroColor, boxShadow: `0 0 8px ${heroGlow}`, animation: "bnd-blip 2s ease-in-out infinite" }}></span>
-                        <span style={s("font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.5);")}>The Living Web · Matches</span>
+                      {/* live eyebrow + the member's Spidey Code (moved in from
+                        over the card so the box carries the identity stats) */}
+                      <div style={s("display: flex; align-items: center; justify-content: space-between; gap: 8px 14px; margin-bottom: 10px; flex-wrap: wrap;")}>
+                        <span style={s("display: inline-flex; align-items: center; gap: 8px;")}>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: heroColor, boxShadow: `0 0 8px ${heroGlow}`, animation: "bnd-blip 2s ease-in-out infinite" }}></span>
+                          <span style={s("font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.5);")}>The Living Web · Matches</span>
+                        </span>
+                        <span style={s("display: inline-flex; align-items: baseline; gap: 7px;")}>
+                          <span style={s("font-family: 'Oswald', sans-serif; font-size: 9.5px; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(255,255,255,0.45);")}>Spidey Code</span>
+                          <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 12.5, fontWeight: 600, letterSpacing: "0.18em", color: heroColor, textShadow: `0 0 12px ${heroGlow}` }}>{user.spideyCode || "—"}</span>
+                        </span>
                       </div>
 
                       {/* the count — the headline of the reveal */}
@@ -1369,29 +1406,33 @@ export default function Home() {
                         </div>
                       )}
 
-                      {/* footer: shown-of counter + retake CTA */}
-                      <div style={s("margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;")}>
+                      {/* footer: shown-of counter + share (primary) + retake */}
+                      <div style={s("margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; gap: 10px 12px; flex-wrap: wrap;")}>
                         {twinData && twinData.twins.length > 0 && (
                           <span style={s("font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.45);")}>
                             {Math.min(twinsVisible, twinData.twins.length)} of {twinData.twins.length} shown{twinData.count > twinData.twins.length ? ` · ${twinData.count} total` : ""}
                           </span>
                         )}
-                        <button
-                          onClick={() => {
-                            sfxRef.current && sfxRef.current.play("click");
-                            router.push("/quiz?retake=1");
-                          }}
-                          data-web-hover="true"
-                          className="bnd-cta"
-                          style={s("margin-left: auto; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}
-                        >
-                          <span
-                            className="bnd-cta-inner"
-                            style={s("display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;")}
+                        <span style={s("margin-left: auto; display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end;")}>
+                          <ShareIdentityButton
+                            avatar={user.avatar}
+                            spideyCode={user.spideyCode}
+                            variant="twins"
+                            onSfx={() => sfxRef.current && sfxRef.current.play("click")}
+                            onOpenChange={setShareSheetOpen}
+                          />
+                          <button
+                            onClick={() => {
+                              sfxRef.current && sfxRef.current.play("click");
+                              router.push("/quiz?retake=1");
+                            }}
+                            data-web-hover="true"
+                            className="ri-ghost"
+                            style={s("border: 1px solid rgba(255,255,255,0.2); background: transparent; cursor: pointer; padding: 10px 16px; clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px); color: rgba(255,255,255,0.75); font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; transition: color .2s ease, border-color .2s ease;")}
                           >
-                            <span className="bnd-cta-sheen"></span>↻ Retake Identity Quiz
-                          </span>
-                        </button>
+                            ↻ Retake Quiz
+                          </button>
+                        </span>
                       </div>
                     </div>
                   </div>

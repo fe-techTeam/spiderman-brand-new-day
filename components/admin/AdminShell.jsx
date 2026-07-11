@@ -14,6 +14,7 @@ import {
   Sparkles,
   ShieldCheck,
   ScrollText,
+  Share2,
   LogOut,
   Menu,
   X,
@@ -42,6 +43,7 @@ const NAV_GROUPS = [
     label: "Users & Logs",
     items: [
       { href: "/admin/users", label: "Users", icon: Users, perm: "users.view" },
+      { href: "/admin/shares", label: "Shares", icon: Share2, perm: "shares.view" },
       { href: "/admin/audit", label: "Audit Log", icon: ScrollText, perm: "audit.view" },
     ],
   },
