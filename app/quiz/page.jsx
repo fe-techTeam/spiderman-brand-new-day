@@ -79,9 +79,9 @@ export default function QuizPage() {
     { label: "TRAILER", href: "/" },
     { label: "MJ WALL", href: "/mj-wall" },
     { label: "FORUM", href: "/forum" },
-    { label: "SPIDEY TRACKER", href: "/" },
+    { label: "SPIDEY TRACKER", href: "/", mobileHidden: true },
   ].map((it) => ({
-    label: it.label, locked: false, active: false,
+    label: it.label, locked: false, active: false, mobileHidden: !!it.mobileHidden,
     color: "#fff", cursor: "pointer", title: "",
     onClick: (e) => { e.preventDefault(); router.push(it.href); },
     onMobileClick: (e) => { e.preventDefault(); setMobileMenuOpen(false); router.push(it.href); },

@@ -141,7 +141,7 @@ export default function Nav({
       {/* MOBILE MENU DROPDOWN */}
       {mobileMenuVisible && (
         <div style={s("position: fixed; top: calc(clamp(66px, 9vh, 86px) + 15px); left: 12px; right: 12px; z-index: 55; border-radius: 16px; background: linear-gradient(160deg, #14204d 0%, #0b1440 58%, #2a0710 100%); box-shadow: 0 26px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1) inset; padding: 10px 12px 14px; animation: bnd-menu-drop 260ms cubic-bezier(.2,.7,.2,1) both;")}>
-          {navItems.map((item) => (
+          {navItems.filter((item) => !item.mobileHidden).map((item) => (
             <a
               key={item.label}
               href="#"

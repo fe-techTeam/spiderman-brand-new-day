@@ -1038,6 +1038,7 @@ export default function Home() {
       color: active ? "#ff5a6a" : "#fff",
       cursor: "pointer",
       title: "",
+      mobileHidden: action === "tracker",
       onClick: (e) => {
         e.preventDefault();
         doNav(action);
@@ -1821,9 +1822,9 @@ export default function Home() {
         mobileMenuVisible={!isDesktop && mobileMenuOpen}
         navItems={navItems}
         onGoHome={() => {
+          // already on the landing page — the logo shouldn't navigate or scroll
           dismissKeyboard();
           setMobileMenuOpen(false);
-          goToPageRef.current(0);
         }}
         onGetStarted={goToForm}
         onToggleMobileMenu={() => {
