@@ -22,6 +22,16 @@ const nextConfig = {
   // build. Set DEPLOYMENT_ID at image build time (e.g. the git SHA).
   deploymentId: process.env.DEPLOYMENT_ID || undefined,
 
+  async redirects() {
+    return [
+      // The media wall was renamed Live Feed → Webshots pre-launch; catch any
+      // old links (admin bookmarks, notification emails). API routes keep
+      // their internal /api/live-feed names — this only covers pages.
+      { source: "/live-feed", destination: "/webshots", permanent: false },
+      { source: "/admin/live-feed", destination: "/admin/webshots", permanent: false },
+    ];
+  },
+
   async headers() {
     return [
       {

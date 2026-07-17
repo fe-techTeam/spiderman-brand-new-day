@@ -17,6 +17,8 @@ const NOTIF_LABELS = {
   "mj-rejected": "Your MJ Wall message wasn't approved",
   "fanart-approved": "Your fan art was approved",
   "fanart-rejected": "Your fan art wasn't approved",
+  "livefeed-approved": "Your Webshots upload is live",
+  "livefeed-rejected": "Your Webshots upload wasn't approved",
 };
 
 function NotificationBell() {

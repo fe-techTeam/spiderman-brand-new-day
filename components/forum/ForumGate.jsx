@@ -15,7 +15,8 @@ export default function ForumGate({ onJoin, onLogin }) {
           {/* spider emblem */}
           <div style={s("position: relative; width: 74px; height: 74px; margin: 0 auto 18px; border-radius: 50%; background: radial-gradient(circle at 40% 32%, #2a1420, #0c0a16); border: 1px solid rgba(255,60,74,0.45); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 22px rgba(0,0,0,0.6), 0 0 26px rgba(255,40,60,0.25);")}>
             <span style={s("position: absolute; inset: -8px; border-radius: 50%; border: 1px solid rgba(255,60,74,0.35); animation: bnd-radar-ring 2.8s ease-out infinite;")}></span>
-            <svg viewBox="0 0 100 100" style={{ width: "56%", height: "56%" }} fill="none" stroke="#ff3a4a" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="50" cy="44" rx="9" ry="12" /><path d="M50 32V16M42 36 22 26M58 36l20-10M43 52 27 66M57 52l16 14M50 56v20" /></svg>
+            {/* the site's spider (same art as the cursor), not a generic one */}
+            <img src="/assets/cursor-spider-red.svg" alt="" style={s("width: 68%; height: 68%; display: block;")} />
           </div>
 
           <div style={s("display: inline-flex; align-items: center; gap: 10px; margin-bottom: 10px;")}>

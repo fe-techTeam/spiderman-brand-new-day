@@ -996,6 +996,8 @@ export default function Home() {
       router.push("/mj-wall"); // MJ Wall detail page
     else if (action === "tracker")
       goToSection("tracker"); // Spidey Tracker section
+    else if (action === "webshots")
+      router.push("/webshots"); // Webshots media wall
     else router.push("/forum");
   };
 
@@ -1063,11 +1065,26 @@ export default function Home() {
     setTwinsVisible((v) => (twinData && v < twinData.twins.length ? Math.min(v + TWIN_PAGE, twinData.twins.length) : v));
   };
 
-  // Which section (if any) each nav item corresponds to — drives the active highlight.
-  const navSections = [null, "mjwall", null, "tracker"];
-  const navItems = ["TRAILER", "MJ WALL", "FORUM", "SPIDEY TRACKER"].map((label, i) => {
-    const action = ["trailer", "mjwall", "forum", "tracker"][i];
-    const active = !!navSections[i] && navSections[i] === activeSection;
+  // Webshots is soft-launched: the navbar link only appears once the admin
+  // "Show on website" toggle is ON (the /webshots URL itself always works).
+  // (The API keeps its internal /live-feed name — see BACKEND.md.)
+  const [webshotsNav, setWebshotsNav] = useState(false);
+  useEffect(() => {
+    portalApi("/live-feed/nav")
+      .then((d) => setWebshotsNav(Boolean(d.navVisible)))
+      .catch(() => {}); // hidden on failure — same as the default
+  }, []);
+
+  // label / action / section (section drives the active highlight)
+  const navDefs = [
+    ["TRAILER", "trailer", null],
+    ["MJ WALL", "mjwall", "mjwall"],
+    ["FORUM", "forum", null],
+    ...(webshotsNav ? [["WEBSHOTS", "webshots", null]] : []),
+    ["SPIDEY TRACKER", "tracker", "tracker"],
+  ];
+  const navItems = navDefs.map(([label, action, section]) => {
+    const active = !!section && section === activeSection;
     return {
       label,
       locked: false,
