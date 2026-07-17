@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   ScrollText,
   Share2,
+  Radio,
   LogOut,
   Menu,
   X,
@@ -35,6 +36,7 @@ const NAV_GROUPS = [
     label: "Moderation",
     items: [
       { href: "/admin/mj-wall", label: "MJ Wall", icon: MessageSquareHeart, perm: "mj.review" },
+      { href: "/admin/webshots", label: "Webshots", icon: Radio, perm: "livefeed.manage" },
       { href: "/admin/forum", label: "Forum", icon: MessagesSquare, perm: "forum.moderate" },
       { href: "/admin/reports", label: "Reports", icon: Flag, perm: "forum.moderate" },
     ],

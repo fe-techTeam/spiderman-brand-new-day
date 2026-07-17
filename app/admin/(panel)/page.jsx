@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowRight, MessageSquareHeart, Flag } from "lucide-react";
+import { ArrowRight, MessageSquareHeart, Flag, Radio } from "lucide-react";
 import { adminApi } from "@/lib/admin/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -73,6 +73,42 @@ export default function AdminDashboardPage() {
               {counts.pendingMj > 0 ? (
                 <>
                   Review the queue <ArrowRight className="size-3.5" />
+                </>
+              ) : (
+                "Queue clear — nothing waiting"
+              )}
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Webshots review queue — louder when member uploads are waiting */}
+        <Link href="/admin/webshots" className="block">
+          <Card
+            className={
+              "relative h-full overflow-hidden transition-colors " +
+              (counts.pendingLiveFeed > 0
+                ? "border-primary/50 bg-gradient-to-br from-primary/20 via-primary/5 to-card hover:border-primary"
+                : "hover:border-primary/50")
+            }
+          >
+            {counts.pendingLiveFeed > 0 && (
+              <div className="pointer-events-none absolute -right-8 -top-8 size-28 rounded-full bg-primary/20 blur-2xl" />
+            )}
+            <CardHeader className="pb-2">
+              <CardDescription
+                className={
+                  "flex items-center gap-2 font-semibold uppercase tracking-[0.14em] " +
+                  (counts.pendingLiveFeed > 0 ? "text-primary" : "")
+                }
+              >
+                <Radio className="size-4" /> Webshots pending
+              </CardDescription>
+              <CardTitle className="text-3xl">{counts.pendingLiveFeed}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              {counts.pendingLiveFeed > 0 ? (
+                <>
+                  Review member uploads <ArrowRight className="size-3.5" />
                 </>
               ) : (
                 "Queue clear — nothing waiting"

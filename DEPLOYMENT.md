@@ -109,7 +109,9 @@ your-bucket/
 ├── posts/          forum post attachments        (app/api/forum/posts)
 ├── avatar-cards/   avatar card art AND profile    (app/api/admin/avatars/card-asset)
 │                   pictures — same endpoint, same prefix
-└── fan-art/        fan-art submissions            (app/api/fan-art)
+├── fan-art/        fan-art submissions            (app/api/fan-art)
+└── live-feed/      Live Feed media — admin posts  (app/api/admin/live-feed)
+                    and member submissions         (app/api/live-feed)
 ```
 
 Notes:
@@ -158,8 +160,8 @@ use `AllViewerExceptHostHeader` and set `NEXT_PUBLIC_APP_URL=https://spidermania
 
 CloudFront only re-checks the origin when a TTL expires, so:
 
-- **Fan-art rejected / media deleted after approval** — it can live at the
-  edge up to 24h. To pull it immediately:
+- **Fan-art or Live Feed media hidden/rejected after approval** — it can live
+  at the edge up to 24h. To pull it immediately:
   `aws cloudfront create-invalidation --distribution-id $CF_DIST_ID --paths "/api/media/<id>"`
 - **Replaced a file in `public/assets/` under the same name** — up to 24h
   stale: `--paths "/assets/*"`.

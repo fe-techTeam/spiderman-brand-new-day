@@ -13,6 +13,7 @@ export async function GET() {
       (SELECT COUNT(*) FROM comments WHERE status = 'active') AS activeComments,
       (SELECT COUNT(*) FROM mj_messages WHERE status = 'pending') AS pendingMj,
       (SELECT COUNT(*) FROM fan_art WHERE status = 'pending') AS pendingFanArt,
+      (SELECT COUNT(*) FROM live_feed WHERE status = 'pending') AS pendingLiveFeed,
       (SELECT COUNT(*) FROM reports WHERE status = 'open') AS openReports,
       (SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL 7 DAY) AS newUsers7d,
       (SELECT COUNT(*) FROM shares) AS totalShares,

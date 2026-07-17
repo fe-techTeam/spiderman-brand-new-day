@@ -11,6 +11,8 @@ const KIND = {
   fanart_approved: "fanart-approved",
   fanart_rejected: "fanart-rejected",
   post_removed: "post-removed",
+  livefeed_approved: "livefeed-approved",
+  livefeed_rejected: "livefeed-rejected",
   system: "system",
 };
 
@@ -18,6 +20,7 @@ function href(n) {
   if (n.post_id) return `/forum/${n.post_id}`;
   if (n.entity_type === "mj_message") return "/mj-wall";
   if (n.entity_type === "fan_art") return "/fan-art";
+  if (n.entity_type === "live_feed") return "/webshots";
   return "/forum";
 }
 
