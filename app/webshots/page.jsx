@@ -10,11 +10,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { s } from "@/lib/style";
 import { useSession } from "@/components/auth/SessionProvider";
 import { portalApi } from "@/lib/portal/api";
 import { relTime } from "@/lib/time";
-import LiveFeedVideo from "@/components/live-feed/LiveFeedVideo";
 import WebshotsReel from "@/components/live-feed/WebshotsReel";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -38,16 +38,6 @@ function StatusChip({ status }) {
   return (
     <span style={s(`display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: ${def.bg}; border: 1px solid ${def.border}; color: ${def.color}; font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; white-space: nowrap;`)}>
       {def.label}
-    </span>
-  );
-}
-
-// Admin drops read like any member's — same muted styling, no badge. Member
-// handles get a "u/" prefix; a credited author or the house account shows as-is.
-function AuthorChip({ author }) {
-  return (
-    <span style={s("color: rgba(255,255,255,0.6); font-size: 12px;")}>
-      {author.isMember ? `u/${author.name}` : author.name}
     </span>
   );
 }
@@ -94,13 +84,12 @@ function WebshotsGate({ onJoin, onLogin }) {
 
 export default function WebshotsPage() {
   const { user, loading: sessionLoading, openAuth } = useSession();
+  const router = useRouter();
   const [feed, setFeed] = useState({ items: [], nextCursor: null });
   const [state, setState] = useState("loading"); // loading | ready | error
   const [loadingMore, setLoadingMore] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [uploadsEnabled, setUploadsEnabled] = useState(false);
   const [mine, setMine] = useState(null);
-  const [reelIndex, setReelIndex] = useState(null); // open the reel at this feed index; null = grid only
 
   // upload modal state
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -155,26 +144,6 @@ export default function WebshotsPage() {
     }
     setLoadingMore(false);
   }, [feed.nextCursor, loadingMore]);
-
-  // Refresh: replace the whole feed with a brand-new shuffle cycle in place
-  // (no full-page "loading" flash — the grid swaps when the data lands).
-  const refresh = async () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    // Jump up BEFORE the swap: the scroll happens against the old (tall)
-    // content, so it can't trip the near-bottom loader mid-refresh.
-    window.scrollTo(0, 0);
-    try {
-      const data = await portalApi(`/live-feed?limit=${PAGE_SIZE}`);
-      setFeed({ items: data.items, nextCursor: data.nextCursor });
-      setUploadsEnabled(data.uploadsEnabled);
-    } catch {
-      // keep what's on screen
-    }
-    setRefreshing(false);
-  };
-
-  const openReel = (i) => setReelIndex(i);
 
   const openUpload = () => {
     setFile(null);
@@ -246,13 +215,9 @@ export default function WebshotsPage() {
   const pendingCount = (mine || []).filter((m) => m.status === "pending").length;
   const atPendingCap = pendingCount >= MAX_PENDING;
 
-  const uploadCta = uploadsEnabled && (
-    <button onClick={openUpload} data-web-hover="true" className="bnd-cta" style={s("position: relative; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
-      <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #ff2233 0%, #8b000d 100%); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); box-shadow: 0 12px 30px rgba(255,34,51,0.35);")}>
-        <span className="bnd-cta-inner" style={s("display: inline-flex; align-items: center; gap: 10px; padding: 14px 30px; background: linear-gradient(180deg, #ff3a4a 0%, #c00014 100%); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 14px; letter-spacing: 0.2em; text-transform: uppercase;")}><span className="bnd-cta-sheen"></span>Drop yours</span>
-      </span>
-    </button>
-  );
+  // The reel IS the page as soon as there's anything to show — there's no grid
+  // landing anymore. Loading/error/empty still render as normal page states.
+  const showReel = user && state === "ready" && feed.items.length > 0;
 
   return (
     <div style={s("position: relative; min-height: 100vh; overflow: hidden; background: radial-gradient(130% 90% at 80% -10%, #1c0512 0%, #0b0713 45%, #06080f 100%); padding: clamp(24px, 4vh, 44px) clamp(18px, 4vw, 48px) 96px;")}>
@@ -272,24 +237,17 @@ export default function WebshotsPage() {
           </header>
           <WebshotsGate onJoin={() => openAuth("register")} onLogin={() => openAuth("login")} />
         </>
+      ) : showReel ? (
+        // the reel below is the whole experience — nothing renders in-flow here
+        null
       ) : (
-        <div style={s("position: relative; z-index: 2; max-width: 1180px; margin: 0 auto;")}>
-          {/* back link */}
-          <div style={s("margin-bottom: clamp(28px, 5vh, 44px);")}>
-            <Link href="/" data-web-hover="true" className="bnd-cta" style={s("display: inline-block; text-decoration: none; border: 0; padding: 0; background: transparent; cursor: pointer;")}>
-              <span style={s("display: block; padding: 2px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);")}>
-                <span className="bnd-cta-inner" style={s("display: inline-flex; align-items: center; gap: 10px; padding: 13px 28px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase;")}><span className="bnd-cta-sheen"></span>‹ Back to the Web</span>
-              </span>
+        <div style={s("position: relative; z-index: 2; max-width: 720px; margin: 0 auto;")}>
+          {/* light top bar: logo home-link left, back link right */}
+          <header style={s("display: flex; align-items: center; gap: clamp(14px, 2vw, 28px); margin-bottom: clamp(32px, 8vh, 64px);")}>
+            <Link href="/" style={s("display: flex; align-items: center; gap: 12px; text-decoration: none; flex-shrink: 0;")}>
+              <img src="/assets/nav-logo.png" alt="Brand New Day" style={s("height: 38px; width: auto; display: block;")} />
             </Link>
-          </div>
-
-          {/* header */}
-          <header style={s("display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: clamp(28px, 5vh, 42px);")}>
-            <div style={s("max-width: 640px;")}>
-              <h1 style={s("margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(30px, 5vw, 54px); line-height: 0.98; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 40px rgba(0,0,0,0.7), 0 0 70px rgba(214,2,26,0.22);")}>Webshots</h1>
-              <p style={s("margin: 14px 0 0; font-size: clamp(13px, 1.5vw, 16px); line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>The Web never sleeps — drops from Spidey HQ and fans across the world.</p>
-            </div>
-            {uploadCta}
+            <Link href="/" data-web-hover="true" className="link-hover-red" style={s("margin-left: auto; text-decoration: none; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.6); transition: color 200ms ease;")}>‹ Back to Home</Link>
           </header>
 
           {state === "loading" && (
@@ -332,95 +290,26 @@ export default function WebshotsPage() {
             </div>
           )}
 
-          {state === "ready" && feed.items.length > 0 && (
-            <>
-              {/* refresh — pinned to the top-right of the viewport while
-                  browsing (fixed: the page root's overflow:hidden defeats
-                  sticky); swaps in a brand-new shuffle order */}
-              <button onClick={refresh} disabled={refreshing} aria-label="Refresh the feed" data-web-hover="true" style={s(`position: fixed; top: 14px; right: clamp(18px, 4vw, 48px); z-index: 60; display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(255,60,74,0.4); background: rgba(12,8,16,0.85); backdrop-filter: blur(6px); color: #ff6b79; border-radius: 999px; padding: 10px 18px; cursor: pointer; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; box-shadow: 0 8px 24px rgba(0,0,0,0.45); opacity: ${refreshing ? "0.6" : "1"}; transition: opacity .2s ease;`)}>
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg>
-                {refreshing ? "Refreshing…" : "Refresh"}
-              </button>
-
-              {/* masonry via column-width: auto-fits 1/2/3+ columns, no media
-                  queries needed; order is random anyway so column flow is fine */}
-              <div style={s("columns: 300px auto; column-gap: 16px;")}>
-                {feed.items.map((item, i) => (
-                  <article key={`${item.id}-${i}`} style={s(`break-inside: avoid; margin: 0 0 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 10px 10px 12px; transform: rotate(${((item.id % 5) - 2) * 0.4}deg);`)}>
-                    {/* the tile is a preview — tapping opens the reel, it doesn't
-                        play in place (videos here are muted, control-less posters) */}
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Open ${item.kind === "video" ? "video" : "photo"} by ${item.author.name}`}
-                      onClick={() => openReel(i)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          openReel(i);
-                        }
-                      }}
-                      data-web-hover="true"
-                      style={s("position: relative; display: block; border-radius: 10px; overflow: hidden; cursor: pointer;")}
-                    >
-                      {item.kind === "video" ? (
-                        <>
-                          <LiveFeedVideo
-                            src={item.url}
-                            controls={false}
-                            style={s("width: 100%; aspect-ratio: 16 / 9; display: block; background: #000; object-fit: contain; pointer-events: none;")}
-                          />
-                          {/* play badge — signals it's tappable + reel-bound */}
-                          <span style={s("position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 46px; height: 46px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.85); background: rgba(12,6,10,0.4); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; pointer-events: none;")}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M5 3l16 9-16 9z" /></svg>
-                          </span>
-                        </>
-                      ) : (
-                        <img
-                          src={item.url}
-                          alt={`Dropped by ${item.author.name}`}
-                          loading="lazy"
-                          decoding="async"
-                          style={s(`width: 100%; aspect-ratio: ${item.width && item.height ? `${item.width} / ${item.height}` : "1 / 1"}; object-fit: cover; display: block; background: #141018;`)}
-                        />
-                      )}
-                    </div>
-                    <div style={s("display: flex; align-items: center; gap: 10px; margin-top: 10px;")}>
-                      <AuthorChip author={item.author} />
-                    </div>
-                  </article>
-                ))}
-              </div>
-
-              {/* only while the current shuffle cycle has more to show — the
-                  feed is a finite set, not an endless scroll */}
-              {feed.nextCursor && (
-                <div style={s("display: flex; justify-content: center; padding: 28px 0 0;")}>
-                  <button onClick={loadMore} disabled={loadingMore} data-web-hover="true" style={s(`border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.85); border-radius: 999px; padding: 12px 30px; cursor: pointer; font-family: 'Oswald', sans-serif; font-size: 12.5px; letter-spacing: 0.2em; text-transform: uppercase; opacity: ${loadingMore ? "0.6" : "1"}; transition: opacity .2s ease;`)}>
-                    {loadingMore ? "Loading…" : "Load more ›"}
-                  </button>
-                </div>
-              )}
-            </>
-          )}
         </div>
       )}
 
-      {/* REEL — full-screen swipe viewer, opened by tapping a tile */}
-      {reelIndex !== null && feed.items[reelIndex] && (
+      {/* REEL — the default Webshots experience: full-screen vertical swipe.
+          Renders as soon as there's anything to show (no grid landing). */}
+      {showReel && (
         <WebshotsReel
           items={feed.items}
-          startIndex={reelIndex}
           hasMore={!!feed.nextCursor}
           loadingMore={loadingMore}
           onNeedMore={loadMore}
-          onClose={() => setReelIndex(null)}
+          onClose={() => router.push("/")}
+          uploadsEnabled={uploadsEnabled}
+          onUpload={openUpload}
         />
       )}
 
       {/* UPLOAD MODAL */}
       {uploadOpen && (
-        <div onClick={closeUpload} style={s("position: fixed; inset: 0; z-index: 110; background: rgba(4,4,10,0.82); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: clamp(16px, 4vw, 32px); animation: bnd-word-rise 320ms cubic-bezier(.2,.7,.2,1) both;")}>
+        <div onClick={closeUpload} style={s("position: fixed; inset: 0; z-index: 210; background: rgba(4,4,10,0.82); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: clamp(16px, 4vw, 32px); animation: bnd-word-rise 320ms cubic-bezier(.2,.7,.2,1) both;")}>
           <form
             onClick={(e) => e.stopPropagation()}
             onSubmit={submit}

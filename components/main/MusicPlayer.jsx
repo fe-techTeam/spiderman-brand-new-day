@@ -134,10 +134,17 @@ export default function MusicPlayer({ onSfx }) {
       if (wantAudibleRef.current) return;
       wantAudibleRef.current = true;
       if (!userMutedRef.current) {
-        const yt = ytRef.current;
-        if (yt && yt.unMute) { try { yt.unMute(); yt.playVideo(); } catch {} }
-        setMuted(false);
-        setPlaying(true);
+        // If a trailer/reel is ducking the score right now (e.g. the first
+        // gesture is the swipe that enters the Webshots reel), don't bring the
+        // music in over it — just arm the resume for when the duck lifts.
+        if (trailerOpenRef.current) {
+          resumeAfterTrailerRef.current = true;
+        } else {
+          const yt = ytRef.current;
+          if (yt && yt.unMute) { try { yt.unMute(); yt.playVideo(); } catch {} }
+          setMuted(false);
+          setPlaying(true);
+        }
       }
       cleanup();
     };
@@ -154,12 +161,14 @@ export default function MusicPlayer({ onSfx }) {
     return cleanup;
   }, []);
 
-  /* Trailer ducking — TrailerModal announces its lifecycle on window. Pause the
-     score only if it is actually audible (a muted or already-paused track has
-     nothing to yield), and on close resume only what we paused ourselves —
-     never overriding an explicit user mute. */
+  /* Score ducking — the TrailerModal and the Webshots reel both announce their
+     lifecycle on window (trailer plays its own audio; the reel wants its clips
+     to own the sound). Pause the score only if it is actually audible (a muted
+     or already-paused track has nothing to yield), and on close resume only what
+     we paused ourselves — never overriding an explicit user mute. Both surfaces
+     share one duck path; trailerOpenRef doubles as "the score is ducked". */
   useEffect(() => {
-    const onTrailerOpen = () => {
+    const onDuck = () => {
       trailerOpenRef.current = true;
       resumeAfterTrailerRef.current = playingRef.current && !mutedRef.current;
       if (!resumeAfterTrailerRef.current) return;
@@ -167,10 +176,10 @@ export default function MusicPlayer({ onSfx }) {
       if (yt && yt.pauseVideo) { try { yt.pauseVideo(); } catch {} }
       setPlaying(false);
     };
-    const onTrailerClose = () => {
+    const onRestore = () => {
       trailerOpenRef.current = false;
       if (resumeAfterTrailerRef.current && !userMutedRef.current) {
-        // unMute too: if the player only became ready mid-trailer, the deferred
+        // unMute too: if the player only became ready mid-duck, the deferred
         // first-gesture unmute lands here (it's a no-op on the normal path)
         const yt = ytRef.current;
         if (yt) { try { yt.unMute(); yt.playVideo(); } catch {} }
@@ -179,11 +188,15 @@ export default function MusicPlayer({ onSfx }) {
       }
       resumeAfterTrailerRef.current = false;
     };
-    window.addEventListener("bnd:trailer-open", onTrailerOpen);
-    window.addEventListener("bnd:trailer-close", onTrailerClose);
+    window.addEventListener("bnd:trailer-open", onDuck);
+    window.addEventListener("bnd:trailer-close", onRestore);
+    window.addEventListener("bnd:reel-open", onDuck);
+    window.addEventListener("bnd:reel-close", onRestore);
     return () => {
-      window.removeEventListener("bnd:trailer-open", onTrailerOpen);
-      window.removeEventListener("bnd:trailer-close", onTrailerClose);
+      window.removeEventListener("bnd:trailer-open", onDuck);
+      window.removeEventListener("bnd:trailer-close", onRestore);
+      window.removeEventListener("bnd:reel-open", onDuck);
+      window.removeEventListener("bnd:reel-close", onRestore);
     };
   }, []);
 
