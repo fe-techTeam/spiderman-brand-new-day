@@ -21,6 +21,10 @@ import TrailerModal from "@/components/main/TrailerModal";
 
 /* ---------------------------------------------------------------- static data */
 
+// The site's main trailer vs. the cut the navbar link opens.
+const MAIN_TRAILER_ID = "62bIsvRcPv0";
+const NAV_TRAILER_ID = "lE2QTE64r0w";
+
 const WALK_ITEMS = [
   { icon: "/assets/icon-spider-id.png", line1: "Discover Your", line2: "Spider Identity", desc: "Answer a few questions to unlock your unique Spider World Avatar.", action: "identity" },
   { icon: "/assets/icon-find-spider.png", line1: "Find Your", line2: "Spider Twins", desc: "Meet fans around the world who share your Spider identity.", action: "twins" },
@@ -111,6 +115,9 @@ export default function Home() {
 
   const [walkOpen, setWalkOpen] = useState(false);
   const [trailerOpen, setTrailerOpen] = useState(false);
+  // Which trailer the lightbox plays. The navbar link opens a different cut
+  // (NAV_TRAILER_ID); every other opener uses the site's main trailer.
+  const [trailerVideo, setTrailerVideo] = useState(MAIN_TRAILER_ID);
   const [isDesktop, setIsDesktop] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mjMessage, setMjMessage] = useState("");
@@ -991,7 +998,10 @@ export default function Home() {
     if (idx >= 0) goToPageRef.current(idx);
   };
   const doNav = (action) => {
-    if (action === "trailer") setTrailerOpen(true);
+    if (action === "trailer") {
+      setTrailerVideo(NAV_TRAILER_ID); // navbar plays its own cut
+      setTrailerOpen(true);
+    }
     else if (action === "mjwall")
       router.push("/mj-wall"); // MJ Wall detail page
     else if (action === "tracker")
@@ -1120,15 +1130,25 @@ export default function Home() {
   // Every walkthrough card is a real CTA. Two hide with session state: members
   // who already have their identity lose "Discover Your Spider Identity", and
   // members who already revealed their twins lose "Find Your Spider Twins".
-  const walkItems = WALK_ITEMS.filter((w) => !(hideIdentity && w.action === "identity") && !(user && twinMode && w.action === "twins")).map((w, i) => ({
+  // Webshots joins the Explore popup only once the admin "Show on website"
+  // toggle is ON — same soft-launch gate as the navbar link.
+  const walkSource = [
+    ...WALK_ITEMS,
+    ...(webshotsNav
+      ? [{ icon: "/assets/icon-fan-art.png", line1: "Browse the", line2: "Webshots Wall", desc: "Photos and videos from Spidey HQ and fans across the Verse.", action: "webshots" }]
+      : []),
+  ];
+  const walkItems = walkSource.filter((w) => !(hideIdentity && w.action === "identity") && !(user && twinMode && w.action === "twins")).map((w, i) => ({
     ...w,
     delay: (walkOpen ? 620 + i * 150 : 0) + "ms",
     onClick: () => {
       sfxRef.current && sfxRef.current.play("click");
       sfxRef.current && sfxRef.current.stopHum();
       setWalkOpen(false);
-      if (w.action === "trailer") setTrailerOpen(true);
-      else if (w.action === "identity") goToForm();
+      if (w.action === "trailer") {
+        setTrailerVideo(MAIN_TRAILER_ID);
+        setTrailerOpen(true);
+      } else if (w.action === "identity") goToForm();
       else if (w.action === "twins") {
         if (user) goToSection("livingweb");
         else openAuth("register");
@@ -1671,6 +1691,7 @@ export default function Home() {
           <button
             onClick={() => {
               sfxRef.current && sfxRef.current.play("click");
+              setTrailerVideo(MAIN_TRAILER_ID);
               setTrailerOpen(true);
             }}
             onMouseEnter={onWalkHover}
@@ -1760,6 +1781,7 @@ export default function Home() {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
+                    setTrailerVideo(MAIN_TRAILER_ID);
                     setTrailerOpen(true);
                   }}
                   data-web-hover="true"
@@ -1912,7 +1934,7 @@ export default function Home() {
         onHover={onWalkHover}
       />
 
-      {trailerOpen && <TrailerModal onClose={() => setTrailerOpen(false)} onStopProp={(e) => e.stopPropagation()} />}
+      {trailerOpen && <TrailerModal videoId={trailerVideo} onClose={() => setTrailerOpen(false)} onStopProp={(e) => e.stopPropagation()} />}
     </div>
   );
 }

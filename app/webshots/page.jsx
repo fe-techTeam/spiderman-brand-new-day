@@ -4,8 +4,9 @@
 // Webshots — the members-only media wall (photos & videos, no likes, no
 // comments; just the media, who dropped it and when). Every visit gets its
 // own random order (seed lives in the opaque cursor, see /api/live-feed).
-// Admin posts show as "Spidy Admin"; member uploads (when the admin toggle
-// is ON) queue for review, tracked in the "Your drops" strip.
+// Admin posts show as "Spidey Admin" (or a credited author); member uploads
+// (when the admin toggle is ON) queue for review, tracked in the "Your drops"
+// strip.
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -14,6 +15,7 @@ import { useSession } from "@/components/auth/SessionProvider";
 import { portalApi } from "@/lib/portal/api";
 import { relTime } from "@/lib/time";
 import LiveFeedVideo from "@/components/live-feed/LiveFeedVideo";
+import WebshotsReel from "@/components/live-feed/WebshotsReel";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
@@ -40,11 +42,12 @@ function StatusChip({ status }) {
   );
 }
 
-// Admin drops read like any member's — same muted styling, no badge.
+// Admin drops read like any member's — same muted styling, no badge. Member
+// handles get a "u/" prefix; a credited author or the house account shows as-is.
 function AuthorChip({ author }) {
   return (
     <span style={s("color: rgba(255,255,255,0.6); font-size: 12px;")}>
-      {author.isAdmin ? "Spidy Admin" : `u/${author.name}`}
+      {author.isMember ? `u/${author.name}` : author.name}
     </span>
   );
 }
@@ -71,7 +74,7 @@ function WebshotsGate({ onJoin, onLogin }) {
           </div>
 
           <h1 style={s("margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(26px, 5.6vw, 36px); line-height: 1.04; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,0.6); text-wrap: balance;")}>Webshots <span style={{ color: "#ff2f40" }}>is behind the mask.</span></h1>
-          <p style={s("margin: 14px auto 26px; max-width: 380px; font-size: clamp(13px, 1.5vw, 15px); line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>Get onboarded to step inside — photos and videos from Spidy HQ and fans across the Verse, streaming in live.</p>
+          <p style={s("margin: 14px auto 26px; max-width: 380px; font-size: clamp(13px, 1.5vw, 15px); line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>Get onboarded to step inside — photos and videos from Spidey HQ and fans across the Verse, streaming in live.</p>
 
           <button onClick={onJoin} data-web-hover="true" className="bnd-cta" style={s("width: 100%; position: relative; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
             <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #ff2233 0%, #8b000d 100%); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); box-shadow: 0 12px 30px rgba(255,34,51,0.35);")}>
@@ -97,6 +100,7 @@ export default function WebshotsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [uploadsEnabled, setUploadsEnabled] = useState(false);
   const [mine, setMine] = useState(null);
+  const [reelIndex, setReelIndex] = useState(null); // open the reel at this feed index; null = grid only
 
   // upload modal state
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -169,6 +173,8 @@ export default function WebshotsPage() {
     }
     setRefreshing(false);
   };
+
+  const openReel = (i) => setReelIndex(i);
 
   const openUpload = () => {
     setFile(null);
@@ -281,7 +287,7 @@ export default function WebshotsPage() {
           <header style={s("display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: clamp(28px, 5vh, 42px);")}>
             <div style={s("max-width: 640px;")}>
               <h1 style={s("margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(30px, 5vw, 54px); line-height: 0.98; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 40px rgba(0,0,0,0.7), 0 0 70px rgba(214,2,26,0.22);")}>Webshots</h1>
-              <p style={s("margin: 14px 0 0; font-size: clamp(13px, 1.5vw, 16px); line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>The Web never sleeps — drops from Spidy HQ and fans across the world.</p>
+              <p style={s("margin: 14px 0 0; font-size: clamp(13px, 1.5vw, 16px); line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>The Web never sleeps — drops from Spidey HQ and fans across the world.</p>
             </div>
             {uploadCta}
           </header>
@@ -314,7 +320,7 @@ export default function WebshotsPage() {
               </div>
 
               <h2 style={s("margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(20px, 3.4vw, 28px); line-height: 1.1; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 4px 24px rgba(0,0,0,0.6);")}>The web&apos;s quiet… <span style={{ color: "#ff2f40" }}>too quiet.</span></h2>
-              <p style={s("margin: 12px auto 0; max-width: 380px; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.65); text-wrap: pretty;")}>First drops from Spidy HQ are on their way — swing back soon.</p>
+              <p style={s("margin: 12px auto 0; max-width: 380px; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.65); text-wrap: pretty;")}>First drops from Spidey HQ are on their way — swing back soon.</p>
 
               {uploadsEnabled && (
                 <button onClick={openUpload} data-web-hover="true" className="bnd-cta" style={s("position: relative; margin-top: 26px; border: 0; padding: 0; background: transparent; cursor: pointer; font-family: inherit;")}>
@@ -341,20 +347,44 @@ export default function WebshotsPage() {
               <div style={s("columns: 300px auto; column-gap: 16px;")}>
                 {feed.items.map((item, i) => (
                   <article key={`${item.id}-${i}`} style={s(`break-inside: avoid; margin: 0 0 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 10px 10px 12px; transform: rotate(${((item.id % 5) - 2) * 0.4}deg);`)}>
-                    {item.kind === "video" ? (
-                      <LiveFeedVideo
-                        src={item.url}
-                        style={s("width: 100%; aspect-ratio: 16 / 9; border-radius: 10px; display: block; background: #000; object-fit: contain;")}
-                      />
-                    ) : (
-                      <img
-                        src={item.url}
-                        alt={`Dropped by ${item.author.isAdmin ? "Spidy Admin" : item.author.name}`}
-                        loading="lazy"
-                        decoding="async"
-                        style={s(`width: 100%; aspect-ratio: ${item.width && item.height ? `${item.width} / ${item.height}` : "1 / 1"}; object-fit: cover; border-radius: 10px; display: block; background: #141018;`)}
-                      />
-                    )}
+                    {/* the tile is a preview — tapping opens the reel, it doesn't
+                        play in place (videos here are muted, control-less posters) */}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Open ${item.kind === "video" ? "video" : "photo"} by ${item.author.name}`}
+                      onClick={() => openReel(i)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openReel(i);
+                        }
+                      }}
+                      data-web-hover="true"
+                      style={s("position: relative; display: block; border-radius: 10px; overflow: hidden; cursor: pointer;")}
+                    >
+                      {item.kind === "video" ? (
+                        <>
+                          <LiveFeedVideo
+                            src={item.url}
+                            controls={false}
+                            style={s("width: 100%; aspect-ratio: 16 / 9; display: block; background: #000; object-fit: contain; pointer-events: none;")}
+                          />
+                          {/* play badge — signals it's tappable + reel-bound */}
+                          <span style={s("position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 46px; height: 46px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.85); background: rgba(12,6,10,0.4); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; pointer-events: none;")}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M5 3l16 9-16 9z" /></svg>
+                          </span>
+                        </>
+                      ) : (
+                        <img
+                          src={item.url}
+                          alt={`Dropped by ${item.author.name}`}
+                          loading="lazy"
+                          decoding="async"
+                          style={s(`width: 100%; aspect-ratio: ${item.width && item.height ? `${item.width} / ${item.height}` : "1 / 1"}; object-fit: cover; display: block; background: #141018;`)}
+                        />
+                      )}
+                    </div>
                     <div style={s("display: flex; align-items: center; gap: 10px; margin-top: 10px;")}>
                       <AuthorChip author={item.author} />
                     </div>
@@ -374,6 +404,18 @@ export default function WebshotsPage() {
             </>
           )}
         </div>
+      )}
+
+      {/* REEL — full-screen swipe viewer, opened by tapping a tile */}
+      {reelIndex !== null && feed.items[reelIndex] && (
+        <WebshotsReel
+          items={feed.items}
+          startIndex={reelIndex}
+          hasMore={!!feed.nextCursor}
+          loadingMore={loadingMore}
+          onNeedMore={loadMore}
+          onClose={() => setReelIndex(null)}
+        />
       )}
 
       {/* UPLOAD MODAL */}
@@ -401,7 +443,7 @@ export default function WebshotsPage() {
                     <span style={s("width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(180deg, #ffd23f 0%, #f7a91d 100%); color: #6b2a00; display: flex; align-items: center; justify-content: center; font-size: 20px;")}>✓</span>
                     Dropped!
                   </div>
-                  <p style={s("margin: 0; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.72);")}>It hits the feed once Spidy HQ approves it — track it under &ldquo;Your drops&rdquo;.</p>
+                  <p style={s("margin: 0; font-size: 14px; line-height: 1.6; color: rgba(226,226,240,0.72);")}>It hits the feed once Spidey HQ approves it — track it under &ldquo;Your drops&rdquo;.</p>
                   <button type="button" onClick={closeUpload} data-web-hover="true" style={s("border: 0; background: transparent; cursor: pointer; color: #ff5a6a; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; padding: 4px 0;")}>Close ›</button>
                 </div>
               ) : atPendingCap ? (

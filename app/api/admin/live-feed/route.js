@@ -1,7 +1,7 @@
 import { query, withTransaction } from "@/lib/server/db";
 import { requireAdmin, auditLog } from "@/lib/server/admin-auth";
 import { saveUpload } from "@/lib/server/uploads";
-import { vEnum } from "@/lib/server/validate";
+import { vEnum, vString } from "@/lib/server/validate";
 
 // Moderation/management list. Pending queue is FIFO (oldest first), the rest
 // newest first — same convention as fan art.
@@ -18,7 +18,7 @@ export async function GET(request) {
 
   const rows = await query(
     `SELECT lf.id, lf.status, lf.rejection_reason, lf.created_at, lf.reviewed_at,
-            lf.media_id, m.kind, m.mime_type, m.size_bytes,
+            lf.media_id, lf.author_name, m.kind, m.mime_type, m.size_bytes,
             u.id AS user_id, u.username, au.name AS admin_name, r.name AS reviewed_by_name
      FROM live_feed lf
      JOIN media m ON m.id = lf.media_id
@@ -35,8 +35,10 @@ export async function GET(request) {
   return Response.json({ items: rows, total, page, limit });
 }
 
-// Admin upload — posts straight to the feed as "Spidy Admin" (no moderation
-// pass for staff). One file per request; the panel loops for batches.
+// Admin upload — posts straight to the feed (no moderation pass for staff).
+// One file per request; the panel loops for batches. An optional "author"
+// attributes the drop to whoever it came from; blank falls back to "Spidey
+// Admin" on the feed.
 export async function POST(request) {
   const gate = await requireAdmin("livefeed.manage");
   if (gate.error) return gate.error;
@@ -46,6 +48,8 @@ export async function POST(request) {
   if (!file || typeof file === "string") {
     return Response.json({ error: "No file uploaded" }, { status: 400 });
   }
+  const rawAuthor = form.get("author");
+  const authorName = typeof rawAuthor === "string" ? vString(rawAuthor, { max: 120 }) : null;
 
   let saved;
   try {
@@ -61,8 +65,8 @@ export async function POST(request) {
       [saved.kind, saved.storage, saved.key, saved.mime, saved.size, saved.width, saved.height]
     );
     const [row] = await conn.execute(
-      "INSERT INTO live_feed (admin_id, media_id, status) VALUES (?, ?, 'approved')",
-      [gate.admin.id, media.insertId]
+      "INSERT INTO live_feed (admin_id, author_name, media_id, status) VALUES (?, ?, ?, 'approved')",
+      [gate.admin.id, authorName, media.insertId]
     );
     return row.insertId;
   });
@@ -70,6 +74,7 @@ export async function POST(request) {
   await auditLog(gate.admin.id, "livefeed.upload", "live_feed", feedId, {
     kind: saved.kind,
     size: saved.size,
+    author: authorName || undefined,
   });
   return Response.json({ id: feedId, status: "approved" }, { status: 201 });
 }
