@@ -27,7 +27,7 @@ export default function Nav({
   useEffect(() => {
     if (!menuOpen) return;
     const onDown = (e) => { if (menuWrapRef.current && !menuWrapRef.current.contains(e.target)) setMenuOpen(false); };
-    const onKey = (e) => { if (e.key === "Escape") setMenuOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); setMenuOpen(false); } };
     document.addEventListener("pointerdown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {

@@ -8,6 +8,7 @@ import { postingBlockedResponse } from "@/lib/server/moderation";
 import { rateLimit } from "@/lib/server/rate-limit";
 
 const UPLOADS_SETTING = "live_feed_user_uploads";
+const SHARE_SETTING = "live_feed_share";
 const MAX_PENDING_PER_USER = 5;
 
 // Display author for a feed row. Precedence: admin-set attribution → member
@@ -75,6 +76,7 @@ export async function GET(request) {
     })),
     nextCursor: hasMore ? encodeCursor({ s: seed, h: page[page.length - 1].shuffle_key }) : null,
     uploadsEnabled: (await getSetting(UPLOADS_SETTING)) === "1",
+    shareEnabled: (await getSetting(SHARE_SETTING)) === "1",
   });
 }
 

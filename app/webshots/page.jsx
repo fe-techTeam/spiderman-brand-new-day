@@ -15,6 +15,7 @@ import { s } from "@/lib/style";
 import { useSession } from "@/components/auth/SessionProvider";
 import { portalApi } from "@/lib/portal/api";
 import { relTime } from "@/lib/time";
+import Nav from "@/components/main/Nav";
 import WebshotsReel from "@/components/live-feed/WebshotsReel";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -89,7 +90,9 @@ export default function WebshotsPage() {
   const [state, setState] = useState("loading"); // loading | ready | error
   const [loadingMore, setLoadingMore] = useState(false);
   const [uploadsEnabled, setUploadsEnabled] = useState(false);
+  const [shareEnabled, setShareEnabled] = useState(false);
   const [mine, setMine] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // upload modal state
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -106,6 +109,7 @@ export default function WebshotsPage() {
       const data = await portalApi(`/live-feed?limit=${PAGE_SIZE}`);
       setFeed({ items: data.items, nextCursor: data.nextCursor });
       setUploadsEnabled(data.uploadsEnabled);
+      setShareEnabled(data.shareEnabled);
       setState("ready");
     } catch {
       setState("error");
@@ -139,11 +143,21 @@ export default function WebshotsPage() {
       const data = await portalApi(`/live-feed?limit=${PAGE_SIZE}${qs}`);
       setFeed((f) => ({ items: [...f.items, ...data.items], nextCursor: data.nextCursor }));
       setUploadsEnabled(data.uploadsEnabled);
+      setShareEnabled(data.shareEnabled);
     } catch {
       // keep the current page; the button stays available to retry
     }
     setLoadingMore(false);
   }, [feed.nextCursor, loadingMore]);
+
+  // Pull-to-refresh from the reel's first slide: swap in a brand-new shuffle in
+  // place (no "loading" flash, so the reel stays mounted while it swaps).
+  const refreshFeed = useCallback(async () => {
+    const data = await portalApi(`/live-feed?limit=${PAGE_SIZE}`);
+    setFeed({ items: data.items, nextCursor: data.nextCursor });
+    setUploadsEnabled(data.uploadsEnabled);
+    setShareEnabled(data.shareEnabled);
+  }, []);
 
   const openUpload = () => {
     setFile(null);
@@ -154,6 +168,16 @@ export default function WebshotsPage() {
     refreshMine(); // the modal doubles as the status list for their drops
   };
   const closeUpload = () => setUploadOpen(false);
+
+  // Escape closes the upload modal (the reel yields Escape while it's open).
+  useEffect(() => {
+    if (!uploadOpen) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setUploadOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [uploadOpen]);
 
   // Cancel a drop that hasn't gone live (pending, or rejected to clear it).
   const removeDrop = async (id) => {
@@ -219,6 +243,33 @@ export default function WebshotsPage() {
   // landing anymore. Loading/error/empty still render as normal page states.
   const showReel = user && state === "ready" && feed.items.length > 0;
 
+  // Same site navbar as the homepage, so members can hop to other pages from
+  // inside Webshots. Items route to real pages; WEBSHOTS marks the current one.
+  const navDefs = [
+    ["HOME", "/", false],
+    ["MJ WALL", "/mj-wall", false],
+    ["FORUM", "/forum", false],
+    ["WEBSHOTS", "/webshots", true],
+  ];
+  const navItems = navDefs.map(([label, path, active]) => ({
+    label,
+    locked: false,
+    active,
+    color: active ? "#ff5a6a" : "#fff",
+    cursor: "pointer",
+    title: "",
+    mobileHidden: false,
+    onClick: (e) => {
+      e.preventDefault();
+      if (!active) router.push(path);
+    },
+    onMobileClick: (e) => {
+      e.preventDefault();
+      setMobileMenuOpen(false);
+      if (!active) router.push(path);
+    },
+  }));
+
   return (
     <div style={s("position: relative; min-height: 100vh; overflow: hidden; background: radial-gradient(130% 90% at 80% -10%, #1c0512 0%, #0b0713 45%, #06080f 100%); padding: clamp(24px, 4vh, 44px) clamp(18px, 4vw, 48px) 96px;")}>
       <img src="/assets/web.png" alt="" style={s("position: absolute; top: -12%; left: -8%; width: min(720px, 60vw); opacity: 0.06; mix-blend-mode: screen; pointer-events: none;")} />
@@ -241,15 +292,7 @@ export default function WebshotsPage() {
         // the reel below is the whole experience — nothing renders in-flow here
         null
       ) : (
-        <div style={s("position: relative; z-index: 2; max-width: 720px; margin: 0 auto;")}>
-          {/* light top bar: logo home-link left, back link right */}
-          <header style={s("display: flex; align-items: center; gap: clamp(14px, 2vw, 28px); margin-bottom: clamp(32px, 8vh, 64px);")}>
-            <Link href="/" style={s("display: flex; align-items: center; gap: 12px; text-decoration: none; flex-shrink: 0;")}>
-              <img src="/assets/nav-logo.png" alt="Brand New Day" style={s("height: 38px; width: auto; display: block;")} />
-            </Link>
-            <Link href="/" data-web-hover="true" className="link-hover-red" style={s("margin-left: auto; text-decoration: none; font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.6); transition: color 200ms ease;")}>‹ Back to Home</Link>
-          </header>
-
+        <div style={s("position: relative; z-index: 2; max-width: 720px; margin: 0 auto; padding-top: clamp(84px, 13vh, 128px);")}>
           {state === "loading" && (
             <p style={s("margin: 0; padding: 48px 0; text-align: center; font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(255,255,255,0.45);")}>Tuning into the web…</p>
           )}
@@ -293,6 +336,27 @@ export default function WebshotsPage() {
         </div>
       )}
 
+      {/* Site navbar — kept inside Webshots so members can reach other pages.
+          Wrapped in a z-300 stacking context so it sits above the reel (z-200). */}
+      {user && (
+        <div style={{ position: "relative", zIndex: 300 }}>
+          <Nav
+            mobileMenuVisible={mobileMenuOpen}
+            navItems={navItems}
+            onGoHome={() => {
+              setMobileMenuOpen(false);
+              router.push("/");
+            }}
+            onGetStarted={() => router.push("/")}
+            onToggleMobileMenu={() => setMobileMenuOpen((v) => !v)}
+            onMobileSwingIn={() => {
+              setMobileMenuOpen(false);
+              router.push("/");
+            }}
+          />
+        </div>
+      )}
+
       {/* REEL — the default Webshots experience: full-screen vertical swipe.
           Renders as soon as there's anything to show (no grid landing). */}
       {showReel && (
@@ -301,15 +365,18 @@ export default function WebshotsPage() {
           hasMore={!!feed.nextCursor}
           loadingMore={loadingMore}
           onNeedMore={loadMore}
+          onRefresh={refreshFeed}
           onClose={() => router.push("/")}
+          escapeToClose={!uploadOpen && !mobileMenuOpen}
           uploadsEnabled={uploadsEnabled}
+          shareEnabled={shareEnabled}
           onUpload={openUpload}
         />
       )}
 
       {/* UPLOAD MODAL */}
       {uploadOpen && (
-        <div onClick={closeUpload} style={s("position: fixed; inset: 0; z-index: 210; background: rgba(4,4,10,0.82); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: clamp(16px, 4vw, 32px); animation: bnd-word-rise 320ms cubic-bezier(.2,.7,.2,1) both;")}>
+        <div onClick={closeUpload} style={s("position: fixed; inset: 0; z-index: 320; background: rgba(4,4,10,0.82); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: clamp(16px, 4vw, 32px); animation: bnd-word-rise 320ms cubic-bezier(.2,.7,.2,1) both;")}>
           <form
             onClick={(e) => e.stopPropagation()}
             onSubmit={submit}
