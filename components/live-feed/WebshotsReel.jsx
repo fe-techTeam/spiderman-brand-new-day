@@ -2,14 +2,17 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-// Webshots reel — a full-screen vertical, one-at-a-time viewer opened by
-// tapping a tile on the wall. NOT a Shorts/Reels clone: it leans on native CSS
-// scroll-snap for the swipe (robust across touch, trackpad, wheel and keyboard)
-// and IntersectionObserver to decide which slide is "live". Videos autoplay
-// muted + looped, one at a time; images simply hold until you swipe (no
+// Webshots reel — the default full-screen vertical, one-at-a-time viewer for the
+// members wall. NOT a Shorts/Reels clone: it leans on native CSS scroll-snap for
+// the swipe (robust across touch, trackpad, wheel and keyboard) and
+// IntersectionObserver to decide which slide is "live". Videos autoplay LOOPED,
+// one at a time, and start with sound (the page ducks the site score while the
+// reel is up); if the browser blocks unmuted autoplay it falls back to muted and
+// the sound button re-enables audio. Images simply hold until you swipe (no
 // surprise auto-advance) with a slow drift so they don't feel dead.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { s } from "@/lib/style";
 import { relTime } from "@/lib/time";
 
@@ -41,7 +44,7 @@ function SpeakerIcon({ muted }) {
 // One reel slide. Self-observes so newly-appended slides wire up without the
 // parent re-registering anything. `active` drives playback; `near` gates how
 // eagerly the video preloads so we don't buffer the whole feed at once.
-function ReelSlide({ item, index, active, near, muted, rootRef, onActivate }) {
+function ReelSlide({ item, index, active, near, muted, rootRef, onActivate, onAutoplayBlocked }) {
   const wrapRef = useRef(null);
   const videoRef = useRef(null);
   const [paused, setPaused] = useState(false);
@@ -70,7 +73,12 @@ function ReelSlide({ item, index, active, near, muted, rootRef, onActivate }) {
     v.muted = muted;
     if (active) {
       const p = v.play();
-      if (p && p.catch) p.catch(() => {});
+      if (p && p.catch)
+        p.catch(() => {
+          // Unmuted autoplay blocked (no prior user activation) → fall back to
+          // muted so the clip still runs; the sound button brings audio back.
+          if (!muted) onAutoplayBlocked();
+        });
     } else {
       v.pause();
       try {
@@ -79,7 +87,7 @@ function ReelSlide({ item, index, active, near, muted, rootRef, onActivate }) {
         /* not seekable yet — harmless */
       }
     }
-  }, [active, muted]);
+  }, [active, muted, onAutoplayBlocked]);
 
   const togglePlay = () => {
     const v = videoRef.current;
@@ -158,10 +166,10 @@ function ReelSlide({ item, index, active, near, muted, rootRef, onActivate }) {
   );
 }
 
-export default function WebshotsReel({ items, startIndex = 0, hasMore = false, loadingMore = false, onNeedMore, onClose }) {
+export default function WebshotsReel({ items, startIndex = 0, hasMore = false, loadingMore = false, onNeedMore, onClose, uploadsEnabled = false, onUpload }) {
   const scrollRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(startIndex);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false); // reel owns the sound; falls back to muted if blocked
   const [showHint, setShowHint] = useState(true);
 
   const onActivate = useCallback((i) => {
@@ -169,18 +177,24 @@ export default function WebshotsReel({ items, startIndex = 0, hasMore = false, l
     setShowHint(false);
   }, []);
 
+  // If the browser refuses unmuted autoplay, drop to muted so playback survives.
+  const onAutoplayBlocked = useCallback(() => setMuted(true), []);
+
   // Jump to the tapped tile before first paint (no scroll-flash from the top).
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = startIndex * el.clientHeight;
   }, [startIndex]);
 
-  // Lock the page behind the reel.
+  // Lock the page behind the reel and duck the site score for its whole life,
+  // so the reel's own clips own the sound. MusicPlayer listens for these.
   useEffect(() => {
     const prev = document.documentElement.style.overflow;
     document.documentElement.style.overflow = "hidden";
+    window.dispatchEvent(new Event("bnd:reel-open"));
     return () => {
       document.documentElement.style.overflow = prev;
+      window.dispatchEvent(new Event("bnd:reel-close"));
     };
   }, []);
 
@@ -233,6 +247,7 @@ export default function WebshotsReel({ items, startIndex = 0, hasMore = false, l
             muted={muted}
             rootRef={scrollRef}
             onActivate={onActivate}
+            onAutoplayBlocked={onAutoplayBlocked}
           />
         ))}
         {loadingMore && (
@@ -242,12 +257,17 @@ export default function WebshotsReel({ items, startIndex = 0, hasMore = false, l
         )}
       </div>
 
-      {/* top chrome: label · sound · close */}
-      <div style={s("position: absolute; top: 0; left: 0; right: 0; z-index: 3; display: flex; align-items: center; gap: 12px; padding: clamp(14px, 3vh, 22px) clamp(16px, 4vw, 28px); background: linear-gradient(to bottom, rgba(4,3,9,0.55), transparent); pointer-events: none;")}>
-        <span style={s("display: inline-flex; align-items: center; gap: 8px; pointer-events: auto;")}>
-          <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase; color: #ff6b79;")}>Webshots</span>
-        </span>
-        <div style={s("margin-left: auto; display: flex; align-items: center; gap: 10px; pointer-events: auto;")}>
+      {/* top scrim so the chrome stays legible over bright media */}
+      <div aria-hidden="true" style={s("position: absolute; top: 0; left: 0; right: 0; height: 128px; z-index: 2; background: linear-gradient(to bottom, rgba(4,3,9,0.6), transparent); pointer-events: none;")} />
+
+      {/* top chrome (aligned to the media column): brand home-link + sound */}
+      <div style={s("position: absolute; top: 0; left: 0; right: 0; z-index: 3; pointer-events: none;")}>
+        <div style={s("max-width: min(560px, 100%); margin: 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: clamp(14px, 3vh, 22px) clamp(16px, 4vw, 26px);")}>
+          {/* nav-style logo, with a small "webshots" beneath — links home */}
+          <Link href="/" aria-label="Back to Brand New Day" style={s("display: inline-flex; flex-direction: column; align-items: flex-start; gap: 5px; text-decoration: none; pointer-events: auto;")}>
+            <img src="/assets/nav-logo.png" alt="Brand New Day" style={s("height: 34px; width: auto; display: block;")} />
+            <span style={s("font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase; color: #ff6b79; padding-left: 2px;")}>Webshots</span>
+          </Link>
           <button
             type="button"
             onClick={() => {
@@ -255,20 +275,29 @@ export default function WebshotsReel({ items, startIndex = 0, hasMore = false, l
               setShowHint(false);
             }}
             aria-label={muted ? "Unmute" : "Mute"}
-            style={s("width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.22); background: rgba(12,8,16,0.6); backdrop-filter: blur(6px); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer;")}
+            style={s("flex-shrink: 0; pointer-events: auto; width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.22); background: rgba(12,8,16,0.6); backdrop-filter: blur(6px); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer;")}
           >
             <SpeakerIcon muted={muted} />
           </button>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            style={s("width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.22); background: rgba(12,8,16,0.6); backdrop-filter: blur(6px); color: #fff; font-size: 22px; line-height: 1; cursor: pointer;")}
-          >
-            ×
-          </button>
         </div>
       </div>
+
+      {/* floating upload CTA — only when member uploads are open. Bottom-right of
+          the media column; opens the same modal + constraints as the wall. */}
+      {uploadsEnabled && onUpload && (
+        <div style={s("position: absolute; inset: 0; max-width: min(560px, 100%); margin: 0 auto; z-index: 3; pointer-events: none;")}>
+          <button
+            type="button"
+            onClick={onUpload}
+            data-web-hover="true"
+            aria-label="Drop yours"
+            style={s("position: absolute; right: clamp(16px, 4vw, 24px); bottom: clamp(20px, 6vh, 34px); pointer-events: auto; display: inline-flex; align-items: center; gap: 9px; border: 0; cursor: pointer; padding: 13px 20px; border-radius: 999px; background: linear-gradient(180deg, #ff3a4a 0%, #c00014 100%); color: #fff; font-family: 'Oswald', sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; box-shadow: 0 12px 30px rgba(255,34,51,0.4);")}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 19V5" /><path d="M5 12l7-7 7 7" /></svg>
+            Drop yours
+          </button>
+        </div>
+      )}
 
       {/* desktop-only step buttons (touch users just swipe) */}
       <div style={s("position: absolute; right: clamp(14px, 3vw, 26px); top: 50%; transform: translateY(-50%); z-index: 3; display: none; flex-direction: column; gap: 12px;")} className="webshots-reel-nav">
