@@ -8,7 +8,10 @@ import { useEffect, useRef } from "react";
 // from hammering bandwidth — full files stream only on an actual play.
 // The src swap is imperative (not state) — React never reconciles it away
 // since src isn't rendered as a prop.
-export default function LiveFeedVideo({ src, style }) {
+// `controls` defaults on for standalone use; the Webshots wall passes false so
+// each tile is a still poster whose tap opens the reel instead of the native
+// player.
+export default function LiveFeedVideo({ src, style, controls = true }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -32,5 +35,5 @@ export default function LiveFeedVideo({ src, style }) {
     return () => io.disconnect();
   }, [src]);
 
-  return <video ref={ref} controls playsInline preload="metadata" style={style} />;
+  return <video ref={ref} controls={controls} muted={!controls} playsInline preload="metadata" style={style} />;
 }

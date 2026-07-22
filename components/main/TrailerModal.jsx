@@ -4,7 +4,10 @@ import { useEffect } from "react";
 import { s } from "@/lib/style";
 
 // Trailer lightbox with a YouTube embed. Ported from the mockup's trailer modal.
-export default function TrailerModal({ onClose, onStopProp }) {
+// videoId is per-opener so callers can swap which trailer plays; it defaults to
+// the site's main trailer.
+const DEFAULT_VIDEO_ID = "62bIsvRcPv0";
+export default function TrailerModal({ onClose, onStopProp, videoId = DEFAULT_VIDEO_ID }) {
   // Announce the trailer's lifecycle on window so the MusicPlayer (mounted in a
   // separate tree, the root layout) can duck the score while the trailer runs.
   // Hooking mount/unmount here covers every opener — hero card, footer link,
@@ -20,7 +23,7 @@ export default function TrailerModal({ onClose, onStopProp }) {
         <div className="bnd-trailer-chrome" style={s("position: relative; padding: 4px; background: linear-gradient(180deg, #ff1f33 0%, #8b000d 100%); clip-path: polygon(28px 0, 100% 0, 100% calc(100% - 28px), calc(100% - 28px) 100%, 0 100%, 0 28px); box-shadow: 0 40px 100px rgba(0,0,0,0.6);")}>
           <div className="bnd-trailer-video" style={s("position: relative; background: #000; clip-path: polygon(24px 0, 100% 0, 100% calc(100% - 24px), calc(100% - 24px) 100%, 0 100%, 0 24px); overflow: hidden; aspect-ratio: 16/9;")}>
             <iframe
-              src="https://www.youtube-nocookie.com/embed/62bIsvRcPv0?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1"
+              src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1`}
               title="Spider-Man: Brand New Day — Trailer"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

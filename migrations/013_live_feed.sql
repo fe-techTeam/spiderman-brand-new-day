@@ -1,5 +1,5 @@
 -- 013_live_feed.sql — the Live Feed: a members-only media wall (/live-feed).
--- Admins seed it from the panel (author shows as "Spidy Admin"); a settings
+-- Admins seed it from the panel (author shows as "Spidey Admin"); a settings
 -- toggle (default OFF) opens uploads to members, whose submissions queue for
 -- approve/reject like fan art. No titles/captions — the feed is media-only.
 
@@ -11,7 +11,7 @@ ALTER TABLE media MODIFY COLUMN user_id BIGINT UNSIGNED NULL;
 ALTER TABLE media ADD CONSTRAINT fk_media_user FOREIGN KEY (user_id) REFERENCES users(id);
 
 -- Feed rows carry exactly one author: user_id (member upload, moderated) or
--- admin_id ("Spidy Admin", inserted directly as approved).
+-- admin_id ("Spidey Admin", inserted directly as approved).
 CREATE TABLE live_feed (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id BIGINT UNSIGNED NULL,

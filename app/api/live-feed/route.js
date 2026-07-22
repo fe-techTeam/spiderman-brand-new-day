@@ -10,6 +10,16 @@ import { rateLimit } from "@/lib/server/rate-limit";
 const UPLOADS_SETTING = "live_feed_user_uploads";
 const MAX_PENDING_PER_USER = 5;
 
+// Display author for a feed row. Precedence: admin-set attribution → member
+// handle → house account ("Spidey Admin"). `name` is the label to show; when
+// `isMember` the client prefixes it with "u/".
+export function buildAuthor(r) {
+  const attributed = r.author_name && r.author_name.trim();
+  if (attributed) return { name: attributed, isMember: false };
+  if (r.username) return { name: r.username, isMember: true };
+  return { name: "Spidey Admin", isMember: false };
+}
+
 // Members-only feed — approved items in a per-viewer random order.
 //
 // Each browse cycle gets a seed; rows are ordered by SHA2(seed:id), which is
@@ -37,7 +47,7 @@ export async function GET(request) {
     args.push(String(seed), cursor.h);
   }
   const rows = await query(
-    `SELECT lf.id, lf.media_id, lf.created_at, m.kind, m.width, m.height, u.username,
+    `SELECT lf.id, lf.media_id, lf.created_at, lf.author_name, m.kind, m.width, m.height, u.username,
             SHA2(CONCAT(?, ':', lf.id), 256) AS shuffle_key
      FROM live_feed lf
      JOIN media m ON m.id = lf.media_id
@@ -58,8 +68,10 @@ export async function GET(request) {
       width: r.width,
       height: r.height,
       createdAt: r.created_at,
-      // Admin uploads have no portal user — they post as Spidy Admin.
-      author: { name: r.username || "Spidy Admin", isAdmin: !r.username },
+      // Attribution wins if an admin set one (a name/handle for whoever the
+      // drop came from); otherwise a member handle (u/…), otherwise the house
+      // account. `isMember` only drives the "u/" prefix on the client.
+      author: buildAuthor(r),
     })),
     nextCursor: hasMore ? encodeCursor({ s: seed, h: page[page.length - 1].shuffle_key }) : null,
     uploadsEnabled: (await getSetting(UPLOADS_SETTING)) === "1",

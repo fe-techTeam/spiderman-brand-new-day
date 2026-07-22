@@ -9,6 +9,8 @@ import { adminApi, adminUpload } from "@/lib/admin/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -59,8 +61,12 @@ export default function AdminWebshotsPage() {
   const [uploadsEnabled, setUploadsEnabled] = useState(null); // null = loading
   const [navVisible, setNavVisible] = useState(null); // null = loading
   const [uploading, setUploading] = useState(null); // { done, total }
+  const [author, setAuthor] = useState(""); // attribution applied to the next upload batch
   const [rejecting, setRejecting] = useState(null);
   const [reason, setReason] = useState("");
+  const [editingAuthor, setEditingAuthor] = useState(null); // item whose attribution is being edited
+  const [authorDraft, setAuthorDraft] = useState("");
+  const [savingAuthor, setSavingAuthor] = useState(false);
   const [preview, setPreview] = useState(null);
   const fileInput = useRef(null);
 
@@ -133,11 +139,13 @@ export default function AdminWebshotsPage() {
       return true;
     });
 
+    const attribution = author.trim();
     let ok = 0;
     for (let i = 0; i < valid.length; i++) {
       setUploading({ done: i, total: valid.length });
       const fd = new FormData();
       fd.append("file", valid[i]);
+      if (attribution) fd.append("author", attribution);
       try {
         await adminUpload("/live-feed", fd);
         ok++;
@@ -147,13 +155,34 @@ export default function AdminWebshotsPage() {
     }
     setUploading(null);
     if (ok) {
-      toast.success(`${ok} file${ok === 1 ? "" : "s"} posted to the feed as Spidy Admin`);
+      toast.success(
+        `${ok} file${ok === 1 ? "" : "s"} posted to the feed as ${attribution || "Spidey Admin"}`
+      );
+      setAuthor("");
       if (status === "approved" && page === 1) load();
       else {
         setStatus("approved");
         setPage(1);
       }
     }
+  }
+
+  // Set/clear the freeform attribution on an existing post.
+  async function saveAuthor() {
+    if (savingAuthor || !editingAuthor) return;
+    setSavingAuthor(true);
+    try {
+      await adminApi(`/live-feed/${editingAuthor.id}`, {
+        method: "PATCH",
+        body: { action: "attribute", author: authorDraft.trim() },
+      });
+      toast.success(authorDraft.trim() ? "Author updated" : "Attribution cleared");
+      setEditingAuthor(null);
+      load();
+    } catch (e) {
+      toast.error(e.message);
+    }
+    setSavingAuthor(false);
   }
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
@@ -163,8 +192,8 @@ export default function AdminWebshotsPage() {
       <div>
         <h1 className="text-2xl font-bold">Webshots</h1>
         <p className="text-sm text-muted-foreground">
-          The members-only media wall at /webshots. Admin uploads go live instantly as Spidy
-          Admin; member submissions wait here for review.
+          The members-only media wall at /webshots. Admin uploads go live instantly as Spidey
+          Admin (or an author you credit); member submissions wait here for review.
         </p>
       </div>
 
@@ -208,8 +237,24 @@ export default function AdminWebshotsPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Post to the feed</CardTitle>
+            <CardDescription>
+              Attribute the drop to whoever sent it, or leave blank to post as Spidey Admin.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="webshots-author" className="text-xs text-muted-foreground">
+                Author (optional)
+              </Label>
+              <Input
+                id="webshots-author"
+                value={author}
+                onChange={(e) => setAuthor(e.target.value)}
+                placeholder="e.g. @peteyparker or Aunt May"
+                maxLength={120}
+                disabled={!!uploading}
+              />
+            </div>
             <input
               ref={fileInput}
               type="file"
@@ -263,11 +308,28 @@ export default function AdminWebshotsPage() {
                     <MediaThumb item={m} onClick={() => setPreview(m)} />
                   </TableCell>
                   <TableCell>
-                    {m.username ? (
-                      `u/${m.username}`
-                    ) : (
-                      <Badge variant="secondary">🕷 Spidy Admin{m.admin_name ? ` · ${m.admin_name}` : ""}</Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <span>
+                        {m.author_name ? (
+                          <Badge variant="secondary">✍ {m.author_name}</Badge>
+                        ) : m.username ? (
+                          `u/${m.username}`
+                        ) : (
+                          <Badge variant="secondary">🕷 Spidey Admin{m.admin_name ? ` · ${m.admin_name}` : ""}</Badge>
+                        )}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-1.5 text-xs text-muted-foreground"
+                        onClick={() => {
+                          setEditingAuthor(m);
+                          setAuthorDraft(m.author_name || "");
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    </div>
                   </TableCell>
                   <TableCell className="whitespace-normal text-xs text-muted-foreground">
                     <p className="capitalize">
@@ -362,7 +424,7 @@ export default function AdminWebshotsPage() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>
-              {preview?.username ? `u/${preview.username}` : "Spidy Admin"}
+              {preview?.author_name || (preview?.username ? `u/${preview.username}` : "Spidey Admin")}
             </DialogTitle>
             <DialogDescription className="capitalize">
               {preview?.kind} · {preview ? fmtSize(preview.size_bytes) : ""}
@@ -383,6 +445,34 @@ export default function AdminWebshotsPage() {
                 className="max-h-[70vh] w-full rounded-md object-contain"
               />
             ))}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingAuthor} onOpenChange={(open) => !open && setEditingAuthor(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit author</DialogTitle>
+            <DialogDescription>
+              A display-only credit for this drop — a name, username or @handle. It connects to
+              nothing. Leave blank to fall back to{" "}
+              {editingAuthor?.username ? `u/${editingAuthor.username}` : "Spidey Admin"}.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={authorDraft}
+            onChange={(e) => setAuthorDraft(e.target.value)}
+            placeholder="e.g. @peteyparker or Aunt May"
+            maxLength={120}
+            onKeyDown={(e) => e.key === "Enter" && saveAuthor()}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingAuthor(null)}>
+              Cancel
+            </Button>
+            <Button onClick={saveAuthor} disabled={savingAuthor}>
+              {savingAuthor ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

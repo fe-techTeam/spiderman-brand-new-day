@@ -17,6 +17,22 @@ export async function PATCH(request, { params }) {
   if (!id) return Response.json({ error: "Bad id" }, { status: 400 });
 
   const body = await request.json().catch(() => ({}));
+
+  // Attribution edit — set/clear the freeform author label on a post. Separate
+  // from the status actions below; an empty string clears it (back to the
+  // member handle or "Spidey Admin").
+  if (body.action === "attribute") {
+    const [row] = await query("SELECT id FROM live_feed WHERE id = ?", [id]);
+    if (!row) return Response.json({ error: "Not found" }, { status: 404 });
+    const authorName =
+      typeof body.author === "string" ? vString(body.author, { max: 120 }) : null;
+    await query("UPDATE live_feed SET author_name = ? WHERE id = ?", [authorName, id]);
+    await auditLog(gate.admin.id, "livefeed.attribute", "live_feed", id, {
+      author: authorName || null,
+    });
+    return Response.json({ ok: true, authorName });
+  }
+
   const action = vEnum(body.action, Object.keys(ACTIONS));
   if (!action) return Response.json({ error: "Bad action" }, { status: 400 });
   const reason = body.reason ? vString(body.reason, { max: 255 }) : null;
