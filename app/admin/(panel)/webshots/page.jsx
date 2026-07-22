@@ -60,6 +60,7 @@ export default function AdminWebshotsPage() {
   const [data, setData] = useState(null);
   const [uploadsEnabled, setUploadsEnabled] = useState(null); // null = loading
   const [navVisible, setNavVisible] = useState(null); // null = loading
+  const [shareEnabled, setShareEnabled] = useState(null); // null = loading
   const [uploading, setUploading] = useState(null); // { done, total }
   const [author, setAuthor] = useState(""); // attribution applied to the next upload batch
   const [rejecting, setRejecting] = useState(null);
@@ -87,6 +88,7 @@ export default function AdminWebshotsPage() {
       .then((d) => {
         setUploadsEnabled(d.enabled);
         setNavVisible(d.navVisible);
+        setShareEnabled(d.shareEnabled);
       })
       .catch((e) => toast.error(e.message));
   }, []);
@@ -109,6 +111,17 @@ export default function AdminWebshotsPage() {
       toast.success(next ? "Webshots is visible on the website" : "Webshots is hidden from the website");
     } catch (e) {
       setNavVisible(!next);
+      toast.error(e.message);
+    }
+  }
+
+  async function toggleShare(next) {
+    setShareEnabled(next); // optimistic — reverted on failure
+    try {
+      await adminApi("/live-feed/settings", { method: "PUT", body: { shareEnabled: next } });
+      toast.success(next ? "Share button is ON" : "Share button is OFF");
+    } catch (e) {
+      setShareEnabled(!next);
       toast.error(e.message);
     }
   }
@@ -197,7 +210,7 @@ export default function AdminWebshotsPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Show on website</CardTitle>
@@ -230,6 +243,24 @@ export default function AdminWebshotsPage() {
               checked={!!uploadsEnabled}
               disabled={uploadsEnabled === null}
               onCheckedChange={toggleUploads}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Share button</CardTitle>
+            <CardDescription>
+              {shareEnabled
+                ? "ON — the Share button shows in the Webshots reel."
+                : "OFF — the Share button is hidden in the reel."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Switch
+              checked={!!shareEnabled}
+              disabled={shareEnabled === null}
+              onCheckedChange={toggleShare}
             />
           </CardContent>
         </Card>
