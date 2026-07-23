@@ -107,7 +107,24 @@ export default function WebshotsPage() {
     setState("loading");
     try {
       const data = await portalApi(`/live-feed?limit=${PAGE_SIZE}`);
-      setFeed({ items: data.items, nextCursor: data.nextCursor });
+      let items = data.items;
+      // Deep link: /webshots?w=<id> opens the reel on that specific drop, so
+      // pull it to the front (fetching it if the shuffle didn't include it).
+      const wid = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("w") : null;
+      if (wid) {
+        const found = items.find((it) => String(it.id) === String(wid));
+        if (found) {
+          items = [found, ...items.filter((it) => it !== found)];
+        } else {
+          try {
+            const { item } = await portalApi(`/live-feed/${encodeURIComponent(wid)}`);
+            items = [item, ...items];
+          } catch {
+            // shared drop is gone or no longer live — just show the feed
+          }
+        }
+      }
+      setFeed({ items, nextCursor: data.nextCursor });
       setUploadsEnabled(data.uploadsEnabled);
       setShareEnabled(data.shareEnabled);
       setState("ready");
@@ -141,7 +158,13 @@ export default function WebshotsPage() {
     try {
       const qs = `&cursor=${encodeURIComponent(feed.nextCursor)}`;
       const data = await portalApi(`/live-feed?limit=${PAGE_SIZE}${qs}`);
-      setFeed((f) => ({ items: [...f.items, ...data.items], nextCursor: data.nextCursor }));
+      // Dedupe by id — a deep-linked drop pinned to the front can otherwise
+      // reappear when its natural page loads.
+      setFeed((f) => {
+        const seen = new Set(f.items.map((it) => it.id));
+        const fresh = data.items.filter((it) => !seen.has(it.id));
+        return { items: [...f.items, ...fresh], nextCursor: data.nextCursor };
+      });
       setUploadsEnabled(data.uploadsEnabled);
       setShareEnabled(data.shareEnabled);
     } catch {

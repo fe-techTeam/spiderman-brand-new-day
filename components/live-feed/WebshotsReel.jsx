@@ -180,9 +180,12 @@ export default function WebshotsReel({ items, startIndex = 0, hasMore = false, l
   // If the browser refuses unmuted autoplay, drop to muted so playback survives.
   const onAutoplayBlocked = useCallback(() => setMuted(true), []);
 
-  // Share the Webshots page — native sheet on mobile, clipboard elsewhere.
+  // Share the CURRENT reel — a deep link (/webshots?w=<id>) that opens on this
+  // exact drop. Native sheet on mobile, clipboard elsewhere.
   const doShare = async () => {
-    const url = typeof window !== "undefined" ? `${window.location.origin}/webshots` : "/webshots";
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const current = items[activeIndex];
+    const url = current ? `${base}/webshots?w=${current.id}` : `${base}/webshots`;
     try {
       if (typeof navigator !== "undefined" && navigator.share) {
         await navigator.share({ title: "Webshots — Brand New Day", text: "Swing through Webshots", url });
@@ -365,7 +368,7 @@ export default function WebshotsReel({ items, startIndex = 0, hasMore = false, l
               {shareState === "copied" ? (
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7ee787" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>
               ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
               )}
             </button>
           )}
