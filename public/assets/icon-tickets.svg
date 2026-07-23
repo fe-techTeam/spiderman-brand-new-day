@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Walkthrough "Book Tickets" icon — flat #E50101 glyph with transparent
+     cutouts (edge notches + perforation dashes), same language as the other
+     walk-card icons. Cutouts stay transparent under the shared hover filter
+     (brightness(0) invert(1)) which turns the glyph into a white silhouette. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <g fill="#E50101" transform="rotate(-12 100 100)">
+    <path fill-rule="evenodd" d="M42 62 H120 a8 8 0 0 0 16 0 H158 a10 10 0 0 1 10 10 V128 a10 10 0 0 1 -10 10 H136 a8 8 0 0 0 -16 0 H42 a10 10 0 0 1 -10 -10 V72 a10 10 0 0 1 10 -10 Z M125 78 h6 v10 h-6 Z M125 95 h6 v10 h-6 Z M125 112 h6 v10 h-6 Z M58 106 l10 -8 10 8 -4 -12 10 -7 H72 l-4 -12 -4 12 H52 l10 7 Z"/>
+  </g>
+</svg>
