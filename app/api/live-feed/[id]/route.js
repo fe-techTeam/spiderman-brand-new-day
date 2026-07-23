@@ -2,6 +2,40 @@ import { query, withTransaction } from "@/lib/server/db";
 import { requireUser } from "@/lib/server/auth";
 import { deleteObject } from "@/lib/server/storage";
 import { vId } from "@/lib/server/validate";
+import { buildAuthor } from "@/lib/server/live-feed";
+
+// Single approved drop by id — powers the reel deep link (/webshots?w=<id>) so
+// a shared link opens on that specific reel. Members-only, like the feed.
+// 404s for anything not currently live (pending/rejected/hidden/missing).
+export async function GET(request, { params }) {
+  const gate = await requireUser();
+  if (gate.error) return gate.error;
+  const { id: rawId } = await params;
+  const id = vId(rawId);
+  if (!id) return Response.json({ error: "Bad id" }, { status: 400 });
+
+  const [r] = await query(
+    `SELECT lf.id, lf.media_id, lf.created_at, lf.author_name, m.kind, m.width, m.height, u.username
+     FROM live_feed lf
+     JOIN media m ON m.id = lf.media_id
+     LEFT JOIN users u ON u.id = lf.user_id
+     WHERE lf.id = ? AND lf.status = 'approved'`,
+    [id]
+  );
+  if (!r) return Response.json({ error: "Not found" }, { status: 404 });
+
+  return Response.json({
+    item: {
+      id: r.id,
+      kind: r.kind,
+      url: `/api/media/${r.media_id}`,
+      width: r.width,
+      height: r.height,
+      createdAt: r.created_at,
+      author: buildAuthor(r),
+    },
+  });
+}
 
 // Member cancel: a submitter can pull their own drop while it's pending, or
 // clear a rejected one. Reviewed items (approved/hidden) stay admin-only —

@@ -6,20 +6,11 @@ import { saveUpload } from "@/lib/server/uploads";
 import { getSetting } from "@/lib/server/settings";
 import { postingBlockedResponse } from "@/lib/server/moderation";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { buildAuthor } from "@/lib/server/live-feed";
 
 const UPLOADS_SETTING = "live_feed_user_uploads";
 const SHARE_SETTING = "live_feed_share";
 const MAX_PENDING_PER_USER = 5;
-
-// Display author for a feed row. Precedence: admin-set attribution → member
-// handle → house account ("Spidey Admin"). `name` is the label to show; when
-// `isMember` the client prefixes it with "u/".
-export function buildAuthor(r) {
-  const attributed = r.author_name && r.author_name.trim();
-  if (attributed) return { name: attributed, isMember: false };
-  if (r.username) return { name: r.username, isMember: true };
-  return { name: "Spidey Admin", isMember: false };
-}
 
 // Members-only feed — approved items in a per-viewer random order.
 //
