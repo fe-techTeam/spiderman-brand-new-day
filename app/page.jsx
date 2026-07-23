@@ -11,6 +11,7 @@ import { createSfx } from "@/lib/sfx";
 import { initGlobe } from "@/lib/globe";
 import { initParticles } from "@/lib/particles";
 import { portalApi } from "@/lib/portal/api";
+import { TICKETS_URL } from "@/lib/tickets";
 import { Flag, DotMarker } from "@/components/Flags";
 import { useSession } from "@/components/auth/SessionProvider";
 import Nav from "@/components/main/Nav";
@@ -32,6 +33,9 @@ const WALK_ITEMS = [
   { icon: "/assets/icon-trailer.svg", line1: "Watch the", line2: "Official Trailer", desc: "Step into the Spider World — experience the Brand New Day trailer.", action: "trailer" },
   { icon: "/assets/icon-conversation.png", line1: "Join the", line2: "Conversation", desc: "Discuss theories, easter eggs, and all things Spider-Man.", action: "forum" },
   { icon: "/assets/icon-track.png", line1: "Track", line2: "Spider-Man", desc: "Follow Spider-Man's latest sightings with Spidey Tracker.", action: "tracker" },
+  // wide: spans the full grid row — 7 cards in a 3-col grid would orphan it,
+  // and the ticketing CTA earns the banner treatment
+  { icon: "/assets/icon-tickets.svg", line1: "Book Your", line2: "Tickets", desc: "Grab your seats for the Brand New Day — in cinemas July 30.", action: "tickets", wide: true },
 ];
 
 const projX = (lon) => (((lon + 180) / 360) * 100).toFixed(1) + "%";
@@ -1085,15 +1089,17 @@ export default function Home() {
       .catch(() => {}); // hidden on failure — same as the default
   }, []);
 
-  // label / action / section (section drives the active highlight)
+  // label / action / section (section drives the active highlight) / href
+  // (href items are external links — they bypass doNav and open in a new tab)
   const navDefs = [
     ["TRAILER", "trailer", null],
     ["MJ WALL", "mjwall", "mjwall"],
     ["FORUM", "forum", null],
     ...(webshotsNav ? [["WEBSHOTS", "webshots", null]] : []),
     ["SPIDEY TRACKER", "tracker", "tracker"],
+    ["BOOK TICKETS", null, null, TICKETS_URL],
   ];
-  const navItems = navDefs.map(([label, action, section]) => {
+  const navItems = navDefs.map(([label, action, section, href]) => {
     const active = !!section && section === activeSection;
     return {
       label,
@@ -1102,16 +1108,21 @@ export default function Home() {
       color: active ? "#ff5a6a" : "#fff",
       cursor: "pointer",
       title: "",
+      href,
       mobileHidden: action === "tracker",
-      onClick: (e) => {
-        e.preventDefault();
-        doNav(action);
-      },
-      onMobileClick: (e) => {
-        e.preventDefault();
-        setMobileMenuOpen(false);
-        doNav(action);
-      },
+      onClick: href
+        ? undefined
+        : (e) => {
+            e.preventDefault();
+            doNav(action);
+          },
+      onMobileClick: href
+        ? () => setMobileMenuOpen(false)
+        : (e) => {
+            e.preventDefault();
+            setMobileMenuOpen(false);
+            doNav(action);
+          },
     };
   });
 
@@ -1148,7 +1159,8 @@ export default function Home() {
       if (w.action === "trailer") {
         setTrailerVideo(MAIN_TRAILER_ID);
         setTrailerOpen(true);
-      } else if (w.action === "identity") goToForm();
+      } else if (w.action === "tickets") window.open(TICKETS_URL, "_blank", "noopener,noreferrer");
+      else if (w.action === "identity") goToForm();
       else if (w.action === "twins") {
         if (user) goToSection("livingweb");
         else openAuth("register");
@@ -1685,6 +1697,16 @@ export default function Home() {
             <p className="bnd-line" style={s("animation-delay: 310ms; margin: 0 0 clamp(24px, 4vh, 38px); font-size: clamp(14px, 1.5vw, 17px); line-height: 1.6; color: rgba(226,226,240,0.72); max-width: 460px;")}>
               Watch the official trailer and step into the Spider World. In cinemas July 30.
             </p>
+            <a href={TICKETS_URL} target="_blank" rel="noopener noreferrer" onMouseEnter={onWalkHover} data-web-hover="true" className="bnd-line bnd-cta" style={s("animation-delay: 430ms; display: inline-block; text-decoration: none; border: 0; padding: 0; background: transparent; cursor: pointer;")}>
+              <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);")}>
+                <span
+                  className="bnd-cta-inner"
+                  style={s("display: inline-flex; align-items: center; gap: 12px; padding: 15px 40px; background: linear-gradient(180deg, #ff3a4a, #c00014); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px); color: #fff; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 15px; letter-spacing: 0.2em; text-transform: uppercase;")}
+                >
+                  <span className="bnd-cta-sheen"></span>Book Tickets <span style={{ fontSize: "17px", lineHeight: 1 }}>↗</span>
+                </span>
+              </span>
+            </a>
           </div>
 
           {/* right large thumbnail */}
@@ -1814,6 +1836,10 @@ export default function Home() {
                 </Link>
                 <a href="https://spideytracker.net/intl/in/" target="_blank" rel="noopener noreferrer" data-web-hover="true" className="footer-link" style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}>
                   <span>Spidey Tracker</span>
+                  <span style={s("color: #ff2f40; font-size: 15px;")}>›</span>
+                </a>
+                <a href={TICKETS_URL} target="_blank" rel="noopener noreferrer" data-web-hover="true" className="footer-link" style={s("display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; font-size: 14px; color: rgba(255,255,255,0.72); padding: 3px 0; transition: color .2s ease;")}>
+                  <span>Book Tickets</span>
                   <span style={s("color: #ff2f40; font-size: 15px;")}>›</span>
                 </a>
               </div>

@@ -4,6 +4,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { s } from "@/lib/style";
+import { TICKETS_URL } from "@/lib/tickets";
 import SpiderAvatar from "@/components/SpiderAvatar";
 import { useForum } from "@/components/forum/ForumProvider";
 import { useSession } from "@/components/auth/SessionProvider";
@@ -108,6 +109,10 @@ function UserChip({ user, logout }) {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>
               Back to Home
             </Link>
+            <a href={TICKETS_URL} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} data-web-hover="true" style={s("display: flex; align-items: center; gap: 9px; width: 100%; box-sizing: border-box; text-align: left; text-decoration: none; padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.85);")}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9a3 3 0 010 6v2a2 2 0 002 2h16a2 2 0 002-2v-2a3 3 0 010-6V7a2 2 0 00-2-2H4a2 2 0 00-2 2z" /><path d="M13 5v2" /><path d="M13 11v2" /><path d="M13 17v2" /></svg>
+              Book Tickets
+            </a>
             <button onClick={() => { setOpen(false); logout(); }} data-web-hover="true" style={s("display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 13px 16px; font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: #ff6b79; cursor: pointer;")}>Sign out</button>
           </div>
         </>
@@ -133,6 +138,10 @@ export default function ForumHeader() {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>
           <span className="fm-exit-label">Home</span>
         </Link>
+        <a href={TICKETS_URL} target="_blank" rel="noopener noreferrer" className="fm-tickets" data-web-hover="true" style={s("display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border: 1px solid rgba(255,60,74,0.45); border-radius: 999px; background: rgba(255,40,60,0.1); text-decoration: none; color: #ff8a95; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; transition: border-color .2s ease, background .2s ease;")}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9a3 3 0 010 6v2a2 2 0 002 2h16a2 2 0 002-2v-2a3 3 0 010-6V7a2 2 0 00-2-2H4a2 2 0 00-2 2z" /><path d="M13 5v2" /><path d="M13 11v2" /><path d="M13 17v2" /></svg>
+          <span className="fm-tickets-label">Book Tickets</span>
+        </a>
         {loading ? null : user ? (
           <>
             <NotificationBell />

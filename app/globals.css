@@ -701,6 +701,10 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
   /* no Home pill on phones — the logo is the way home, and the account
      popup carries a Back to Home entry too */
   .fm-exit { display: none !important; }
+  /* tickets pill survives as icon-only — unlike Home it has no in-app fallback
+     for logged-out visitors */
+  .fm-tickets { padding: 9px 11px !important; }
+  .fm-tickets-label { display: none !important; }
   /* sortbar splits into two rows: Top + Hot, then the spoiler toggle (its
      "Spoilers shown/hidden" text stays visible) with the rules button */
   .fm-sortbar { flex-wrap: wrap !important; row-gap: 9px !important; }
@@ -725,6 +729,7 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
   .fm-cta > span > span { padding: 10px 22px !important; font-size: 12px !important; }
 }
 .fm-exit:hover { border-color: rgba(255,60,74,0.5) !important; color: #ff8a95 !important; }
+.fm-tickets:hover { border-color: rgba(255,60,74,0.8) !important; background: rgba(255,40,60,0.18) !important; }
 
 /* Members-only gate ("…is behind the mask."): vertical centring reads fine on
    desktop, but the tall min-height drops the card too low on phones — pull it up
