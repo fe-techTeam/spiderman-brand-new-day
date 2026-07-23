@@ -1,8 +1,15 @@
 import "./globals.css";
+import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import SessionProvider from "@/components/auth/SessionProvider";
 import CursorFx from "@/components/CursorFx";
 import MusicPlayer from "@/components/main/MusicPlayer";
 import InputScrollLock from "@/components/main/InputScrollLock";
+
+// Hard-coded (not env): NEXT_PUBLIC_ vars are inlined at build time, but the
+// Docker build excludes .env* (.dockerignore) — an env-driven ID would silently
+// drop analytics from production images. Both IDs are public in page source.
+const GTM_ID = "GTM-K3CHLGTD";
+const GA_ID = "G-7JY2WXJYLP";
 
 const SITE_URL = "https://spidermania.in";
 const SITE_NAME = "Spider-Man: Brand New Day";
@@ -32,6 +39,7 @@ export const metadata = {
   },
   robots: { index: true, follow: true },
   icons: { icon: "/assets/spider-red.svg" },
+  verification: { google: "X8BCwCcLl_TBKBirho_yBYL863vbn6l2Ghz-VHDuk24" },
 };
 
 export const viewport = {
@@ -44,6 +52,8 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" data-scroll-behavior="smooth">
+      <GoogleTagManager gtmId={GTM_ID} />
+      <GoogleAnalytics gaId={GA_ID} />
       <head>
         {/* Oswald loaded via <link> (as in the source mockup) so the literal
             `font-family: "Oswald"` strings resolve exactly. Acumin Pro is a
@@ -72,6 +82,16 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
+        {/* GTM fallback for no-JS visitors — the <script> half is rendered by
+            <GoogleTagManager>, which does not emit this iframe itself. */}
+        <noscript>
+          <iframe
+            src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`}
+            height="0"
+            width="0"
+            style={{ display: "none", visibility: "hidden" }}
+          />
+        </noscript>
         <SessionProvider>{children}</SessionProvider>
         <CursorFx />
         {/* Mobile: freeze page scroll while a text field is focused (see
