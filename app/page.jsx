@@ -33,9 +33,9 @@ const WALK_ITEMS = [
   { icon: "/assets/icon-trailer.svg", line1: "Watch the", line2: "Official Trailer", desc: "Step into the Spider World — experience the Brand New Day trailer.", action: "trailer" },
   { icon: "/assets/icon-conversation.png", line1: "Join the", line2: "Conversation", desc: "Discuss theories, easter eggs, and all things Spider-Man.", action: "forum" },
   { icon: "/assets/icon-track.png", line1: "Track", line2: "Spider-Man", desc: "Follow Spider-Man's latest sightings with Spidey Tracker.", action: "tracker" },
-  // always kept last (walkSource splices conditional cards in above it) so the
-  // grid closes on the ticketing CTA — every card renders at the same size,
-  // incomplete rows just center (see WalkthroughModal)
+  // always kept last (Webshots splices in above it, Media into the grid's
+  // center) so the grid closes on the ticketing CTA — every card renders at
+  // the same size, an incomplete last row left-aligns (see WalkthroughModal)
   { icon: "/assets/icon-tickets.svg", line1: "Book Your", line2: "Tickets", desc: "Grab your seats for the Brand New Day — in cinemas July 30.", action: "tickets" },
 ];
 
@@ -1239,19 +1239,28 @@ export default function Home() {
   // members who already revealed their twins lose "Find Your Spider Twins".
   // Webshots and Media join the Explore popup only while their admin "Show on
   // website" toggles are ON (Media additionally needs a visible video) — the
-  // same soft-launch gates as the navbar link / landing section. They slot in
-  // BEFORE the closing Book Tickets card so conditional cards never trail it.
+  // same soft-launch gates as the navbar link / landing section. Webshots slots
+  // in BEFORE the closing Book Tickets card so conditional cards never trail it.
   const walkSource = [
     ...WALK_ITEMS.slice(0, -1),
     ...(webshotsNav
       ? [{ icon: "/assets/icon-fan-art.png", line1: "Browse the", line2: "Webshots Wall", desc: "Photos and videos from Spidey HQ and fans across the Verse.", action: "webshots" }]
       : []),
-    ...(mediaVideos.length
-      ? [{ icon: "/assets/icon-media.svg", line1: "Catch the", line2: "Latest Drops", desc: "Swing through the newest videos from the world of Brand New Day.", action: "media" }]
-      : []),
     ...WALK_ITEMS.slice(-1),
   ];
-  const walkItems = walkSource.filter((w) => !(hideIdentity && w.action === "identity") && !(user && twinMode && w.action === "twins")).map((w, i) => ({
+  // Media is the popup's spotlight card: it lands on the CENTER cell of the
+  // middle row of the desktop grid (3 cards per row — narrower viewports
+  // reflow, see globals.css) and carries the red variant WalkthroughModal
+  // renders specially. Row math runs AFTER the session-state filter so
+  // logged-in members who lose Identity/Twins still see it dead center — a
+  // plain array midpoint drifts left once the count stops being 3n. Splicing
+  // (not appending) keeps Book Tickets last.
+  const walkVisible = walkSource.filter((w) => !(hideIdentity && w.action === "identity") && !(user && twinMode && w.action === "twins"));
+  if (mediaVideos.length) {
+    const midRow = Math.floor((Math.ceil((walkVisible.length + 1) / 3) - 1) / 2);
+    walkVisible.splice(Math.min(midRow * 3 + 1, walkVisible.length - 1), 0, { icon: "/assets/icon-media.svg", line1: "Catch the", line2: "Latest Drops", desc: "Swing through the newest videos from the world of Brand New Day.", action: "media", variant: "red" });
+  }
+  const walkItems = walkVisible.map((w, i) => ({
     ...w,
     delay: (walkOpen ? 620 + i * 150 : 0) + "ms",
     onClick: () => {
