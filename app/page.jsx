@@ -22,7 +22,7 @@ import TrailerModal from "@/components/main/TrailerModal";
 
 /* ---------------------------------------------------------------- static data */
 
-// The site's main trailer vs. the cut the navbar link opens.
+// The walkthrough's main trailer vs. the cut the navbar and footer open.
 const MAIN_TRAILER_ID = "62bIsvRcPv0";
 const NAV_TRAILER_ID = "lE2QTE64r0w";
 
@@ -33,9 +33,10 @@ const WALK_ITEMS = [
   { icon: "/assets/icon-trailer.svg", line1: "Watch the", line2: "Official Trailer", desc: "Step into the Spider World — experience the Brand New Day trailer.", action: "trailer" },
   { icon: "/assets/icon-conversation.png", line1: "Join the", line2: "Conversation", desc: "Discuss theories, easter eggs, and all things Spider-Man.", action: "forum" },
   { icon: "/assets/icon-track.png", line1: "Track", line2: "Spider-Man", desc: "Follow Spider-Man's latest sightings with Spidey Tracker.", action: "tracker" },
-  // wide: spans the full grid row — 7 cards in a 3-col grid would orphan it,
-  // and the ticketing CTA earns the banner treatment
-  { icon: "/assets/icon-tickets.svg", line1: "Book Your", line2: "Tickets", desc: "Grab your seats for the Brand New Day — in cinemas July 30.", action: "tickets", wide: true },
+  // always kept last (walkSource splices conditional cards in above it) so the
+  // grid closes on the ticketing CTA — every card renders at the same size,
+  // incomplete rows just center (see WalkthroughModal)
+  { icon: "/assets/icon-tickets.svg", line1: "Book Your", line2: "Tickets", desc: "Grab your seats for the Brand New Day — in cinemas July 30.", action: "tickets" },
 ];
 
 const projX = (lon) => (((lon + 180) / 360) * 100).toFixed(1) + "%";
@@ -108,6 +109,7 @@ const RAIL_SECTIONS = [
   { key: "mjwall", label: "MJ Wall" },
   { key: "feed", label: "Spider World Feed" },
   { key: "tracker", label: "Spidey Tracker" },
+  { key: "media", label: "Media" }, // hidden while the CMS list is empty
   { key: "footer", label: "Official Trailer" },
 ];
 
@@ -135,6 +137,13 @@ export default function Home() {
   // the ShareIdentityButton fallback sheet — tracked like the other popups so
   // the wheel/key pager and scroll lock pause underneath it
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  // Media section (admin-curated YouTube carousel, panel → Media). The section
+  // and its rail stop only exist once the CMS has at least one visible video.
+  // Declared up here: the observer re-attach effect below lists it as a dep.
+  const [mediaVideos, setMediaVideos] = useState([]);
+  // fetch settled (either way) — a cold /#media deep link must not be declared
+  // dead while the list that would mount its section is still in flight
+  const [mediaLoaded, setMediaLoaded] = useState(false);
   // a /#section deep link served either by the mount pass or, for the
   // session-gated sections (identity/livingweb), by the retry effect below
   const hashServedRef = useRef(false);
@@ -696,6 +705,9 @@ export default function Home() {
       if (modalOpen()) return;
       // inner scrollers (the twins roster) keep native wheel scrolling
       if (ev.target && ev.target.closest && ev.target.closest("[data-scrollable]")) return;
+      // horizontal scrollers (the Media carousel): sideways trackpad pans stay
+      // native so the row can be swiped; vertical wheel over it still pages
+      if (ev.target && ev.target.closest && ev.target.closest("[data-hscroll]") && Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) return;
       ev.preventDefault();
       if (!ev.deltaY) return;
       const now = performance.now();
@@ -754,14 +766,22 @@ export default function Home() {
        the scroll-spy reaction effect (bars only, no scrolling). Desktop
        touchscreens keep the pager: their wheel path already owns the scroll. */
     let touchStartY = null;
+    let touchStartX = null;
     const onTouchStart = (ev) => {
       touchStartY = ev.touches[0].clientY;
+      touchStartX = ev.touches[0].clientX;
     };
     const onTouchMove = (ev) => {
       if (!isDesktopRef.current) return; // phones: native scroll + CSS snap
       if (modalOpen() || touchStartY == null) return;
       // inner scrollers (the twins roster) keep native touch scrolling
       if (ev.target && ev.target.closest && ev.target.closest("[data-scrollable]")) return;
+      // the Media carousel: sideways swipes scroll the row natively (desktop
+      // touchscreens — phones never reach this handler); vertical still pages
+      if (ev.target && ev.target.closest && ev.target.closest("[data-hscroll]") && touchStartX != null) {
+        const t = ev.touches[0];
+        if (Math.abs(t.clientX - touchStartX) > Math.abs(t.clientY - touchStartY)) return;
+      }
       ev.preventDefault();
     };
     const onTouchEnd = (ev) => {
@@ -896,9 +916,10 @@ export default function Home() {
     else sfxRef.current.stopHum();
   }, [walkOpen]);
 
-  /* the identity + Living Web sections mount/unmount with the session —
-     observe any fresh [data-reveal]/[data-page] nodes (observe() is a no-op on
-     ones already tracked) and re-measure the cached section offsets */
+  /* the identity + Living Web sections mount/unmount with the session, and the
+     Media section mounts once its videos arrive — observe any fresh
+     [data-reveal]/[data-page] nodes (observe() is a no-op on ones already
+     tracked) and re-measure the cached section offsets */
   useEffect(() => {
     document.querySelectorAll("[data-reveal]").forEach((el) => revealObsRef.current && revealObsRef.current.observe(el));
     document.querySelectorAll("[data-page]").forEach((el) => sectionObsRef.current && sectionObsRef.current.observe(el));
@@ -928,8 +949,10 @@ export default function Home() {
       }, 1000);
       return () => clearTimeout(settle);
     }
-    if (!sessionLoading) hashServedRef.current = true; // dead link for this session
-  }, [hideIdentity, showLivingWeb, sessionLoading]);
+    // only call the link dead once every async section source has settled —
+    // the session (identity/livingweb) AND the media list (#media)
+    if (!sessionLoading && mediaLoaded) hashServedRef.current = true;
+  }, [hideIdentity, showLivingWeb, sessionLoading, mediaVideos.length, mediaLoaded]);
 
   /* the Living Web keeps its revealed (twin) state once the user opens it */
   useEffect(() => {
@@ -1089,6 +1112,77 @@ export default function Home() {
       .catch(() => {}); // hidden on failure — same as the default
   }, []);
 
+  // populate the Media carousel (state lives with the other section state above)
+  useEffect(() => {
+    portalApi("/media-videos")
+      .then((d) => setMediaVideos(Array.isArray(d.videos) ? d.videos : []))
+      .catch(() => {}) // hidden on failure — same as empty
+      .finally(() => setMediaLoaded(true));
+  }, []);
+
+  /* Media carousel: scroller ref + desktop arrow paging (phones swipe the
+     scroller natively). The edge state fades the arrow that has nothing left
+     to show; mediaIdx drives the indicator dots. */
+  const mediaScrollRef = useRef(null);
+  const [mediaEdges, setMediaEdges] = useState({ start: true, end: true });
+  const [mediaIdx, setMediaIdx] = useState(0);
+  const mediaHoverRef = useRef(false); // pointer over the carousel — autoscroll waits
+  const mediaInteractRef = useRef(0); // last manual touch/click — autoscroll backs off
+  const MEDIA_CARD_GAP = 22; // must match the scroller's flex gap below
+  const mediaStep = () => {
+    const el = mediaScrollRef.current;
+    const card = el && el.querySelector("[data-media-card]");
+    return card ? card.getBoundingClientRect().width + MEDIA_CARD_GAP : (el ? el.clientWidth * 0.6 : 0);
+  };
+  const onMediaScroll = () => {
+    const el = mediaScrollRef.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    setMediaEdges({ start: el.scrollLeft < 8, end: el.scrollLeft >= max - 8 });
+    // resting at the far end shows the tail cards that never get their own
+    // scroll offset — pin the last dot there instead of the nearest-step one
+    const idx = el.scrollLeft >= max - 8 ? mediaVideos.length - 1 : Math.round(el.scrollLeft / (mediaStep() || 1));
+    setMediaIdx(Math.max(0, Math.min(mediaVideos.length - 1, idx)));
+  };
+  useEffect(() => {
+    onMediaScroll(); // arrows + dots reflect overflow once the videos land
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaVideos.length]);
+  const mediaScrollBy = (dir) => {
+    const el = mediaScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * mediaStep(), behavior: "smooth" });
+  };
+  const mediaGoTo = (i) => {
+    const el = mediaScrollRef.current;
+    if (!el) return;
+    el.scrollTo({ left: i * mediaStep(), behavior: "smooth" });
+  };
+  const openMediaVideo = (v) => {
+    sfxRef.current && sfxRef.current.play("click");
+    setTrailerVideo(v.youtubeId);
+    setTrailerOpen(true);
+  };
+  /* gentle autoscroll: one card every few seconds, but only while the Media
+     section is the active page. It waits out hovers, recent manual scrolls
+     (arrows, dots, swipes), the open trailer, hidden tabs and reduced-motion
+     users; from the far end it loops back to the first card. */
+  useEffect(() => {
+    if (mediaVideos.length < 2 || activeSection !== "media" || trailerOpen) return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setInterval(() => {
+      if (document.hidden || mediaHoverRef.current) return;
+      if (performance.now() - mediaInteractRef.current < 6000) return;
+      const el = mediaScrollRef.current;
+      if (!el) return;
+      const max = el.scrollWidth - el.clientWidth;
+      if (el.scrollLeft >= max - 8) el.scrollTo({ left: 0, behavior: "smooth" });
+      else mediaScrollBy(1);
+    }, 4000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaVideos.length, activeSection, trailerOpen]);
+
   // label / action / section (section drives the active highlight) / href
   // (href items are external links — they bypass doNav and open in a new tab)
   const navDefs = [
@@ -1142,12 +1236,14 @@ export default function Home() {
   // who already have their identity lose "Discover Your Spider Identity", and
   // members who already revealed their twins lose "Find Your Spider Twins".
   // Webshots joins the Explore popup only once the admin "Show on website"
-  // toggle is ON — same soft-launch gate as the navbar link.
+  // toggle is ON — same soft-launch gate as the navbar link. It slots in
+  // BEFORE the closing Book Tickets card so conditional cards never trail it.
   const walkSource = [
-    ...WALK_ITEMS,
+    ...WALK_ITEMS.slice(0, -1),
     ...(webshotsNav
       ? [{ icon: "/assets/icon-fan-art.png", line1: "Browse the", line2: "Webshots Wall", desc: "Photos and videos from Spidey HQ and fans across the Verse.", action: "webshots" }]
       : []),
+    ...WALK_ITEMS.slice(-1),
   ];
   const walkItems = walkSource.filter((w) => !(hideIdentity && w.action === "identity") && !(user && twinMode && w.action === "twins")).map((w, i) => ({
     ...w,
@@ -1174,7 +1270,7 @@ export default function Home() {
   const spideyWidth = isDesktop ? "clamp(576px, 59.4vw, 1035px)" : "130vw";
   const spideyTop = isDesktop ? "calc(clamp(48px, 8vh, 96px) - 35px)" : "clamp(48px, 8vh, 96px)";
   const logoWidth = isDesktop ? "min(720px, 42vw)" : "82vw";
-  const railSections = RAIL_SECTIONS.filter((sec) => !(hideIdentity && sec.key === "identity") && !(!showLivingWeb && sec.key === "livingweb"));
+  const railSections = RAIL_SECTIONS.filter((sec) => !(hideIdentity && sec.key === "identity") && !(!showLivingWeb && sec.key === "livingweb") && !(!mediaVideos.length && sec.key === "media"));
   const railIdx = Math.max(
     0,
     railSections.findIndex((sec) => sec.key === activeSection),
@@ -1677,6 +1773,138 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ================= MEDIA — admin-curated YouTube carousel (panel → Media).
+          "Media" is a working title. Renders only once the CMS has visible
+          videos, so an empty list never shows a bare section. ================= */}
+      {mediaVideos.length > 0 && (
+        <section
+          data-page="media"
+          data-screen-label="Media"
+          style={s(
+            "position: relative; z-index: 22; height: 100vh; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; background-color: #060410; background-image: radial-gradient(110% 90% at 50% 8%, rgba(31,76,214,0.16) 0%, rgba(6,4,16,0.85) 52%, #060410 100%); display: flex; align-items: center;",
+          )}
+        >
+          <img src="/assets/web.png" alt="" style={s("position: absolute; top: -12%; right: -10%; width: min(620px, 44vw); opacity: 0.05; mix-blend-mode: screen; pointer-events: none; transform: scaleX(-1);")} />
+          <div style={s("position: absolute; bottom: -12%; left: 6%; width: 36vw; height: 36vw; border-radius: 50%; background: radial-gradient(circle, rgba(214,2,26,0.16) 0%, rgba(214,2,26,0.04) 45%, transparent 70%); filter: blur(12px); pointer-events: none;")}></div>
+
+          <div data-page-content data-reveal className="bnd-reveal" style={s("position: relative; z-index: 4; width: 100%; max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: clamp(78px, 12vh, 118px) 0 clamp(40px, 7vh, 70px);")}>
+            <div style={s("padding: 0 clamp(24px, 5vw, 80px);")}>
+              <div className="bnd-line" style={s("animation-delay: 70ms; display: inline-flex; align-items: center; gap: 10px; margin-bottom: 16px;")}>
+                <span style={s("width: 42px; height: 2px; background: linear-gradient(90deg, transparent, #ff2f40);")}></span>
+                <span style={s("font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: #ff5a6a;")}>Media</span>
+              </div>
+              <h2 className="bnd-head" style={s("animation-delay: 170ms; margin: 0; font-family: 'Oswald', sans-serif; font-size: clamp(30px, 4.6vw, 58px); line-height: 1; font-weight: 500; text-transform: uppercase; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,0.6);")}>
+                The Spider World, <span style={{ color: "#ff2f40" }}>in motion.</span>
+              </h2>
+              <p className="bnd-line" style={s("animation-delay: 310ms; margin: 16px 0 0; max-width: 560px; font-size: clamp(14px, 1.5vw, 17px); line-height: 1.6; color: rgba(226,226,240,0.72); text-wrap: pretty;")}>
+                The latest from the world of Brand New Day — press play and step inside.
+              </p>
+            </div>
+
+            {/* carousel — native horizontal scroll with snap; arrows page it on
+                desktop (globals.css hides them under 760px, phones just swipe);
+                autoscroll drifts it while the section is on screen.
+                align-items flex-start: caption-less cards must not sink to the
+                button's default vertical centering — every thumbnail tops out
+                on the same line. */}
+            <div
+              className="bnd-line"
+              style={s("animation-delay: 430ms; position: relative; margin-top: clamp(24px, 4vh, 40px);")}
+              onMouseEnter={() => (mediaHoverRef.current = true)}
+              onMouseLeave={() => (mediaHoverRef.current = false)}
+            >
+              <div
+                ref={mediaScrollRef}
+                onScroll={onMediaScroll}
+                onPointerDown={() => (mediaInteractRef.current = performance.now())}
+                data-hscroll="true"
+                className="bnd-media-scroller"
+                style={s(`display: flex; align-items: flex-start; gap: ${MEDIA_CARD_GAP}px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 clamp(24px, 5vw, 80px); padding: 6px clamp(24px, 5vw, 80px) 16px; scrollbar-width: none;`)}
+              >
+                {mediaVideos.map((v) => (
+                  <button
+                    key={v.id}
+                    data-media-card
+                    onClick={() => openMediaVideo(v)}
+                    onMouseEnter={onWalkHover}
+                    data-web-hover="true"
+                    className="bnd-media-card"
+                    style={s("flex: 0 0 auto; width: clamp(250px, 64vw, 380px); scroll-snap-align: start; border: 0; padding: 0; background: transparent; cursor: pointer; text-align: left; font-family: inherit;")}
+                  >
+                    <span className="bnd-media-frame" style={s("display: block; padding: 2px; background: linear-gradient(150deg, rgba(255,40,60,0.55), rgba(31,76,214,0.4)); clip-path: polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px);")}>
+                      <span style={s("position: relative; display: block; aspect-ratio: 16/9; overflow: hidden; clip-path: polygon(17px 0, 100% 0, 100% calc(100% - 17px), calc(100% - 17px) 100%, 0 100%, 0 17px); background: #0a0713;")}>
+                        {/* hqdefault always exists; the 16:9 cover crop trims its letterbox bars */}
+                        <img src={`https://i.ytimg.com/vi/${v.youtubeId}/hqdefault.jpg`} alt="" loading="lazy" style={s("position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;")} />
+                        <span style={s("position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(120,20,30,0.16) 0%, rgba(6,4,12,0.5) 100%); pointer-events: none;")}></span>
+                        <span style={s("position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: clamp(48px, 5vw, 60px); height: clamp(48px, 5vw, 60px); border-radius: 50%; border: 2px solid rgba(255,60,74,0.9); background: rgba(20,6,10,0.45); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 22px rgba(255,60,74,0.45), inset 0 0 14px rgba(255,60,74,0.2); pointer-events: none;")}>
+                          <svg width="34%" height="34%" viewBox="0 0 24 24" fill="#fff" style={s("filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));")}>
+                            <path d="M5 3l16 9-16 9z" />
+                          </svg>
+                        </span>
+                      </span>
+                    </span>
+                    {/* caption is optional — untitled cards are just the thumbnail */}
+                    {v.title && <span style={s("display: block; margin-top: 12px; font-family: 'Oswald', sans-serif; font-size: 14px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.88); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;")}>{v.title}</span>}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => {
+                  mediaInteractRef.current = performance.now();
+                  mediaScrollBy(-1);
+                }}
+                disabled={mediaEdges.start}
+                aria-label="Previous videos"
+                data-web-hover="true"
+                className="bnd-media-arrow"
+                style={s(`position: absolute; left: clamp(8px, 1.4vw, 22px); top: 50%; transform: translateY(-70%); z-index: 5; width: 46px; height: 46px; border-radius: 50%; border: 1px solid rgba(255,60,74,0.55); background: rgba(10,6,14,0.72); backdrop-filter: blur(6px); color: #fff; font-size: 22px; line-height: 1; cursor: ${mediaEdges.start ? "default" : "pointer"}; display: flex; align-items: center; justify-content: center; opacity: ${mediaEdges.start ? "0.25" : "1"}; transition: opacity .25s ease, background .2s ease;`)}
+              >
+                ‹
+              </button>
+              <button
+                onClick={() => {
+                  mediaInteractRef.current = performance.now();
+                  mediaScrollBy(1);
+                }}
+                disabled={mediaEdges.end}
+                aria-label="Next videos"
+                data-web-hover="true"
+                className="bnd-media-arrow"
+                style={s(`position: absolute; right: clamp(8px, 1.4vw, 22px); top: 50%; transform: translateY(-70%); z-index: 5; width: 46px; height: 46px; border-radius: 50%; border: 1px solid rgba(255,60,74,0.55); background: rgba(10,6,14,0.72); backdrop-filter: blur(6px); color: #fff; font-size: 22px; line-height: 1; cursor: ${mediaEdges.end ? "default" : "pointer"}; display: flex; align-items: center; justify-content: center; opacity: ${mediaEdges.end ? "0.25" : "1"}; transition: opacity .25s ease, background .2s ease;`)}
+              >
+                ›
+              </button>
+
+              {/* position indicator — one dot per video, click to jump */}
+              {mediaVideos.length > 1 && (
+                <div style={s("display: flex; justify-content: center; gap: 4px; margin-top: clamp(6px, 1.2vh, 12px); flex-wrap: wrap; padding: 0 clamp(24px, 5vw, 80px);")}>
+                  {mediaVideos.map((v, i) => (
+                    <button
+                      key={v.id}
+                      onClick={() => {
+                        mediaInteractRef.current = performance.now();
+                        mediaGoTo(i);
+                      }}
+                      aria-label={`Go to video ${i + 1} of ${mediaVideos.length}`}
+                      aria-current={i === mediaIdx ? "true" : undefined}
+                      data-web-hover="true"
+                      style={s("width: 18px; height: 18px; border: 0; padding: 0; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center;")}
+                    >
+                      <span
+                        style={s(
+                          `width: 7px; height: 7px; border-radius: 50%; background: ${i === mediaIdx ? "#ff2f40" : "rgba(255,255,255,0.28)"}; box-shadow: ${i === mediaIdx ? "0 0 9px rgba(255,47,64,0.85)" : "0 0 0 1px rgba(255,255,255,0.08)"}; transform: ${i === mediaIdx ? "scale(1.3)" : "scale(1)"}; transition: background .3s ease, box-shadow .3s ease, transform .3s ease;`,
+                        )}
+                      ></span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ================= FOOTER ================= */}
       <footer data-page="footer" data-screen-label="Footer" style={s("position: relative; z-index: 22; scroll-snap-align: start; scroll-snap-stop: always; min-height: 100vh; display: flex; flex-direction: column; background: linear-gradient(180deg, #0b0510 0%, #07060c 100%); overflow: hidden;")}>
         <div style={s("position: absolute; top: 0; left: 20%; width: 46vw; height: 220px; background: radial-gradient(circle, rgba(214,2,26,0.14) 0%, transparent 70%); filter: blur(12px); pointer-events: none;")}></div>
@@ -1713,7 +1941,7 @@ export default function Home() {
           <button
             onClick={() => {
               sfxRef.current && sfxRef.current.play("click");
-              setTrailerVideo(MAIN_TRAILER_ID);
+              setTrailerVideo(NAV_TRAILER_ID); // same cut as the navbar link
               setTrailerOpen(true);
             }}
             onMouseEnter={onWalkHover}
@@ -1724,7 +1952,7 @@ export default function Home() {
             )}
           >
             <div style={s("position: relative; aspect-ratio: 16/9; overflow: hidden; clip-path: polygon(21px 0, 100% 0, 100% calc(100% - 21px), calc(100% - 21px) 100%, 0 100%, 0 21px); background: #0a0713;")}>
-              <img src="/assets/trailer-thumb-62bIsvRcPv0.jpg" alt="Spider-Man: Brand New Day — Official Trailer" style={s("position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;")} />
+              <img src="/assets/trailer-thumb-lE2QTE64r0w.jpg" alt="Spider-Man: Brand New Day — Official Trailer" style={s("position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;")} />
               <div style={s("position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(120,20,30,0.25) 0%, rgba(6,4,12,0.55) 100%); pointer-events: none;")}></div>
               <span
                 style={s(
@@ -1803,7 +2031,7 @@ export default function Home() {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    setTrailerVideo(MAIN_TRAILER_ID);
+                    setTrailerVideo(NAV_TRAILER_ID); // same cut as the navbar link
                     setTrailerOpen(true);
                   }}
                   data-web-hover="true"
