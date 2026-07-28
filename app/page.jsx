@@ -1033,6 +1033,8 @@ export default function Home() {
       router.push("/mj-wall"); // MJ Wall detail page
     else if (action === "tracker")
       goToSection("tracker"); // Spidey Tracker section
+    else if (action === "media")
+      goToSection("media"); // Media carousel section
     else if (action === "webshots")
       router.push("/webshots"); // Webshots media wall
     else router.push("/forum");
@@ -1235,13 +1237,17 @@ export default function Home() {
   // Every walkthrough card is a real CTA. Two hide with session state: members
   // who already have their identity lose "Discover Your Spider Identity", and
   // members who already revealed their twins lose "Find Your Spider Twins".
-  // Webshots joins the Explore popup only once the admin "Show on website"
-  // toggle is ON — same soft-launch gate as the navbar link. It slots in
+  // Webshots and Media join the Explore popup only while their admin "Show on
+  // website" toggles are ON (Media additionally needs a visible video) — the
+  // same soft-launch gates as the navbar link / landing section. They slot in
   // BEFORE the closing Book Tickets card so conditional cards never trail it.
   const walkSource = [
     ...WALK_ITEMS.slice(0, -1),
     ...(webshotsNav
       ? [{ icon: "/assets/icon-fan-art.png", line1: "Browse the", line2: "Webshots Wall", desc: "Photos and videos from Spidey HQ and fans across the Verse.", action: "webshots" }]
+      : []),
+    ...(mediaVideos.length
+      ? [{ icon: "/assets/icon-media.svg", line1: "Catch the", line2: "Latest Drops", desc: "Swing through the newest videos from the world of Brand New Day.", action: "media" }]
       : []),
     ...WALK_ITEMS.slice(-1),
   ];
