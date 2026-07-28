@@ -622,6 +622,14 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
   background: linear-gradient(140deg, rgba(150,180,255,0.6), rgba(255,60,80,0.8));
   box-shadow: 0 22px 46px rgba(0,0,0,0.5), 0 0 34px rgba(255,40,60,0.5);
 }
+/* red spotlight variant (Media card in WalkthroughModal): glows at rest, and
+   its hover swaps the blue half of the shared gradient for red. Declared after
+   .walk-card:hover so the equal-specificity hover override wins. */
+.walk-card-red { box-shadow: 0 0 26px rgba(255,34,51,0.35); }
+.walk-card-red:hover {
+  background: linear-gradient(140deg, rgba(255,130,142,0.9), rgba(255,40,60,0.9));
+  box-shadow: 0 22px 46px rgba(0,0,0,0.5), 0 0 46px rgba(255,40,60,0.7);
+}
 .twin-card:hover {
   transform: translateY(-6px);
   background: linear-gradient(150deg, rgba(150,180,255,0.55), rgba(255,60,80,0.75));
@@ -655,7 +663,7 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
 @media (max-width: 760px) {
   .walk-panel { max-height: 88vh; max-height: 88dvh; overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
   /* cards flex-wrap at a fixed basis (see WalkthroughModal): two equal-size
-     cards per row on tablets, leftovers center */
+     cards per row on tablets, a leftover card left-aligns */
   .walk-grid .walk-card { flex-basis: calc((100% - clamp(9px, 1.1vw, 14px)) / 2) !important; }
 }
 @media (max-width: 540px) {

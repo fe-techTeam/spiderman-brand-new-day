@@ -32,11 +32,18 @@ export default function WalkthroughModal({ walk, items, onClose, onJoin, onHover
               {/* Flex, not a fixed 3-col grid: cards hide/appear with session +
                   admin state, so the count varies. Every card keeps the SAME
                   dimensions (fixed basis, no grow) — an incomplete last row
-                  simply centers instead of leaving holes or odd-sized cards.
-                  Column count per breakpoint comes from the flex-basis
-                  overrides in globals.css. */}
-              <div className="walk-grid" style={s("display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(9px, 1.1vw, 14px);")}>
-                {items.map((w, i) => (
+                  left-aligns like a reading flow, keeping full rows on a clean
+                  grid (a centered leftover row made the red Media card look
+                  off-center). Column count per breakpoint comes from the
+                  flex-basis overrides in globals.css. */}
+              <div className="walk-grid" style={s("display: flex; flex-wrap: wrap; justify-content: flex-start; gap: clamp(9px, 1.1vw, 14px);")}>
+                {items.map((w, i) => {
+                  // Red "spotlight" variant (the Media card): same geometry as
+                  // its siblings, but the blue tones swap to red so it reads as
+                  // the grid's focal point. Resting glow lives in globals.css
+                  // (.walk-card-red) so hover states stay in one place.
+                  const red = w.variant === "red";
+                  return (
                   <div
                     key={i}
                     data-web-hover="true"
@@ -45,25 +52,26 @@ export default function WalkthroughModal({ walk, items, onClose, onJoin, onHover
                     role={w.onClick ? "button" : undefined}
                     tabIndex={w.onClick ? 0 : undefined}
                     onKeyDown={w.onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); w.onClick(); } } : undefined}
-                    className="bnd-card walk-card"
-                    style={s(`position: relative; flex: 0 1 calc((100% - 2 * clamp(9px, 1.1vw, 14px)) / 3); box-sizing: border-box; padding: 1px; background: linear-gradient(140deg, rgba(120,150,220,0.3), rgba(255,40,60,0.28)); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); animation: bnd-walk-item 820ms cubic-bezier(.16,.84,.3,1) both; animation-delay: ${w.delay}; transition: transform 420ms cubic-bezier(.16,.84,.3,1), box-shadow 420ms ease, background 420ms ease; transform-style: preserve-3d; cursor: ${w.onClick ? "pointer" : "default"};`)}
+                    className={`bnd-card walk-card${red ? " walk-card-red" : ""}`}
+                    style={s(`position: relative; flex: 0 1 calc((100% - 2 * clamp(9px, 1.1vw, 14px)) / 3); box-sizing: border-box; padding: 1px; background: ${red ? "linear-gradient(140deg, rgba(255,96,110,0.85), rgba(255,34,51,0.55) 45%, rgba(139,0,13,0.8))" : "linear-gradient(140deg, rgba(120,150,220,0.3), rgba(255,40,60,0.28))"}; clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); animation: bnd-walk-item 820ms cubic-bezier(.16,.84,.3,1) both; animation-delay: ${w.delay}; transition: transform 420ms cubic-bezier(.16,.84,.3,1), box-shadow 420ms ease, background 420ms ease; transform-style: preserve-3d; cursor: ${w.onClick ? "pointer" : "default"};`)}
                   >
                     <span className="bnd-card-sheen" style={s("position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);")}>
                       <span style={s("position: absolute; top: -40%; left: -60%; width: 40%; height: 180%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.22), transparent); transform: skewX(-18deg);")}></span>
                     </span>
-                    <div className="bnd-card-body" style={s("position: relative; height: 100%; box-sizing: border-box; padding: clamp(11px, 1.5vh, 15px) clamp(12px, 1.3vw, 16px); background: linear-gradient(160deg, rgba(18,26,48,0.95), rgba(9,14,28,0.95)); clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px); transition: background 420ms ease;")}>
+                    <div className="bnd-card-body" style={s(`position: relative; height: 100%; box-sizing: border-box; padding: clamp(11px, 1.5vh, 15px) clamp(12px, 1.3vw, 16px); background: ${red ? "linear-gradient(160deg, rgba(74,12,21,0.96), rgba(34,6,11,0.96))" : "linear-gradient(160deg, rgba(18,26,48,0.95), rgba(9,14,28,0.95))"}; clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px); transition: background 420ms ease;`)}>
                       <div style={s("display: flex; align-items: center; gap: 9px; margin-bottom: 9px;")}>
-                        <svg width="10" height="12" viewBox="0 0 10 12" fill="#ff2233" style={{ flexShrink: 0, filter: "drop-shadow(0 0 5px rgba(255,40,60,0.6))" }}><path d="M0 0l10 6-10 6z" /></svg>
+                        <svg width="10" height="12" viewBox="0 0 10 12" fill={red ? "#fff" : "#ff2233"} style={{ flexShrink: 0, filter: red ? "drop-shadow(0 0 5px rgba(255,255,255,0.5))" : "drop-shadow(0 0 5px rgba(255,40,60,0.6))" }}><path d="M0 0l10 6-10 6z" /></svg>
                         <img src={w.icon} alt="" className="bnd-card-emoji" style={s("width: clamp(26px, 2.9vw, 34px); height: clamp(26px, 2.9vw, 34px); object-fit: contain; display: block; flex-shrink: 0; transition: transform 420ms cubic-bezier(.2,1.4,.4,1);")} />
                         <div style={s("min-width: 0;")}>
                           <div style={s("font-family: 'Oswald', 'Acumin Pro', sans-serif; font-size: clamp(13px, 1.4vw, 15px); font-weight: 500; letter-spacing: 0.03em; text-transform: uppercase; color: #fff; line-height: 1.08;")}>{w.line1}<br />{w.line2}</div>
-                          <div style={s("margin-top: 5px; width: 62px; height: 2px; background: linear-gradient(90deg, #ff2233 0%, #ff2233 42%, rgba(120,150,220,0.35) 62%, rgba(120,150,220,0.12) 100%);")}></div>
+                          <div style={s(`margin-top: 5px; width: 62px; height: 2px; background: ${red ? "linear-gradient(90deg, #fff 0%, rgba(255,255,255,0.85) 42%, rgba(255,130,142,0.5) 62%, rgba(255,130,142,0.15) 100%)" : "linear-gradient(90deg, #ff2233 0%, #ff2233 42%, rgba(120,150,220,0.35) 62%, rgba(120,150,220,0.12) 100%)"};`)}></div>
                         </div>
                       </div>
-                      <div style={s("font-size: clamp(10.5px, 1.15vw, 12px); line-height: 1.4; color: rgba(190,205,240,0.7);")}>{w.desc}</div>
+                      <div style={s(`font-size: clamp(10.5px, 1.15vw, 12px); line-height: 1.4; color: ${red ? "rgba(255,216,222,0.8)" : "rgba(190,205,240,0.7)"};`)}>{w.desc}</div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* bottom CTA */}
