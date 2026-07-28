@@ -440,13 +440,20 @@ html.bnd-kb-lock, html.bnd-kb-lock body { overflow: hidden !important; }
      .bnd-veil-ready/.bnd-sec-on) lived here — it existed to hide the dvh snap
      slivers and IS the black band users saw; stable lvh heights removed the
      sliver, so the veil is gone. */
-  [data-page]:not([data-page="footer"]):not([data-page="mjwall"]):not([data-page="tracker"]) {
+  [data-page]:not([data-page="footer"]):not([data-page="mjwall"]):not([data-page="tracker"]):not([data-page="media"]) {
     height: 100vh !important;
     height: 100lvh !important;
   }
   /* tracker stacks logo→copy→radar→CTA on phones — let it grow past one screen
      on small displays instead of clipping the CTA under overflow:hidden */
   section[data-page="tracker"] {
+    height: auto !important;
+    min-height: 100vh !important;
+    min-height: 100lvh !important;
+  }
+  /* Media stacks heading → carousel — same grow-past-one-screen treatment so
+     card titles never clip under overflow:hidden on short phones */
+  section[data-page="media"] {
     height: auto !important;
     min-height: 100vh !important;
     min-height: 100lvh !important;
@@ -620,6 +627,16 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
   background: linear-gradient(150deg, rgba(150,180,255,0.55), rgba(255,60,80,0.75));
   box-shadow: 0 20px 44px rgba(0,0,0,0.5), 0 0 30px rgba(255,40,60,0.4);
 }
+/* ===== Media carousel (landing) ===== */
+.bnd-media-scroller { -webkit-overflow-scrolling: touch; }
+.bnd-media-scroller::-webkit-scrollbar { display: none; }
+.bnd-media-frame { transition: transform 340ms cubic-bezier(.16,.84,.3,1), box-shadow 340ms ease; }
+.bnd-media-card:hover .bnd-media-frame { transform: translateY(-4px); box-shadow: 0 22px 48px rgba(0,0,0,0.5), 0 0 30px rgba(255,40,60,0.3); }
+.bnd-media-arrow:disabled { pointer-events: none; }
+@media (max-width: 760px) {
+  .bnd-media-arrow { display: none !important; }
+}
+
 /* footer (promoted from the mockup's style-hover) */
 .trailer-card:hover { transform: translateY(-4px); box-shadow: 0 26px 60px rgba(0,0,0,0.55), 0 0 36px rgba(255,40,60,0.32); }
 .footer-social:hover { background: rgba(255,40,60,0.16); border-color: rgba(255,60,74,0.5); color: #fff; }
@@ -637,10 +654,14 @@ html.bnd-fx-cursor:not(:has(.admin-root)) [role="button"]:hover, html.bnd-fx-cur
    a browser without dvh drops the whole min() and the panel loses its cap) */
 @media (max-width: 760px) {
   .walk-panel { max-height: 88vh; max-height: 88dvh; overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
-  .walk-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  /* cards flex-wrap at a fixed basis (see WalkthroughModal): two equal-size
+     cards per row on tablets, leftovers center */
+  .walk-grid .walk-card { flex-basis: calc((100% - clamp(9px, 1.1vw, 14px)) / 2) !important; }
 }
 @media (max-width: 540px) {
-  .walk-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+  /* single column on phones — every card takes its own full row */
+  .walk-grid { gap: 8px !important; }
+  .walk-grid .walk-card { flex-basis: 100% !important; }
   .walk-panel { max-height: 92vh; max-height: 92dvh; }
   .walk-head { padding: 24px 18px 0 !important; }
   .walk-head h2 { font-size: 19px !important; }

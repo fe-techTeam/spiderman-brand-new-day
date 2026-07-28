@@ -16,6 +16,7 @@ import {
   ScrollText,
   Share2,
   Radio,
+  Clapperboard,
   LogOut,
   Menu,
   X,
@@ -54,6 +55,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/admin/quiz", label: "Quiz & Mapping", icon: ListChecks, perm: "quiz.manage" },
       { href: "/admin/avatars", label: "Avatars", icon: Sparkles, perm: "avatars.manage" },
+      { href: "/admin/media", label: "Media", icon: Clapperboard, perm: "media.manage" },
       { href: "/admin/admins", label: "Admins", icon: ShieldCheck, perm: "admins.manage" },
     ],
   },
