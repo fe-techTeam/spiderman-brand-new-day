@@ -33,34 +33,16 @@ const nextConfig = {
   },
 
   async headers() {
-    // Auth surfaces must never render in an iframe (clickjacking). Later rules
-    // override earlier ones per header key, so these re-lock what the public
-    // rule opens up.
-    const noFraming = [
-      { key: "X-Frame-Options", value: "DENY" },
-      { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
-    ];
     return [
       {
-        // BACKEND.md §5.5 baseline security headers. Public pages may be
-        // embedded by Filmibeat (media partner) and ourselves; every other
-        // origin stays blocked. X-Frame-Options can't express a third-party
-        // allowlist, so frame-ancestors replaces it here — browsers without
-        // CSP2 support (pre-2016) are the only ones that fall through open.
+        // BACKEND.md §5.5 baseline security headers.
         source: "/:path*",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          {
-            key: "Content-Security-Policy",
-            value:
-              "frame-ancestors 'self' https://filmibeat.com https://*.filmibeat.com",
-          },
         ],
       },
-      { source: "/admin/:path*", headers: noFraming },
-      { source: "/signup", headers: noFraming },
-      { source: "/reset-password/:path*", headers: noFraming },
       {
         // public/ files get no Cache-Control from Next by default. Branding
         // assets change rarely and aren't content-hashed, so: browsers keep
