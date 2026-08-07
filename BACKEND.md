@@ -560,10 +560,8 @@ RESET   POST /api/auth/reset-password { token, password }
 - **Secrets:** only read server-side (`lib/server/*`); nothing secret carries `NEXT_PUBLIC_`.
 - **Admin panel:** `noindex`, no links from the public site, generic login errors, audit log on
   every mutation.
-- **Headers:** `X-Content-Type-Options: nosniff`, `Referrer-Policy`, and CSP `frame-ancestors`
-  via `next.config.mjs` headers. Framing: public pages allow `'self'` + `*.filmibeat.com`
-  (media-partner embed, Aug 2026); `/admin`, `/signup`, `/reset-password` stay `DENY` /
-  `frame-ancestors 'none'`.
+- **Headers:** `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy` via
+  root layout/`next.config.mjs` headers.
 
 ---
 
