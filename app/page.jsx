@@ -36,7 +36,7 @@ const WALK_ITEMS = [
   // always kept last (Webshots splices in above it, Media into the grid's
   // center) so the grid closes on the ticketing CTA — every card renders at
   // the same size, an incomplete last row left-aligns (see WalkthroughModal)
-  { icon: "/assets/icon-tickets.svg", line1: "Book Your", line2: "Tickets", desc: "Grab your seats for the Brand New Day — in cinemas July 30.", action: "tickets" },
+  { icon: "/assets/icon-tickets.svg", line1: "Book Your", line2: "Tickets", desc: "Grab your seats for the Brand New Day — in cinemas now.", action: "tickets" },
 ];
 
 const projX = (lon) => (((lon + 180) / 360) * 100).toFixed(1) + "%";
@@ -1938,7 +1938,7 @@ export default function Home() {
               <span style={{ color: "#ff2f40" }}>starts here.</span>
             </h2>
             <p className="bnd-line" style={s("animation-delay: 310ms; margin: 0 0 clamp(24px, 4vh, 38px); font-size: clamp(14px, 1.5vw, 17px); line-height: 1.6; color: rgba(226,226,240,0.72); max-width: 460px;")}>
-              Watch the official trailer and step into the Spider World. In cinemas July 30.
+              Watch the official trailer and step into the Spider World. In cinemas now.
             </p>
             <a href={TICKETS_URL} target="_blank" rel="noopener noreferrer" onMouseEnter={onWalkHover} data-web-hover="true" className="bnd-line bnd-cta" style={s("animation-delay: 430ms; display: inline-block; text-decoration: none; border: 0; padding: 0; background: transparent; cursor: pointer;")}>
               <span style={s("display: block; padding: 3px; background: linear-gradient(180deg, #ff2233, #8b000d); clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);")}>
@@ -2091,7 +2091,7 @@ export default function Home() {
 
           {/* bottom bar */}
           <div style={s("max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: 18px clamp(24px, 5vw, 80px) clamp(22px, 3vh, 34px); border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;")}>
-            <div style={s("font-size: 11.5px; letter-spacing: 0.05em; color: rgba(255,255,255,0.4);")}>© 2026 Columbia Pictures Industries, Inc. All rights reserved. &nbsp;·&nbsp; This film is not yet rated.</div>
+            <div style={s("font-size: 11.5px; letter-spacing: 0.05em; color: rgba(255,255,255,0.4);")}>© 2026 Columbia Pictures Industries, Inc. All rights reserved.</div>
             <div style={s("display: flex; gap: 24px; flex-wrap: wrap;")}>
               <Link href="/privacy-policy" data-web-hover="true" className="footer-link" style={s("text-decoration: none; font-size: 11.5px; letter-spacing: 0.06em; color: rgba(255,255,255,0.5); transition: color .2s ease;")}>
                 Privacy Policy
